@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { products, watches } from "@/db/schema";
+import { products, users, watches } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Icon } from "@/components/Icon";
@@ -10,10 +10,11 @@ import { WatchList } from "@/components/WatchList";
 export const metadata = { title: "Tài khoản", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
-export default async function AccountPage({ searchParams }: { searchParams: Promise<{ added?: string }> }) {
+export default async function AccountPage({ searchParams }: { searchParams: Promise<{ added?: string; profile?: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  const { added } = await searchParams;
+  const { added, profile } = await searchParams;
+  const [me] = await db.select({ name: users.name }).from(users).where(eq(users.id, user.id));
   const rows = await db
     .select({
       id: watches.id,
@@ -46,6 +47,14 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         </p>
       )}
       <WatchList initial={rows} />
+      <form className="panel row" method="post" action="/api/profile" style={{ gap: 12, marginTop: 24, alignItems: "flex-end" }}>
+        <div className="field" style={{ flex: 1, minWidth: 200 }}>
+          <label htmlFor="dn">Tên hiển thị trong cộng đồng</label>
+          <input id="dn" className="input" name="name" maxLength={30} defaultValue={me?.name ?? ""} placeholder="VD: Thợ săn Sài Gòn" />
+        </div>
+        <button className="btn btn-ghost" type="submit">Lưu tên</button>
+        {profile && <span className="form-msg save" role="status"><Icon name="check" size={16} /> Đã lưu</span>}
+      </form>
     </>
   );
 }

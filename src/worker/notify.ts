@@ -4,6 +4,7 @@ import { unsubscribeUrl } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { vnd } from "@/lib/format";
 import { button, escapeHtml, layout, sendMail, siteUrl } from "@/lib/mail";
+import { sendPush } from "@/lib/push";
 
 const DAY = 86_400_000;
 
@@ -32,6 +33,13 @@ export async function notifyWatchers(now = new Date()): Promise<number> {
         <p style="font-size:13px"><a href="${unsubscribeUrl(watch.id)}" style="color:#5b6170">Huỷ theo dõi sản phẩm này</a> ·
         <a href="${site}/account" style="color:#5b6170">Quản lý theo dõi</a></p>`),
     );
+    await sendPush(watch.userId, {
+      title: `Giảm giá: còn ${vnd(product.price)}`,
+      body: `${product.name} đã chạm mức bạn muốn (${vnd(watch.targetPrice)}).`,
+      url: `/product/${product.id}`,
+      image: product.imageUrl?.startsWith("http") ? product.imageUrl : undefined,
+      tag: `watch-${watch.id}`,
+    });
     await db.update(watches).set({ lastNotifiedAt: now }).where(eq(watches.id, watch.id));
   }
   return due.length;

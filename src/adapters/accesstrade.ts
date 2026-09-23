@@ -19,6 +19,7 @@ interface ATCoupon {
   discount_value?: number | string;
   discount_percentage?: number | string;
   min_spend?: number | string;
+  max_value?: number | string;
   coupons?: { coupon_code?: string; coupon_desc?: string }[];
 }
 
@@ -46,6 +47,8 @@ export function mapATCoupon(c: ATCoupon): VoucherInput | null {
     description: c.content,
     discountText: pct ? `${pct}%` : val ? `${val.toLocaleString("vi-VN")}đ` : undefined,
     minSpend: c.min_spend ? Number(c.min_spend) : undefined,
+    ...(pct ? { discountType: "percent" as const, discountValue: pct } : val ? { discountType: "fixed" as const, discountValue: val } : {}),
+    maxDiscount: c.max_value ? Number(c.max_value) : undefined,
     startAt: toDate(c.start_time || c.start_date),
     endAt: toDate(c.end_time || c.end_date),
     affiliateUrl: c.aff_link || c.link || "#",

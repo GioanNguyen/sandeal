@@ -6,6 +6,8 @@ import { PLATFORMS, vnd } from "@/lib/format";
 import { button, escapeHtml, layout, sendMail, siteUrl } from "@/lib/mail";
 import { saleTomorrow, vnParts } from "@/lib/sales";
 import { sendTelegram } from "@/lib/telegram";
+import { sendPush } from "@/lib/push";
+import { pushSubscriptions } from "@/db/schema";
 
 const DAY = 86_400_000;
 const VN = 7 * 3_600_000;
@@ -70,7 +72,11 @@ export async function runDigests(now = new Date()): Promise<number> {
     .innerJoin(users, eq(users.id, subscriptions.userId))
     .where(
       and(
-        or(eq(subscriptions.emailDigest, true), and(eq(subscriptions.telegramDigest, true), sql`${subscriptions.telegramChatId} is not null`)),
+        or(
+          eq(subscriptions.emailDigest, true),
+          and(eq(subscriptions.telegramDigest, true), sql`${subscriptions.telegramChatId} is not null`),
+          and(eq(subscriptions.pushDigest, true), sql`exists (select 1 from ${pushSubscriptions} ps where ps.user_id = ${subscriptions.userId})`),
+        ),
         or(isNull(subscriptions.lastDigestAt), sql`${subscriptions.lastDigestAt} < ${today}`),
       ),
     );
@@ -80,6 +86,12 @@ export async function runDigests(now = new Date()): Promise<number> {
     if (deals.length) {
       if (s.emailDigest) await sendMail(email, `${deals.length} deal giảm thật hôm nay cho bạn – Săn Deal`, digestEmail(deals, s.userId));
       if (s.telegramDigest && s.telegramChatId) await sendTelegram(s.telegramChatId, digestTelegram(deals));
+      if (s.pushDigest) await sendPush(s.userId, {
+        title: `${deals.length} deal giảm thật hôm nay cho bạn`,
+        body: deals.slice(0, 2).map((d) => `${d.name} – ${vnd(d.price)}`).join(" · "),
+        url: "/account/so-thich",
+        tag: "digest",
+      });
       await db.insert(sentDeals).values(deals.map((d) => ({ userId: s.userId, productId: d.id, sentAt: now }))).onConflictDoNothing();
       sent++;
     }
@@ -122,6 +134,7 @@ ${list ? `<p>Mã nên lưu trước:</p><ul>${list}</ul>` : ""}
 <p>${button(`${site}/lich-sale`, "Xem lịch sale & mã giảm giá")}</p>
 <p style="font-size:13px"><a href="${site}/unsubscribe?t=sale&u=${s.userId}&s=${signedFor("sale", s.userId)}" style="color:#5b6170">Tắt nhắc sale</a></p>`),
     );
+    await sendPush(s.userId, { title: `${event.name} bắt đầu lúc 0h đêm nay`, body: event.note, url: "/lich-sale", tag: `sale-${event.key}` });
     if (s.telegramChatId) {
       await sendTelegram(s.telegramChatId, `⏰ <b>${escapeHtml(event.name)}</b> bắt đầu lúc 0h đêm nay!\n${escapeHtml(event.note)}\n${site}/lich-sale`);
     }

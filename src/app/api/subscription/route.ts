@@ -29,6 +29,7 @@ export async function POST(req: Request) {
       maxPrice: maxPrice > 0 ? maxPrice : null,
       emailDigest: f.get("emailDigest") === "on",
       telegramDigest: f.get("telegramDigest") === "on",
+      pushDigest: f.get("pushDigest") === "on",
       saleReminder: f.get("saleReminder") === "on",
       updatedAt: new Date(),
     })

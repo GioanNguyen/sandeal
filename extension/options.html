@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><title>Tuỳ chọn Săn Deal</title>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 520px; margin: 40px auto; padding: 0 16px; color: #1c1a19; }
+  label { display: block; font-weight: 600; margin-bottom: 6px; }
+  input { width: 100%; box-sizing: border-box; min-height: 44px; border: 1.5px solid #ddd; border-radius: 10px; padding: 0 12px; font: inherit; }
+  button { margin-top: 12px; min-height: 44px; padding: 0 20px; border: 0; border-radius: 999px; background: #d0390f; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+  p { color: #5b6170; }
+</style>
+</head>
+<body>
+<h1>Tuỳ chọn Săn Deal</h1>
+<label for="server">Địa chỉ máy chủ Săn Deal</label>
+<input id="server" placeholder="https://sandeal.vn">
+<p>Mặc định là địa chỉ web khi tiện ích được đóng gói. Chỉ đổi khi bạn tự chạy máy chủ ở địa chỉ khác.</p>
+<button id="save">Lưu</button>
+<p id="msg" role="status"></p>
+<script src="config.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

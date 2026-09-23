@@ -76,6 +76,15 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
         );
       })()}
 
+      {isLanding && (
+        <nav className="tools" aria-label="Công cụ săn deal">
+          <Link href="/kiem-tra-gia" className="tool"><Icon name="link" size={22} /><b>Kiểm tra giá thật</b><span>Dán link, biết ngay giảm thật hay ảo</span></Link>
+          <Link href="/tinh-gia" className="tool"><Icon name="calculator" size={22} /><b>Tính giá cuối cùng</b><span>Ghép mã giảm, freeship, hoàn xu tốt nhất</span></Link>
+          <Link href="/so-sanh" className="tool"><Icon name="scale" size={22} /><b>So sánh giữa các sàn</b><span>Cùng món, sàn nào rẻ hơn</span></Link>
+          <Link href="/tien-ich" className="tool"><Icon name="puzzle" size={22} /><b>Tiện ích Chrome</b><span>Xem lịch sử giá ngay trên Shopee</span></Link>
+        </nav>
+      )}
+
       {isLanding && vouchers.length > 0 && (
         <section className="section" aria-labelledby="v-head">
           <div className="section-head">

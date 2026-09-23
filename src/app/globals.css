@@ -374,7 +374,7 @@ main.container { flex: 1; width: 100%; }
 
 /* ===== Sở thích ===== */
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-top: 20px; }
-.tabs a { padding: 10px 14px; min-height: 44px; display: inline-flex; align-items: center; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs a { gap: 6px; padding: 10px 14px; min-height: 44px; display: inline-flex; align-items: center; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .tabs a[aria-current="page"] { color: var(--primary); border-color: var(--primary); }
 .prefs { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; align-items: start; }
 .prefs .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
@@ -407,3 +407,94 @@ main.container { flex: 1; width: 100%; }
 
 .table-wrap { width: 100%; overflow-x: auto; }
 @media (max-width: 640px) { .compare .col-shop { display: none; } .compare td, .compare th { padding-left: 4px; padding-right: 4px; } }
+
+/* ===== Công cụ trang chủ ===== */
+.tools { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0 8px; }
+.tool { display: flex; flex-direction: column; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; transition: border-color .2s, transform .2s; }
+.tool:hover { border-color: var(--primary); transform: translateY(-2px); }
+.tool svg { color: var(--primary); margin-bottom: 4px; }
+.tool span { font-size: 13px; color: var(--muted); }
+.footer-tools { display: flex !important; flex-wrap: wrap; gap: 8px 20px; padding-bottom: 0 !important; }
+.footer-tools a { color: var(--text); font-weight: 600; min-height: 32px; display: inline-flex; align-items: center; }
+.footer-tools a:hover { color: var(--primary); }
+.install-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1.5px solid var(--primary); background: var(--primary-soft); color: var(--primary); font-weight: 700; font-size: 13px; white-space: nowrap; }
+
+/* ===== Máy tính giá ===== */
+.calc { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; align-items: start; }
+.calc-items { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.calc-items li { display: flex; gap: 8px; align-items: flex-end; }
+.calc-items .grow { flex: 1; min-width: 0; }
+.calc-items .field .input { width: 100%; }
+.calc-items .field:nth-child(2) { width: 140px; }
+.calc-items .qty { width: 70px; }
+.calc-result { position: sticky; top: 84px; }
+.calc-result h3 { font-size: 14px; margin: 16px 0 8px; }
+.bill { margin: 8px 0 12px; }
+.bill div { display: flex; justify-content: space-between; padding: 6px 0; font-size: 15px; }
+.bill dt { color: var(--muted); } .bill dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 600; }
+.bill .save dd, .bill .save dt { color: var(--save); }
+.bill .total { border-top: 1px dashed var(--border); margin-top: 4px; padding-top: 10px; }
+.bill .total dt { color: var(--text); font-weight: 700; } .bill .total dd { color: var(--primary); font-size: 22px; font-weight: 800; }
+.plan-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.plan-list li { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 14px; }
+.upsell { background: var(--warn-soft); color: var(--text); border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 14px; font-size: 14px; }
+.upsell b:first-child { color: var(--warn); }
+.upsell p { margin: 4px 0 0; }
+.chip[role="radio"] { cursor: pointer; }
+.best-price { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--save-soft); color: var(--save); border-radius: var(--radius); padding: 10px 14px; margin: 0 0 12px; font-size: 15px; }
+.best-price b { font-size: 18px; }
+.best-price .muted { margin-left: auto; font-size: 13px; }
+
+/* ===== Cộng đồng ===== */
+.votebox { display: inline-flex; align-items: center; gap: 2px; border: 1.5px solid var(--border); border-radius: 999px; padding: 2px; background: var(--surface); }
+.vote { display: inline-flex; align-items: center; gap: 4px; min-height: 36px; min-width: 44px; padding: 0 10px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font-weight: 700; font-size: 13px; justify-content: center; }
+.vote:hover { background: var(--surface-2); }
+.vote.up.on { background: var(--primary-soft); color: var(--primary); }
+.vote.down.on { background: var(--surface-2); color: var(--text); }
+.vote-net { min-width: 28px; text-align: center; font-weight: 800; font-size: 14px; }
+.vote-net.pos { color: var(--primary); } .vote-net.neg { color: var(--muted); }
+.community { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
+.share-form { display: grid; gap: 10px; }
+.share-form .input { width: 100%; }
+.share-form .btn { justify-self: start; }
+.post-list { list-style: none; padding: 0; margin: 16px 0 0; display: flex; flex-direction: column; gap: 12px; }
+.post { display: flex; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+.post img { width: 88px; height: 88px; border-radius: 12px; object-fit: cover; flex: none; background: var(--surface-2); }
+.post-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.post-note { margin: 0; font-size: 14px; color: var(--muted); font-style: italic; }
+.post-side { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.hidden-post { opacity: .55; }
+.board { list-style: none; padding: 0; margin: 8px 0 12px; display: flex; flex-direction: column; gap: 4px; }
+.board li { display: grid; grid-template-columns: 28px 1fr auto; gap: 2px 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.board li .muted { grid-column: 2; font-size: 12px; }
+.board li b { grid-column: 3; grid-row: 1 / span 2; color: var(--primary); }
+.board-name { font-weight: 700; }
+.rank { grid-row: 1 / span 2; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--surface-2); font-weight: 800; font-size: 13px; }
+.rank.r1 { background: #ffb020; color: #1a1510; } .rank.r2 { background: #cbd5e1; color: #1c1a19; } .rank.r3 { background: #e7a36c; color: #1a1510; }
+.board.full { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 16px; margin-top: 16px; }
+
+/* ===== Tiện ích ===== */
+.ext-hero code, .btn code { font-size: 13px; }
+.sale-hero .btn-light[aria-disabled] { cursor: default; }
+
+@media (max-width: 900px) {
+  .tools { grid-template-columns: 1fr 1fr; }
+  .calc, .community { grid-template-columns: 1fr; }
+  .calc-result { position: static; }
+}
+@media (max-width: 640px) {
+  .calc-items li { flex-wrap: wrap; }
+  .calc-items .grow { flex-basis: 100%; }
+  .calc-items .field:nth-child(2) { flex: 1; width: auto; }
+  .post { flex-wrap: wrap; }
+  .post img { width: 64px; height: 64px; }
+  .post-side { flex-direction: row; width: 100%; justify-content: space-between; align-items: center; }
+  .install-btn { display: none; }
+  .tool { padding: 12px; }
+}
+
+.calc > *, .community > * { min-width: 0; }
+@media (max-width: 640px) {
+  .main-nav { gap: 0; }
+  .main-nav a { padding: 0 9px; min-width: 40px; justify-content: center; }
+}

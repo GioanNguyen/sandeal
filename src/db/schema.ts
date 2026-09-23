@@ -63,6 +63,10 @@ export const vouchers = pgTable(
     startAt: ts("start_at"),
     endAt: ts("end_at"),
     affiliateUrl: text("affiliate_url").notNull(),
+    /** Chuẩn hoá để máy tính giá dùng: percent | fixed | freeship | cashback */
+    discountType: text("discount_type"),
+    discountValue: doublePrecision("discount_value"),
+    maxDiscount: doublePrecision("max_discount"),
     updatedAt: ts("updated_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("vouchers_src_ext_uq").on(t.source, t.externalId), index("vouchers_end_idx").on(t.platform, t.endAt)],
@@ -71,6 +75,8 @@ export const vouchers = pgTable(
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
+  /** Tên hiển thị trong cộng đồng */
+  name: text("name"),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
 
@@ -167,6 +173,7 @@ export const subscriptions = pgTable("subscriptions", {
   maxPrice: doublePrecision("max_price"),
   emailDigest: boolean("email_digest").notNull().default(false),
   telegramDigest: boolean("telegram_digest").notNull().default(false),
+  pushDigest: boolean("push_digest").notNull().default(false),
   saleReminder: boolean("sale_reminder").notNull().default(false),
   telegramChatId: text("telegram_chat_id"),
   telegramLinkCode: text("telegram_link_code"),
@@ -184,6 +191,46 @@ export const sentDeals = pgTable(
     sentAt: ts("sent_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("sent_deals_uq").on(t.userId, t.productId)],
+);
+
+/** Bình chọn deal: +1 hot, -1 không đáng */
+export const votes = pgTable(
+  "votes",
+  {
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    productId: integer("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    value: integer("value").notNull(),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("votes_uq").on(t.userId, t.productId), index("votes_product_idx").on(t.productId)],
+);
+
+/** Deal do người dùng chia sẻ */
+export const posts = pgTable(
+  "posts",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    productId: integer("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    note: text("note").notNull().default(""),
+    hidden: boolean("hidden").notNull().default(false),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("posts_product_uq").on(t.productId), index("posts_created_idx").on(t.createdAt)],
+);
+
+/** Đăng ký thông báo đẩy (Web Push) của từng thiết bị */
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    endpoint: text("endpoint").primaryKey(),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    userAgent: text("user_agent"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("push_user_idx").on(t.userId)],
 );
 
 export type Product = typeof products.$inferSelect;

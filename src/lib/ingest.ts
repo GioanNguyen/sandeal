@@ -3,6 +3,7 @@ import type { ProductInput, VoucherInput } from "@/adapters/types";
 import { pricePoints, products, vouchers } from "@/db/schema";
 import { db } from "./db";
 import { computeDealScore } from "./score";
+import { parseDiscount } from "./voucher";
 
 /** Ghi sản phẩm/voucher vào DB (dùng chung cho worker và tính năng dán link) */
 const DAY = 86_400_000;
@@ -69,6 +70,15 @@ export async function upsertVoucher(v: VoucherInput) {
     startAt: v.startAt ?? null,
     endAt: v.endAt ?? null,
     affiliateUrl: v.affiliateUrl,
+    ...(() => {
+      // Nguồn không cho sẵn loại/giá trị giảm thì đọc từ mô tả
+      const parsed = parseDiscount(`${v.title} ${v.discountText ?? ""}`);
+      return {
+        discountType: v.discountType ?? parsed.type,
+        discountValue: v.discountValue ?? parsed.value,
+        maxDiscount: v.maxDiscount ?? parsed.max,
+      };
+    })(),
     updatedAt: new Date(),
   };
   await db

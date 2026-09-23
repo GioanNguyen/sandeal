@@ -9,6 +9,7 @@ import { botUsername } from "@/lib/telegram";
 import { matchingDeals } from "@/worker/digest";
 import { DealGrid } from "@/components/DealGrid";
 import { Icon } from "@/components/Icon";
+import { PushToggle } from "@/components/Pwa";
 
 export const metadata = { title: "Sở thích & thông báo", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -76,11 +77,21 @@ export default async function PreferencesPage({ searchParams }: { searchParams: 
             <input type="checkbox" name="telegramDigest" defaultChecked={s.telegramDigest} disabled={!s.telegramChatId} />
             <span><b>Telegram mỗi sáng</b><small>{s.telegramChatId ? "Đã kết nối" : "Kết nối Telegram ở bên cạnh trước"}</small></span>
           </label>
+          <label className="toggle"><input type="checkbox" name="pushDigest" defaultChecked={s.pushDigest} /> <span><b>Thông báo đẩy mỗi sáng</b><small>Cần bật thông báo trên thiết bị (bên cạnh)</small></span></label>
           <label className="toggle"><input type="checkbox" name="saleReminder" defaultChecked={s.saleReminder} /> <span><b>Nhắc trước ngày sale lớn</b><small>20h tối hôm trước, gần nhất: {sale.name}</small></span></label>
           <button className="btn btn-primary" type="submit"><Icon name="check" size={16} /> Lưu sở thích</button>
         </form>
 
         <div>
+          <section className="panel">
+            <h2><Icon name="bell" /> Thông báo đẩy</h2>
+            <p className="muted" style={{ fontSize: 14, marginTop: 0 }}>Nhận thông báo trên điện thoại/máy tính khi giá chạm mức bạn muốn, bản tin deal và nhắc sale. Không cần mở email.</p>
+            {process.env.VAPID_PUBLIC_KEY ? (
+              <PushToggle publicKey={process.env.VAPID_PUBLIC_KEY} />
+            ) : (
+              <p className="muted" style={{ fontSize: 14 }}>Quản trị viên cần chạy <code>npm run vapid</code> và điền khoá vào <code>.env</code> để bật tính năng này.</p>
+            )}
+          </section>
           <section className="panel">
             <h2><Icon name="send" /> Telegram</h2>
             {s.telegramChatId ? (

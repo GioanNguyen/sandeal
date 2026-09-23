@@ -155,3 +155,22 @@ export async function biggestGaps(limit = 20) {
     .sort((a, b) => b.savePct - a.savePct)
     .slice(0, limit);
 }
+
+/** Mã còn hạn đã chuẩn hoá, dùng cho máy tính giá */
+export async function calcVouchers(platform?: string) {
+  await ensureMigrated();
+  const rows = await db
+    .select()
+    .from(vouchers)
+    .where(and(activeVoucher(), isNotNull(vouchers.discountType), platform ? eq(vouchers.platform, platform) : undefined));
+  return rows.map((v) => ({
+    id: v.id,
+    title: v.title,
+    code: v.code,
+    platform: v.platform,
+    type: v.discountType as "percent" | "fixed" | "freeship" | "cashback",
+    value: v.discountValue,
+    max: v.maxDiscount,
+    minSpend: v.minSpend,
+  }));
+}

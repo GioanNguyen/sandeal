@@ -3,7 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { siteUrl } from "@/lib/mail";
-import { compareOffers, getProduct, similarDeals } from "@/lib/queries";
+import { calcVouchers, compareOffers, getProduct, similarDeals } from "@/lib/queries";
+import { bestPlan } from "@/lib/voucher";
+import { VoteBox } from "@/components/VoteBox";
+import { voteSummary } from "@/lib/community";
 import { CompareTable } from "@/components/CompareTable";
 import { timeWeightedMedian } from "@/lib/score";
 import { slugify } from "@/lib/slug";
@@ -36,7 +39,9 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const sp = (await searchParams) ?? {};
   const [p, user] = await Promise.all([getProduct(Number(id)), getCurrentUser()]);
   if (!p) notFound();
-  const [similar, offers] = await Promise.all([similarDeals(p, 5), compareOffers(p)]);
+  const [similar, offers, pv, votes] = await Promise.all([similarDeals(p, 5), compareOffers(p), calcVouchers(p.platform), voteSummary(p.id, user?.id)]);
+  const plan = bestPlan({ platform: p.platform, subtotal: p.price, shipping: 30_000 }, pv);
+  const afterCodes = p.price - plan.discount - plan.cashback;
 
   const prices = p.prices.map((x) => x.price);
   const low = prices.length ? Math.min(...prices) : p.price;
@@ -133,10 +138,19 @@ export default async function ProductPage({ params, searchParams }: Props) {
             <div className="kpi"><span>Giá thường ngày</span><b>{vnd(med)}</b></div>
           </div>
 
+          {afterCodes < p.price && (
+            <a className="best-price" href={`/tinh-gia?p=${p.id}`}>
+              <Icon name="ticket" size={18} />
+              <span>Giá sau mã tốt nhất <b>{vnd(afterCodes)}</b>{plan.shipSaved > 0 ? " + freeship" : ""}</span>
+              <span className="muted">Xem cách áp mã →</span>
+            </a>
+          )}
+
           <div className="buy-row">
             <a className="btn btn-primary" href={`/go/${p.id}`} target="_blank" rel="nofollow sponsored noopener">
               Mua trên {platformLabel} <Icon name="external" size={16} />
             </a>
+            <VoteBox productId={p.id} initial={votes} loggedIn={!!user} />
             <span className="updated"><Icon name="clock" size={14} /> Cập nhật {p.lastSeenAt.toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}</span>
           </div>
 
@@ -151,7 +165,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
             <h2><Icon name="trendingDown" /> Lịch sử giá 90 ngày</h2>
             <PriceChart points={p.prices} current={p.price} />
           </section>
-          <section className="panel">
+          <section className="panel" id="theo-doi">
             <h2><Icon name="bell" /> Báo tôi khi giá giảm</h2>
             <p className="muted" style={{ margin: 0 }}>Nhận email khi giá xuống bằng hoặc thấp hơn mức bạn đặt. Tối đa 1 email mỗi ngày.</p>
             <WatchForm productId={p.id} suggested={Math.round((low * 0.98) / 1000) * 1000} userEmail={user?.email} initial={{ status: sp.watch, msg: sp.msg }} />

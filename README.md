@@ -39,6 +39,10 @@ Kiểm thử: `npm test` (chạy trên Postgres trong RAM) · `npm run typecheck
 | Lịch sale `/lich-sale` | Ngày đôi, 15, 25 hằng tháng, Black Friday; đếm ngược, khung giờ vàng, mã theo đợt; nhắc 20h tối hôm trước |
 | So sánh giá `/so-sanh` | Ghép sản phẩm giống nhau giữa các sàn theo tên; bảng so sánh trên trang chi tiết |
 | Săn deal theo sở thích `/account/so-thich` | Từ khoá, danh mục, sàn, mức giảm; bản tin mỗi sáng qua email/Telegram, không gửi trùng |
+| Tiện ích Chrome `/tien-ich` | Bảng giá nổi trên trang sản phẩm Shopee/Lazada/TikTok: kết luận, biểu đồ, giá sau mã, sàn rẻ hơn. Mã nguồn ở `extension/`, đóng gói bằng `npm run ext:build` (tự chạy khi `npm run build`) |
+| Máy tính giá cuối cùng `/tinh-gia` | Nhập giỏ hàng, chọn tổ hợp 1 mã giảm/hoàn xu + 1 freeship tốt nhất, gợi ý mua thêm để dùng mã lớn hơn |
+| Cộng đồng `/cong-dong` | Chia sẻ deal, bình chọn hot/không, bảng xếp hạng thợ săn 30 ngày, admin ẩn bài |
+| PWA & thông báo đẩy | Cài web lên màn hình chính, trang offline, chia sẻ link từ app sàn vào Săn Deal (Android); push khi giá chạm mục tiêu, bản tin, nhắc sale. Tạo khoá: `npm run vapid` |
 
 ## Nguồn dữ liệu
 

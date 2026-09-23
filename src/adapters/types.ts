@@ -28,6 +28,9 @@ export interface VoucherInput {
   startAt?: Date;
   endAt?: Date;
   affiliateUrl: string;
+  discountType?: "percent" | "fixed" | "freeship" | "cashback";
+  discountValue?: number;
+  maxDiscount?: number;
 }
 
 export interface ConversionInput {
