@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Đổi provider thành "postgresql" khi triển khai production
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id             Int          @id @default(autoincrement())
+  platform       String // shopee | lazada | tiktok
+  externalId     String
+  name           String
+  imageUrl       String?
+  shopName       String?
+  category       String?
+  price          Float
+  originalPrice  Float?
+  discountPct    Float        @default(0) // % giảm do sàn hiển thị
+  rating         Float?
+  sold           Int?
+  commissionRate Float?
+  affiliateUrl   String
+  dealScore      Float        @default(0)
+  realDropPct    Float        @default(0) // % giảm so với trung vị 30 ngày
+  lastSeenAt     DateTime     @default(now())
+  createdAt      DateTime     @default(now())
+  prices         PricePoint[]
+  watches        Watch[]
+
+  @@unique([platform, externalId])
+  @@index([dealScore])
+  @@index([platform, category])
+}
+
+model PricePoint {
+  id         Int      @id @default(autoincrement())
+  productId  Int
+  price      Float
+  capturedAt DateTime @default(now())
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, capturedAt])
+}
+
+model Voucher {
+  id           Int       @id @default(autoincrement())
+  source       String // shopee | accesstrade | mock ...
+  externalId   String
+  platform     String
+  code         String?
+  title        String
+  description  String?
+  discountText String?
+  minSpend     Float?
+  startAt      DateTime?
+  endAt        DateTime?
+  affiliateUrl String
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([source, externalId])
+  @@index([platform, endAt])
+}
+
+model Campaign {
+  id         Int       @id @default(autoincrement())
+  source     String
+  externalId String
+  platform   String
+  name       String
+  bannerUrl  String?
+  url        String
+  startAt    DateTime?
+  endAt      DateTime?
+
+  @@unique([source, externalId])
+}
+
+model Watch {
+  id             Int       @id @default(autoincrement())
+  email          String
+  productId      Int
+  targetPrice    Float
+  lastNotifiedAt DateTime?
+  createdAt      DateTime  @default(now())
+  product        Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([email, productId])
+}

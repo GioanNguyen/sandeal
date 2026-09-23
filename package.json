@@ -1,0 +1,33 @@
+{
+  "name": "san-deal",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "db:push": "prisma db push",
+    "seed": "tsx src/worker/seed.ts",
+    "sync": "tsx src/worker/sync.ts",
+    "worker": "tsx src/worker/index.ts",
+    "test": "tsx --test src/lib/*.test.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3",
+    "next": "15.5.26",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.16",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/node-cron": "^3.0.11",
+    "@types/nodemailer": "^6.4.17",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "prisma": "6.19.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.0"
+  }
+}
