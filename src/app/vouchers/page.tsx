@@ -1,20 +1,20 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { prisma } from "@/lib/db";
 import { PLATFORMS } from "@/lib/format";
+import { listActiveVouchers } from "@/lib/queries";
 import { VoucherTicket } from "@/components/VoucherTicket";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "Mã giảm giá Shopee, Lazada, TikTok Shop còn hạn hôm nay",
+  description: "Tổng hợp mã giảm giá, freeship, hoàn xu còn hạn từ Shopee, Lazada, TikTok Shop. Bấm để chép mã.",
+  alternates: { canonical: "/vouchers" },
+};
 
 export default async function Vouchers({ searchParams }: { searchParams: Promise<{ platform?: string }> }) {
   const { platform } = await searchParams;
   const now = new Date();
-  const vouchers = await prisma.voucher.findMany({
-    where: {
-      ...(platform ? { platform } : {}),
-      OR: [{ endAt: null }, { endAt: { gte: now } }],
-    },
-    orderBy: [{ endAt: "asc" }],
-  });
+  const vouchers = await listActiveVouchers({ platform });
 
   return (
     <>

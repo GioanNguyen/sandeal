@@ -1,4 +1,4 @@
-import type { Voucher } from "@prisma/client";
+import type { Voucher } from "@/db/schema";
 import { PLATFORMS, shortDate, vnd } from "@/lib/format";
 import { CopyCode } from "./CopyCode";
 import { Icon } from "./Icon";
@@ -28,7 +28,7 @@ export function VoucherTicket({ v, now = new Date() }: { v: Voucher; now?: Date 
         </div>
         <div className="ticket-actions">
           {v.code ? <CopyCode code={v.code} /> : null}
-          <a className="btn btn-primary" href={v.affiliateUrl} target="_blank" rel="nofollow sponsored noopener">
+          <a className="btn btn-primary" href={`/go/v/${v.id}`} target="_blank" rel="nofollow sponsored noopener">
             Dùng ngay <Icon name="external" size={14} />
           </a>
         </div>

@@ -26,6 +26,26 @@ export function median(values: number[]): number {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
+/**
+ * Trung vị có trọng số thời gian: lịch sử chỉ lưu điểm khi giá đổi,
+ * nên mỗi mức giá được tính theo số thời gian nó tồn tại (đến điểm kế tiếp hoặc `now`).
+ */
+export function timeWeightedMedian(hist: { price: number; capturedAt: Date }[], now: Date): number {
+  if (hist.length === 0) return NaN;
+  const seg = hist.map((p, i) => ({
+    price: p.price,
+    w: Math.max(1, (hist[i + 1]?.capturedAt.getTime() ?? now.getTime()) - p.capturedAt.getTime()),
+  }));
+  seg.sort((a, b) => a.price - b.price);
+  const total = seg.reduce((s, x) => s + x.w, 0);
+  let acc = 0;
+  for (const x of seg) {
+    acc += x.w;
+    if (acc >= total / 2) return x.price;
+  }
+  return seg[seg.length - 1].price;
+}
+
 const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
 
 export function computeDealScore(input: ScoreInput): ScoreResult {
@@ -39,7 +59,7 @@ export function computeDealScore(input: ScoreInput): ScoreResult {
 
   let realDrop: number;
   if (spanDays >= 7) {
-    const med = median(hist.map((p) => p.price));
+    const med = timeWeightedMedian(hist, now);
     realDrop = med > 0 ? clamp((med - input.price) / med, 0, 0.6) : 0;
   } else {
     // Chưa đủ lịch sử: tạm tin một nửa mức giảm sàn khai

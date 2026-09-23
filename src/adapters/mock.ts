@@ -1,4 +1,4 @@
-import type { Platform, ProductInput, SourceAdapter, VoucherInput } from "./types";
+import type { ConversionInput, Platform, ProductInput, SourceAdapter, VoucherInput } from "./types";
 
 /** Dữ liệu mẫu để chạy thử khi chưa có API key. Giá dao động ngẫu nhiên mỗi lần sync. */
 const CATALOG: [string, string, number][] = [
@@ -71,5 +71,30 @@ export const mockAdapter: SourceAdapter = {
       { source: "mock", externalId: "v4", platform: "tiktok", code: "TTS30K", title: "Giảm 30K cho đơn đầu tiên", discountText: "30.000đ", minSpend: 99_000, startAt: d(-3), endAt: d(10), affiliateUrl: "https://example.com/tiktok/voucher" },
       { source: "mock", externalId: "v5", platform: "lazada", title: "Hoàn xu 15% ngành Điện tử", discountText: "15% hoàn xu", startAt: d(-1), endAt: d(1), affiliateUrl: "https://example.com/lazada/cashback" },
     ];
+  },
+  async fetchConversions(since: Date): Promise<ConversionInput[]> {
+    // Đơn hàng giả lập ổn định theo ngày để thử trang thống kê
+    const out: ConversionInput[] = [];
+    const days = Math.ceil((Date.now() - since.getTime()) / 86_400_000);
+    for (let d = 0; d < days; d++) {
+      const r = rng(d * 97 + 13);
+      const n = Math.floor(r() * 6);
+      for (let k = 0; k < n; k++) {
+        const amount = Math.round((150_000 + r() * 1_500_000) / 1000) * 1000;
+        const rate = 0.03 + r() * 0.07;
+        const platform = PLATFORMS[Math.floor(r() * 3)];
+        const status = d < 7 ? "pending" : r() < 0.1 ? "cancelled" : "completed";
+        out.push({
+          source: "mock",
+          externalId: `mock-${d}-${k}`,
+          platform,
+          orderAmount: amount,
+          commission: status === "cancelled" ? 0 : Math.round(amount * rate),
+          status,
+          purchasedAt: new Date(Date.now() - d * 86_400_000 - r() * 80_000_000),
+        });
+      }
+    }
+    return out;
   },
 };

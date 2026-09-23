@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
+import { siteUrl } from "@/lib/mail";
+import { getProduct, similarDeals } from "@/lib/queries";
 import { median } from "@/lib/score";
+import { slugify } from "@/lib/slug";
+import { DealGrid } from "@/components/DealGrid";
 import { PLATFORMS, vnd } from "@/lib/format";
 import { Icon } from "@/components/Icon";
 import { PlatformBadge } from "@/components/PlatformBadge";
@@ -10,13 +15,27 @@ import { WatchForm } from "@/components/WatchForm";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
+type Props = { params: Promise<{ id: string }>; searchParams?: Promise<{ watch?: string; msg?: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const p = await getProduct(Number((await params).id));
+  if (!p) return {};
+  const title = `${p.name} giá ${vnd(p.price)} – lịch sử giá ${PLATFORMS[p.platform]?.label ?? p.platform}`;
+  const description = `Giá hiện tại ${vnd(p.price)}${p.realDropPct >= 1 ? `, rẻ hơn ${Math.round(p.realDropPct)}% so với giá 30 ngày` : ""}. Xem biểu đồ giá 90 ngày và nhận báo khi giá giảm.`;
+  return {
+    title,
+    description,
+    alternates: { canonical: `/product/${p.id}` },
+    openGraph: { title, description, images: p.imageUrl?.startsWith("http") ? [p.imageUrl] : undefined },
+  };
+}
+
+export default async function ProductPage({ params, searchParams }: Props) {
   const { id } = await params;
-  const p = await prisma.product.findUnique({
-    where: { id: Number(id) || 0 },
-    include: { prices: { orderBy: { capturedAt: "asc" }, where: { capturedAt: { gte: new Date(Date.now() - 90 * 86_400_000) } } } },
-  });
+  const sp = (await searchParams) ?? {};
+  const [p, user] = await Promise.all([getProduct(Number(id)), getCurrentUser()]);
   if (!p) notFound();
+  const similar = await similarDeals(p, 5);
 
   const prices = p.prices.map((x) => x.price);
   const low = prices.length ? Math.min(...prices) : p.price;
@@ -24,11 +43,28 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   const good = p.price <= low || p.realDropPct >= 10;
   const platformLabel = PLATFORMS[p.platform]?.label ?? p.platform;
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: p.name,
+    image: p.imageUrl?.startsWith("http") ? [p.imageUrl] : undefined,
+    brand: p.shopName ? { "@type": "Brand", name: p.shopName } : undefined,
+    offers: {
+      "@type": "Offer",
+      price: p.price,
+      priceCurrency: "VND",
+      availability: "https://schema.org/InStock",
+      url: `${siteUrl()}/product/${p.id}`,
+      seller: { "@type": "Organization", name: platformLabel },
+    },
+  };
+
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <nav className="crumbs" aria-label="Breadcrumb">
         <Link href="/">Deal hot</Link> <span aria-hidden="true">/</span>
-        {p.category ? <><Link href={`/?category=${encodeURIComponent(p.category)}`}>{p.category}</Link> <span aria-hidden="true">/</span></> : null}
+        {p.category ? <><Link href={`/danh-muc/${slugify(p.category)}`}>{p.category}</Link> <span aria-hidden="true">/</span></> : null}
         <span className="muted">{p.name}</span>
       </nav>
       <div className="detail">
@@ -73,7 +109,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           </div>
 
           <div className="buy-row">
-            <a className="btn btn-primary" href={p.affiliateUrl} target="_blank" rel="nofollow sponsored noopener">
+            <a className="btn btn-primary" href={`/go/${p.id}`} target="_blank" rel="nofollow sponsored noopener">
               Mua trên {platformLabel} <Icon name="external" size={16} />
             </a>
             <span className="updated"><Icon name="clock" size={14} /> Cập nhật {p.lastSeenAt.toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}</span>
@@ -86,10 +122,16 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           <section className="panel">
             <h2><Icon name="bell" /> Báo tôi khi giá giảm</h2>
             <p className="muted" style={{ margin: 0 }}>Nhận email khi giá xuống bằng hoặc thấp hơn mức bạn đặt. Tối đa 1 email mỗi ngày.</p>
-            <WatchForm productId={p.id} suggested={Math.round((low * 0.98) / 1000) * 1000} />
+            <WatchForm productId={p.id} suggested={Math.round((low * 0.98) / 1000) * 1000} userEmail={user?.email} initial={{ status: sp.watch, msg: sp.msg }} />
           </section>
         </div>
       </div>
+      {similar.length > 0 && (
+        <section className="section" aria-labelledby="sim-head">
+          <div className="section-head"><h2 id="sim-head"><Icon name="flame" size={22} /> Deal cùng danh mục</h2></div>
+          <DealGrid items={similar} />
+        </section>
+      )}
     </>
   );
 }

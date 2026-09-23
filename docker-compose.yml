@@ -1,0 +1,64 @@
+# Triển khai trên VPS:  cp .env.example .env  (điền DOMAIN, AUTH_SECRET, POSTGRES_PASSWORD, key các sàn...)
+#                       docker compose up -d --build
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sandeal
+      POSTGRES_USER: sandeal
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Cần đặt POSTGRES_PASSWORD trong .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sandeal"]
+      interval: 5s
+      retries: 10
+
+  migrate:
+    build: .
+    env_file: .env
+    environment: &dbenv
+      DATABASE_URL: postgres://sandeal:${POSTGRES_PASSWORD}@db:5432/sandeal
+    command: ["npm", "run", "db:migrate"]
+    depends_on:
+      db: { condition: service_healthy }
+
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      <<: *dbenv
+      RUN_WORKER_IN_WEB: "0"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  worker:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment: *dbenv
+    command: ["npm", "run", "worker"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  # HTTPS tự động (Let's Encrypt). Trỏ DNS tên miền về IP VPS trước khi chạy.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Cần đặt DOMAIN trong .env, vd sandeal.vn}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on: [web]
+
+volumes:
+  pgdata:
+  caddy_data:

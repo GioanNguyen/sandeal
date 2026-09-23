@@ -1,88 +1,131 @@
+import { and, desc, eq, gte, lt } from "drizzle-orm";
 import { enabledAdapters } from "@/adapters";
 import type { ProductInput, VoucherInput } from "@/adapters/types";
-import { prisma } from "@/lib/db";
+import { pricePoints, products, vouchers } from "@/db/schema";
+import { db, ensureMigrated } from "@/lib/db";
 import { computeDealScore } from "@/lib/score";
 import { notifyWatchers } from "./notify";
+import { postHotDealsToTelegram } from "./telegram";
+import { syncConversions } from "./conversions";
 
 const DAY = 86_400_000;
 
 export async function upsertProduct(p: ProductInput, now = new Date()) {
-  const existing = await prisma.product.findUnique({
-    where: { platform_externalId: { platform: p.platform, externalId: p.externalId } },
-    include: { prices: { orderBy: { capturedAt: "desc" }, take: 1 } },
-  });
-
   const data = {
     name: p.name,
-    imageUrl: p.imageUrl,
-    shopName: p.shopName,
-    category: p.category,
+    imageUrl: p.imageUrl ?? null,
+    shopName: p.shopName ?? null,
+    category: p.category ?? null,
     price: p.price,
-    originalPrice: p.originalPrice,
+    originalPrice: p.originalPrice ?? null,
     discountPct: p.discountPct,
-    rating: p.rating,
-    sold: p.sold,
-    commissionRate: p.commissionRate,
+    rating: p.rating ?? null,
+    sold: p.sold ?? null,
+    commissionRate: p.commissionRate ?? null,
     affiliateUrl: p.affiliateUrl,
     lastSeenAt: now,
   };
+  const [row] = await db
+    .insert(products)
+    .values({ platform: p.platform, externalId: p.externalId, createdAt: now, ...data })
+    .onConflictDoUpdate({ target: [products.platform, products.externalId], set: data })
+    .returning({ id: products.id });
 
-  const product = existing
-    ? await prisma.product.update({ where: { id: existing.id }, data })
-    : await prisma.product.create({ data: { platform: p.platform, externalId: p.externalId, ...data } });
-
+  const [last] = await db
+    .select({ price: pricePoints.price })
+    .from(pricePoints)
+    .where(eq(pricePoints.productId, row.id))
+    .orderBy(desc(pricePoints.capturedAt))
+    .limit(1);
   // Chỉ ghi lịch sử khi giá đổi (hoặc lần đầu)
-  if (!existing || existing.prices[0]?.price !== p.price) {
-    await prisma.pricePoint.create({ data: { productId: product.id, price: p.price, capturedAt: now } });
+  if (!last || last.price !== p.price) {
+    await db.insert(pricePoints).values({ productId: row.id, price: p.price, capturedAt: now });
   }
 
-  const history = await prisma.pricePoint.findMany({
-    where: { productId: product.id, capturedAt: { gte: new Date(now.getTime() - 30 * DAY) } },
-    select: { price: true, capturedAt: true },
-  });
-  // Giá đầu kỳ vẫn có hiệu lực nếu chưa đổi: lấy thêm điểm cuối trước mốc 30 ngày
-  const before = await prisma.pricePoint.findFirst({
-    where: { productId: product.id, capturedAt: { lt: new Date(now.getTime() - 30 * DAY) } },
-    orderBy: { capturedAt: "desc" },
-  });
-  if (before) history.push({ price: before.price, capturedAt: new Date(now.getTime() - 30 * DAY) });
+  const since = new Date(now.getTime() - 30 * DAY);
+  const history = await db
+    .select({ price: pricePoints.price, capturedAt: pricePoints.capturedAt })
+    .from(pricePoints)
+    .where(and(eq(pricePoints.productId, row.id), gte(pricePoints.capturedAt, since)));
+  // Giá trước mốc 30 ngày vẫn còn hiệu lực đến khi đổi
+  const [before] = await db
+    .select({ price: pricePoints.price })
+    .from(pricePoints)
+    .where(and(eq(pricePoints.productId, row.id), lt(pricePoints.capturedAt, since)))
+    .orderBy(desc(pricePoints.capturedAt))
+    .limit(1);
+  if (before) history.push({ price: before.price, capturedAt: since });
 
   const r = computeDealScore({ price: p.price, discountPct: p.discountPct, rating: p.rating, sold: p.sold, history, now });
-  await prisma.product.update({ where: { id: product.id }, data: { dealScore: r.score, realDropPct: r.realDropPct } });
-  return product.id;
+  await db.update(products).set({ dealScore: r.score, realDropPct: r.realDropPct }).where(eq(products.id, row.id));
+  return row.id;
 }
 
 export async function upsertVoucher(v: VoucherInput) {
-  const { source, externalId, ...rest } = v;
-  await prisma.voucher.upsert({
-    where: { source_externalId: { source, externalId } },
-    create: v,
-    update: rest,
-  });
+  const data = {
+    platform: v.platform,
+    code: v.code ?? null,
+    title: v.title,
+    description: v.description ?? null,
+    discountText: v.discountText ?? null,
+    minSpend: v.minSpend ?? null,
+    startAt: v.startAt ?? null,
+    endAt: v.endAt ?? null,
+    affiliateUrl: v.affiliateUrl,
+    updatedAt: new Date(),
+  };
+  await db
+    .insert(vouchers)
+    .values({ source: v.source, externalId: v.externalId, ...data })
+    .onConflictDoUpdate({ target: [vouchers.source, vouchers.externalId], set: data });
 }
 
-export async function runSync() {
+export interface SyncReport {
+  products: number;
+  vouchers: number;
+  emails: number;
+  telegram: number;
+  conversions: number;
+  errors: string[];
+  ms: number;
+}
+
+export async function runSync(): Promise<SyncReport> {
+  await ensureMigrated();
   const started = Date.now();
-  let products = 0;
-  let vouchers = 0;
+  const report: SyncReport = { products: 0, vouchers: 0, emails: 0, telegram: 0, conversions: 0, errors: [], ms: 0 };
   for (const adapter of enabledAdapters()) {
     try {
       const ps = (await adapter.fetchProducts?.()) ?? [];
       for (const p of ps) await upsertProduct(p);
       const vs = (await adapter.fetchVouchers?.()) ?? [];
       for (const v of vs) await upsertVoucher(v);
-      products += ps.length;
-      vouchers += vs.length;
+      report.products += ps.length;
+      report.vouchers += vs.length;
       console.log(`[sync] ${adapter.name}: ${ps.length} sản phẩm, ${vs.length} voucher`);
     } catch (err) {
+      report.errors.push(`${adapter.name}: ${(err as Error).message}`);
       console.error(`[sync] ${adapter.name} lỗi:`, err);
     }
   }
-  const sent = await notifyWatchers();
-  console.log(`[sync] xong ${products} sản phẩm, ${vouchers} voucher, ${sent} email trong ${Date.now() - started}ms`);
+  for (const [key, job] of [
+    ["emails", notifyWatchers],
+    ["telegram", postHotDealsToTelegram],
+    ["conversions", syncConversions],
+  ] as const) {
+    try {
+      report[key] = await job();
+    } catch (err) {
+      report.errors.push(`${key}: ${(err as Error).message}`);
+      console.error(`[sync] ${key} lỗi:`, err);
+    }
+  }
+  report.ms = Date.now() - started;
+  console.log(`[sync] xong`, report);
+  return report;
 }
 
 // Chạy trực tiếp: npm run sync
 if (process.argv[1]?.endsWith("sync.ts")) {
-  runSync().finally(() => prisma.$disconnect());
+  runSync().then(() => process.exit(0));
 }

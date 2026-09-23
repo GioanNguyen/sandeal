@@ -1,36 +1,38 @@
-import nodemailer from "nodemailer";
-import { prisma } from "@/lib/db";
+import { and, eq, isNull, lt, lte, or } from "drizzle-orm";
+import { products, users, watches } from "@/db/schema";
+import { unsubscribeUrl } from "@/lib/auth";
+import { db } from "@/lib/db";
 import { vnd } from "@/lib/format";
+import { button, escapeHtml, layout, sendMail, siteUrl } from "@/lib/mail";
 
 const DAY = 86_400_000;
 
-async function send(to: string, subject: string, html: string) {
-  if (!process.env.SMTP_URL) {
-    console.log(`[mail] (chưa cấu hình SMTP) -> ${to}: ${subject}`);
-    return;
-  }
-  const transport = nodemailer.createTransport(process.env.SMTP_URL);
-  await transport.sendMail({ from: process.env.MAIL_FROM, to, subject, html });
-}
-
 /** Gửi email khi giá ≤ giá mục tiêu; tối đa 1 email/ngày cho mỗi lượt theo dõi */
 export async function notifyWatchers(now = new Date()): Promise<number> {
-  const watches = await prisma.watch.findMany({
-    where: { OR: [{ lastNotifiedAt: null }, { lastNotifiedAt: { lt: new Date(now.getTime() - DAY) } }] },
-    include: { product: true },
-  });
-  const site = process.env.SITE_URL || "http://localhost:3000";
-  let sent = 0;
-  for (const w of watches) {
-    if (w.product.price > w.targetPrice) continue;
-    await send(
-      w.email,
-      `Giảm giá: ${w.product.name} còn ${vnd(w.product.price)}`,
-      `<p><b>${w.product.name}</b> đang có giá <b>${vnd(w.product.price)}</b> (mục tiêu của bạn: ${vnd(w.targetPrice)}).</p>
-       <p><a href="${w.product.affiliateUrl}">Mua ngay</a> · <a href="${site}/product/${w.product.id}">Xem lịch sử giá</a></p>`,
+  const due = await db
+    .select({ watch: watches, product: products, email: users.email })
+    .from(watches)
+    .innerJoin(products, eq(products.id, watches.productId))
+    .innerJoin(users, eq(users.id, watches.userId))
+    .where(
+      and(
+        lte(products.price, watches.targetPrice),
+        or(isNull(watches.lastNotifiedAt), lt(watches.lastNotifiedAt, new Date(now.getTime() - DAY))),
+      ),
     );
-    await prisma.watch.update({ where: { id: w.id }, data: { lastNotifiedAt: now } });
-    sent++;
+
+  for (const { watch, product, email } of due) {
+    const site = siteUrl();
+    await sendMail(
+      email,
+      `Giảm giá: ${product.name} còn ${vnd(product.price)}`,
+      layout(`<p><b>${escapeHtml(product.name)}</b> đang có giá <b style="color:#d0390f">${vnd(product.price)}</b>
+        (mục tiêu của bạn: ${vnd(watch.targetPrice)}).</p>
+        <p>${button(`${site}/go/${product.id}`, "Mua ngay")} &nbsp; <a href="${site}/product/${product.id}">Xem lịch sử giá</a></p>
+        <p style="font-size:13px"><a href="${unsubscribeUrl(watch.id)}" style="color:#5b6170">Huỷ theo dõi sản phẩm này</a> ·
+        <a href="${site}/account" style="color:#5b6170">Quản lý theo dõi</a></p>`),
+    );
+    await db.update(watches).set({ lastNotifiedAt: now }).where(eq(watches.id, watch.id));
   }
-  return sent;
+  return due.length;
 }

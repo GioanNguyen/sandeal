@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Product } from "@prisma/client";
+import type { Product } from "@/db/schema";
 import { vnd } from "@/lib/format";
 import { Icon } from "./Icon";
 import { PlatformBadge } from "./PlatformBadge";

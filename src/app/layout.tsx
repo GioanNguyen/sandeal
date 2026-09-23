@@ -1,10 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
+import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { siteUrl } from "@/lib/mail";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Săn Deal – Deal giảm thật & mã giảm giá Shopee, Lazada, TikTok Shop",
+  metadataBase: new URL(siteUrl()),
+  title: { default: "Săn Deal – Deal giảm thật & mã giảm giá Shopee, Lazada, TikTok Shop", template: "%s | Săn Deal" },
+  openGraph: { siteName: "Săn Deal", locale: "vi_VN", type: "website" },
   description: "Chỉ hiện deal giảm thật so với giá 30 ngày, kèm mã giảm giá còn hạn từ Shopee, Lazada, TikTok Shop.",
 };
 
@@ -17,7 +21,8 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const user = await getCurrentUser().catch(() => null);
   return (
     <html lang="vi">
       <head>
@@ -44,6 +49,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <nav className="main-nav" aria-label="Điều hướng chính">
               <Link href="/" aria-label="Deal hot"><Icon name="flame" /><span>Deal hot</span></Link>
               <Link href="/vouchers" aria-label="Mã giảm giá"><Icon name="ticket" /><span>Mã giảm giá</span></Link>
+              {user && isAdmin(user.email) && (
+                <Link href="/admin" aria-label="Thống kê"><Icon name="chart" /><span>Thống kê</span></Link>
+              )}
+              {user ? (
+                <Link href="/account" aria-label="Tài khoản"><Icon name="user" /><span>Tài khoản</span></Link>
+              ) : (
+                <Link href="/login" aria-label="Đăng nhập"><Icon name="user" /><span>Đăng nhập</span></Link>
+              )}
             </nav>
           </div>
         </header>

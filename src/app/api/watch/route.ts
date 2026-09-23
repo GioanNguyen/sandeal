@@ -1,23 +1,50 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { products } from "@/db/schema";
+import { EMAIL_RE, getCurrentUser, normalizeEmail, sendLoginLink, upsertWatch } from "@/lib/auth";
+import { db, ensureMigrated } from "@/lib/db";
+import { allow, clientIp } from "@/lib/ratelimit";
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
+/** Nhận JSON (từ JS) hoặc form thường (khi JS chưa tải xong) */
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => null);
-  const email = String(body?.email ?? "").trim().toLowerCase();
+  const isForm = !(req.headers.get("content-type") ?? "").includes("json");
+  const body: Record<string, unknown> | null = isForm
+    ? Object.fromEntries((await req.formData().catch(() => new FormData())).entries())
+    : await req.json().catch(() => null);
+  const pid = Number(body?.productId);
+  const done = (mode: "saved" | "verify") =>
+    isForm ? NextResponse.redirect(new URL(`/product/${pid}?watch=${mode}`, req.url), 303) : NextResponse.json({ ok: true, mode });
+  const fail = (status: number, error: string) =>
+    isForm
+      ? NextResponse.redirect(new URL(`/product/${pid}?watch=error&msg=${encodeURIComponent(error)}`, req.url), 303)
+      : NextResponse.json({ error }, { status });
+
+  if (body?.website) return done("verify"); // bot điền ô ẩn
+
   const productId = Number(body?.productId);
   const targetPrice = Number(body?.targetPrice);
+  if (!Number.isFinite(targetPrice) || targetPrice < 1000) {
+    return fail(400, "Giá mục tiêu không hợp lệ");
+  }
+  await ensureMigrated();
+  const [product] = await db.select({ id: products.id, name: products.name }).from(products).where(eq(products.id, productId)).limit(1);
+  if (!product) return fail(404, "Không tìm thấy sản phẩm");
 
-  if (!EMAIL_RE.test(email)) return NextResponse.json({ error: "Email không hợp lệ" }, { status: 400 });
-  if (!Number.isFinite(targetPrice) || targetPrice <= 0) return NextResponse.json({ error: "Giá mục tiêu không hợp lệ" }, { status: 400 });
-  const product = await prisma.product.findUnique({ where: { id: productId } });
-  if (!product) return NextResponse.json({ error: "Không tìm thấy sản phẩm" }, { status: 404 });
+  const user = await getCurrentUser();
+  if (user) {
+    if (!(await allow(`watch:u:${user.id}`, 60, 3600))) {
+      return fail(429, "Bạn thao tác quá nhanh, thử lại sau.");
+    }
+    await upsertWatch(user.id, productId, targetPrice);
+    return done("saved");
+  }
 
-  const watch = await prisma.watch.upsert({
-    where: { email_productId: { email, productId } },
-    create: { email, productId, targetPrice },
-    update: { targetPrice, lastNotifiedAt: null },
-  });
-  return NextResponse.json({ ok: true, id: watch.id });
+  const email = normalizeEmail(body?.email);
+  if (!EMAIL_RE.test(email)) return fail(400, "Email không hợp lệ");
+  const ip = clientIp(req);
+  if (!(await allow(`watch:ip:${ip}`, 10, 3600)) || !(await allow(`mail:${email}`, 5, 3600))) {
+    return fail(429, "Bạn gửi quá nhiều yêu cầu, thử lại sau ít phút.");
+  }
+  await sendLoginLink(email, { productId, targetPrice, productName: product.name });
+  return done("verify");
 }

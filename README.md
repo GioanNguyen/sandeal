@@ -1,50 +1,67 @@
-# Săn Deal – MVP
+# Săn Deal
 
-Web tổng hợp deal tốt, mã giảm giá và khuyến mãi từ Shopee, Lazada, TikTok Shop qua **API affiliate chính thức** (không cào trang).
+Web tổng hợp deal giảm thật, mã giảm giá và khuyến mãi từ Shopee, Lazada, TikTok Shop qua **API affiliate chính thức** (không cào trang).
 
-## Chạy thử (dữ liệu mẫu, không cần API key)
+## Chạy trên máy (không cần cài database)
 
 Yêu cầu: Node.js 20+.
 
 ```bash
 npm install
-cp .env.example .env        # đã để SOURCES="mock"
-npx prisma db push          # tạo database SQLite
-npm run seed                # 30 ngày lịch sử giá giả
-npm run dev                 # mở http://localhost:3000
+cp .env.example .env     # SOURCES="mock" để chạy bằng dữ liệu mẫu
+npm run seed             # 30 ngày lịch sử giá + đơn hàng mẫu
+npm run dev              # http://localhost:3000
 ```
 
-Chạy test điểm deal: `npm test`
+- Database khi dev là **PGlite** (Postgres nhúng, lưu ở `.data/pglite`). Chỉ một tiến trình mở được, nên hãy **tắt `npm run dev` trước khi chạy `npm run seed` / `npm run sync`**. Khi web đang chạy, lịch đồng bộ tự chạy bên trong web; admin có nút “Đồng bộ ngay”.
+- Chưa cấu hình SMTP thì email (link đăng nhập, báo giá) được **in ra terminal**, bấm link ở đó để đăng nhập.
+- Vào trang thống kê: đặt `ADMIN_EMAILS="email-cua-ban"` trong `.env`, đăng nhập bằng email đó rồi mở `/admin`.
+
+Kiểm thử: `npm test` (chạy trên Postgres trong RAM) · `npm run typecheck`
+
+## Tính năng
+
+| Tính năng | Ghi chú |
+| --- | --- |
+| Deal hot, lọc/sắp xếp, danh mục `/danh-muc/[slug]` | Điểm deal so với trung vị giá 30 ngày (có trọng số thời gian), phạt nâng giá ảo |
+| Mã giảm giá `/vouchers` | Chỉ mã còn hạn, bấm để chép |
+| Chi tiết sản phẩm | Biểu đồ 90 ngày, kết luận nên mua, deal cùng danh mục, JSON-LD Product |
+| Đăng nhập bằng link email | Không mật khẩu; link dùng 1 lần, hết hạn sau 30 phút |
+| Theo dõi giá | Xác minh email trước khi gửi; `/account` sửa/xoá; link huỷ trong email |
+| Chống spam | Giới hạn tần suất theo IP và email, ô bẫy bot |
+| Link `/go/[id]` | Ghi lượt bấm rồi chuyển sang link affiliate |
+| Thống kê `/admin` | Lượt bấm, đơn, doanh số, hoa hồng theo ngày/sàn; nút đồng bộ |
+| Telegram | Tự đăng deal hot lên kênh (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`) |
+| SEO | `sitemap.xml`, `robots.txt`, title/description/OG từng trang |
+
+## Nguồn dữ liệu
+
+Bật trong `SOURCES` (vd `"shopee,lazada,tiktok,accesstrade"`) và điền key tương ứng trong `.env`.
+
+| Nguồn | Adapter | Lấy gì |
+| --- | --- | --- |
+| Shopee Affiliate Open API | `src/adapters/shopee.ts` | Sản phẩm (`productOfferV2`), báo cáo đơn (`conversionReport`) |
+| Lazada Open Platform – Affiliate | `src/adapters/lazada.ts` | Feed sản phẩm có link affiliate |
+| TikTok Shop – Affiliate Creator | `src/adapters/tiktok.ts` | Sản phẩm open collaboration |
+| AccessTrade | `src/adapters/accesstrade.ts` | Mã giảm giá của cả 3 sàn |
+
+**Lưu ý:** chữ ký request đã có test, nhưng tên endpoint/trường của Lazada và TikTok Shop cần đối chiếu lại tài liệu sau khi app được duyệt (đường dẫn chỉnh được qua `LAZADA_FEED_PATH`, `TIKTOK_SEARCH_PATH`). Thêm nguồn mới: tạo adapter theo `SourceAdapter` trong `src/adapters/types.ts` và đăng ký ở `src/adapters/index.ts`.
+
+## Triển khai lên VPS (Docker)
+
+1. Trỏ DNS tên miền về IP VPS, cài Docker.
+2. `cp .env.example .env` rồi điền `DOMAIN`, `POSTGRES_PASSWORD`, `AUTH_SECRET` (`openssl rand -base64 32`), `SITE_URL=https://ten-mien`, `SMTP_URL`, `ADMIN_EMAILS`, key các sàn, `SOURCES`.
+3. `docker compose up -d --build`
+
+Compose chạy: `db` (Postgres 16), `migrate` (tạo bảng), `web` (Next.js), `worker` (đồng bộ theo `SYNC_CRON`), `caddy` (HTTPS tự động).
 
 ## Cấu trúc
 
 ```
-prisma/schema.prisma        Product, PricePoint, Voucher, Campaign, Watch
-src/adapters/               Mỗi nguồn dữ liệu một adapter
-  mock.ts                   Dữ liệu mẫu
-  shopee.ts                 Shopee Affiliate Open API (GraphQL, ký SHA256)
-  accesstrade.ts            Mã giảm giá Shopee/Lazada/TikTok qua AccessTrade
-src/lib/score.ts            Công thức điểm deal (giảm thật so với trung vị 30 ngày, phạt nâng giá ảo)
-src/worker/                 sync.ts (đồng bộ 1 lần), index.ts (chạy theo lịch), notify.ts (email cảnh báo)
-src/app/                    Trang deal, /vouchers, /product/[id], API /api/watch
+src/db/schema.ts        Bảng: products, price_points, vouchers, users, sessions, login_tokens, watches, clicks, conversions, rate_limits
+drizzle/                Migration SQL (tạo mới: sửa schema rồi `npm run db:generate`)
+src/lib/                db, auth, mail, queries, score, ratelimit
+src/adapters/           Nguồn dữ liệu
+src/worker/             sync, notify (email), telegram, conversions, scheduler
+src/app/                Trang & API
 ```
-
-## Dùng dữ liệu thật
-
-1. Đăng ký [Shopee Affiliate](https://affiliate.shopee.vn/), xin quyền Open API → điền `SHOPEE_APP_ID`, `SHOPEE_SECRET`, `SHOPEE_KEYWORDS`.
-   Kiểm tra lại tên tham số/trường trong [API Explorer](https://open-api.affiliate.shopee.vn/explorer/v2) (ví dụ giá trị `sortType`).
-2. Đăng ký publisher [AccessTrade](https://developers.accesstrade.vn/api-publisher-vietnamese) → điền `ACCESSTRADE_TOKEN`.
-3. Đổi `SOURCES="shopee,accesstrade"`, chạy `npm run sync` để thử, rồi `npm run worker` để chạy theo lịch `SYNC_CRON`.
-
-Thêm sàn mới (Lazada, TikTok Shop): tạo file trong `src/adapters/` theo interface `SourceAdapter` và đăng ký trong `src/adapters/index.ts`.
-
-## Triển khai production
-
-- Đổi `provider` trong `prisma/schema.prisma` sang `postgresql`, `DATABASE_URL` sang chuỗi kết nối Postgres.
-- Chạy 2 tiến trình: `npm run build && npm start` (web) và `npm run worker` (đồng bộ + gửi email).
-- Điền `SMTP_URL` (ví dụ `smtps://user:pass@smtp.example.com:465`) để gửi email cảnh báo giá.
-
-## Việc tiếp theo
-
-- Đăng nhập (Auth.js) để quản lý danh sách theo dõi; hiện theo dõi bằng email, chưa xác minh email.
-- Adapter Lazada, TikTok Shop; thông báo Telegram/Zalo OA; trang danh mục cho SEO.

@@ -1,21 +1,12 @@
 import Link from "next/link";
-import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db";
 import { PLATFORMS } from "@/lib/format";
-import { DealCard } from "@/components/DealCard";
+import { homeStats, listActiveVouchers, listCategories, listDeals } from "@/lib/queries";
+import { DealGrid, Pager } from "@/components/DealGrid";
 import { Icon } from "@/components/Icon";
 import { VoucherTicket } from "@/components/VoucherTicket";
 
 export const dynamic = "force-dynamic";
 const PAGE_SIZE = 24;
-const DAY = 86_400_000;
-
-const SORTS: Record<string, Prisma.ProductOrderByWithRelationInput> = {
-  score: { dealScore: "desc" },
-  drop: { realDropPct: "desc" },
-  price: { price: "asc" },
-  sold: { sold: "desc" },
-};
 
 type SP = Promise<Record<string, string | undefined>>;
 
@@ -23,31 +14,13 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
   const now = new Date();
-  const where: Prisma.ProductWhereInput = {
-    ...(sp.platform ? { platform: sp.platform } : {}),
-    ...(sp.category ? { category: sp.category } : {}),
-    ...(sp.q ? { name: { contains: sp.q } } : {}),
-    ...(sp.min ? { realDropPct: { gte: Number(sp.min) } } : {}),
-  };
   const isLanding = !sp.q && !sp.platform && !sp.category && !sp.min && page === 1;
-  const activeVoucher = { OR: [{ endAt: null }, { endAt: { gte: now } }] };
 
-  const [products, total, categories, voucherCount, realDeals, vouchers, best] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      orderBy: SORTS[sp.sort ?? "score"] ?? SORTS.score,
-      take: PAGE_SIZE,
-      skip: (page - 1) * PAGE_SIZE,
-      include: {
-        prices: { where: { capturedAt: { gte: new Date(now.getTime() - 30 * DAY) } }, orderBy: { price: "asc" }, take: 1 },
-      },
-    }),
-    prisma.product.count({ where }),
-    prisma.product.findMany({ distinct: ["category"], select: { category: true }, where: { category: { not: null } } }),
-    prisma.voucher.count({ where: activeVoucher }),
-    prisma.product.count({ where: { realDropPct: { gte: 10 } } }),
-    isLanding ? prisma.voucher.findMany({ where: activeVoucher, orderBy: { endAt: "asc" }, take: 8 }) : Promise.resolve([]),
-    prisma.product.findFirst({ orderBy: { realDropPct: "desc" }, select: { realDropPct: true } }),
+  const [{ items, total }, categories, stats, vouchers] = await Promise.all([
+    listDeals({ q: sp.q, platform: sp.platform, category: sp.category, minDrop: Number(sp.min) || undefined, sort: sp.sort, page, pageSize: PAGE_SIZE }),
+    listCategories(),
+    homeStats(),
+    isLanding ? listActiveVouchers({ limit: 8 }) : Promise.resolve([]),
   ]);
   const pages = Math.ceil(total / PAGE_SIZE);
   const href = (patch: Record<string, string | undefined>) => {
@@ -71,10 +44,10 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
             </div>
           </div>
           <div className="hero-stats">
-            <div className="stat"><b>{realDeals.toLocaleString("vi-VN")}</b><span>deal rẻ hơn ≥10% so với 30 ngày</span></div>
-            <div className="stat"><b>{voucherCount.toLocaleString("vi-VN")}</b><span>mã giảm giá còn hạn</span></div>
+            <div className="stat"><b>{stats.realDeals.toLocaleString("vi-VN")}</b><span>deal rẻ hơn ≥10% so với 30 ngày</span></div>
+            <div className="stat"><b>{stats.voucherCount.toLocaleString("vi-VN")}</b><span>mã giảm giá còn hạn</span></div>
             <div className="stat"><b>3</b><span>sàn: Shopee, Lazada, TikTok Shop</span></div>
-            <div className="stat"><b>-{Math.round(best?.realDropPct ?? 0)}%</b><span>mức giảm thật sâu nhất hôm nay</span></div>
+            <div className="stat"><b>-{Math.round(stats.best)}%</b><span>mức giảm thật sâu nhất hôm nay</span></div>
           </div>
         </section>
       ) : (
@@ -96,6 +69,17 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
         </section>
       )}
 
+      {isLanding && categories.length > 0 && (
+        <section className="section" aria-labelledby="c-head">
+          <div className="section-head"><h2 id="c-head"><Icon name="tag" size={22} /> Danh mục</h2></div>
+          <nav className="chips wrap" aria-label="Danh mục">
+            {categories.map((c) => (
+              <Link key={c.slug} className="chip" href={`/danh-muc/${c.slug}`}>{c.name} <span className="muted">{c.count}</span></Link>
+            ))}
+          </nav>
+        </section>
+      )}
+
       <section className="section" id="deals" aria-labelledby="d-head">
         {isLanding && (
           <div className="section-head">
@@ -114,54 +98,40 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
           </nav>
           {sp.platform && <input type="hidden" name="platform" value={sp.platform} />}
           <div className="toolbar-fields">
-          <div className="field">
-            <label htmlFor="category">Danh mục</label>
-            <select id="category" className="select" name="category" defaultValue={sp.category ?? ""}>
-              <option value="">Tất cả</option>
-              {categories.map((c) => <option key={c.category} value={c.category!}>{c.category}</option>)}
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="min">Mức giảm thật</label>
-            <select id="min" className="select" name="min" defaultValue={sp.min ?? ""}>
-              <option value="">Bất kỳ</option>
-              <option value="10">Từ 10%</option>
-              <option value="20">Từ 20%</option>
-              <option value="30">Từ 30%</option>
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="sort">Sắp xếp</label>
-            <select id="sort" className="select" name="sort" defaultValue={sp.sort ?? "score"}>
-              <option value="score">Điểm deal cao nhất</option>
-              <option value="drop">Giảm thật nhiều nhất</option>
-              <option value="price">Giá thấp nhất</option>
-              <option value="sold">Bán chạy nhất</option>
-            </select>
-          </div>
-          <div className="field field-submit">
-            <button className="btn btn-primary" type="submit"><Icon name="sliders" size={16} /> Áp dụng</button>
-          </div>
+            <div className="field">
+              <label htmlFor="category">Danh mục</label>
+              <select id="category" className="select" name="category" defaultValue={sp.category ?? ""}>
+                <option value="">Tất cả</option>
+                {categories.map((c) => <option key={c.slug} value={c.name}>{c.name}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="min">Mức giảm thật</label>
+              <select id="min" className="select" name="min" defaultValue={sp.min ?? ""}>
+                <option value="">Bất kỳ</option>
+                <option value="10">Từ 10%</option>
+                <option value="20">Từ 20%</option>
+                <option value="30">Từ 30%</option>
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="sort">Sắp xếp</label>
+              <select id="sort" className="select" name="sort" defaultValue={sp.sort ?? "score"}>
+                <option value="score">Điểm deal cao nhất</option>
+                <option value="drop">Giảm thật nhiều nhất</option>
+                <option value="price">Giá thấp nhất</option>
+                <option value="sold">Bán chạy nhất</option>
+              </select>
+            </div>
+            <div className="field field-submit">
+              <button className="btn btn-primary" type="submit"><Icon name="sliders" size={16} /> Áp dụng</button>
+            </div>
           </div>
         </form>
 
         <p className="result-count">{total.toLocaleString("vi-VN")} sản phẩm</p>
-        {products.length > 0 ? (
-          <div className="grid">
-            {products.map((p) => (
-              <DealCard key={p.id} p={p} isLowest={p.prices[0] != null && p.price <= p.prices[0].price && p.realDropPct >= 5} />
-            ))}
-          </div>
-        ) : (
-          <div className="empty">Không có deal nào khớp bộ lọc. Thử bỏ bớt điều kiện nhé.</div>
-        )}
-        {pages > 1 && (
-          <nav className="pager" aria-label="Phân trang">
-            {page > 1 && <Link className="btn btn-ghost" href={href({ page: String(page - 1) })}>← Trước</Link>}
-            <span className="muted">Trang {page}/{pages}</span>
-            {page < pages && <Link className="btn btn-ghost" href={href({ page: String(page + 1) })}>Sau →</Link>}
-          </nav>
-        )}
+        <DealGrid items={items} />
+        <Pager page={page} pages={pages} href={(p) => href({ page: String(p) })} />
       </section>
     </>
   );

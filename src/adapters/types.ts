@@ -30,9 +30,22 @@ export interface VoucherInput {
   affiliateUrl: string;
 }
 
+export interface ConversionInput {
+  source: string;
+  externalId: string;
+  platform: Platform;
+  orderAmount: number;
+  commission: number;
+  status: "pending" | "completed" | "cancelled";
+  purchasedAt: Date;
+  raw?: unknown;
+}
+
 /** Mỗi nguồn dữ liệu (sàn / mạng affiliate) là một adapter */
 export interface SourceAdapter {
   name: string;
   fetchProducts?(): Promise<ProductInput[]>;
   fetchVouchers?(): Promise<VoucherInput[]>;
+  /** Đơn hàng/hoa hồng phát sinh từ `since` (báo cáo của mạng affiliate) */
+  fetchConversions?(since: Date): Promise<ConversionInput[]>;
 }

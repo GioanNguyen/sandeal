@@ -6,17 +6,21 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "db:push": "prisma db push",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate.ts",
     "seed": "tsx src/worker/seed.ts",
     "sync": "tsx src/worker/sync.ts",
     "worker": "tsx src/worker/index.ts",
-    "test": "tsx --test src/lib/*.test.ts"
+    "test": "tsx --test src/lib/*.test.ts src/adapters/*.test.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@prisma/client": "6.19.3",
+    "@electric-sql/pglite": "^0.5.8",
+    "drizzle-orm": "^0.45.3",
     "next": "15.5.26",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.16",
+    "pg": "^8.23.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
@@ -24,9 +28,10 @@
     "@types/node": "^22",
     "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^6.4.17",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "prisma": "6.19.3",
+    "drizzle-kit": "^0.31.11",
     "tsx": "^4.19.2",
     "typescript": "^5.7.0"
   }
