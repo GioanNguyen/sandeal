@@ -11,6 +11,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
   title: { default: "Săn Deal – Deal giảm thật & mã giảm giá Shopee, Lazada, TikTok Shop", template: "%s | Săn Deal" },
   openGraph: { siteName: "Săn Deal", locale: "vi_VN", type: "website" },
+  twitter: { card: "summary_large_image" },
   appleWebApp: { capable: true, title: "Săn Deal", statusBarStyle: "default" },
   icons: { apple: "/icons/apple-touch-icon.png" },
   description: "Chỉ hiện deal giảm thật so với giá 30 ngày, kèm mã giảm giá còn hạn từ Shopee, Lazada, TikTok Shop.",

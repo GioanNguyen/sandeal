@@ -18,7 +18,7 @@ export function SyncButton() {
           const res = await fetch("/api/admin/sync", { method: "POST" });
           const r = await res.json().catch(() => ({}));
           setBusy(false);
-          setMsg(res.ok ? `Xong: ${r.products} sản phẩm, ${r.vouchers} mã, ${r.emails} email, ${r.telegram} bài Telegram${r.errors?.length ? ` · Lỗi: ${r.errors.join("; ")}` : ""}` : r.error ?? "Lỗi");
+          setMsg(res.ok ? `Xong: ${r.products} sản phẩm, ${r.vouchers} mã, ${r.emails} email${r.errors?.length ? ` · Lỗi: ${r.errors.join("; ")}` : ""}` : r.error ?? "Lỗi");
           router.refresh();
         }}
       >

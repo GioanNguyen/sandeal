@@ -2,7 +2,6 @@ import { enabledAdapters } from "@/adapters";
 import { ensureMigrated } from "@/lib/db";
 import { upsertProduct, upsertVoucher } from "@/lib/ingest";
 import { notifyWatchers } from "./notify";
-import { postHotDealsToTelegram } from "./telegram";
 import { syncConversions } from "./conversions";
 import { groupProducts } from "./grouping";
 import { retryProductRequests } from "@/lib/lookup";
@@ -13,7 +12,6 @@ export interface SyncReport {
   products: number;
   vouchers: number;
   emails: number;
-  telegram: number;
   groups: number;
   requests: number;
   conversions: number;
@@ -24,7 +22,7 @@ export interface SyncReport {
 export async function runSync(): Promise<SyncReport> {
   await ensureMigrated();
   const started = Date.now();
-  const report: SyncReport = { products: 0, vouchers: 0, emails: 0, telegram: 0, groups: 0, requests: 0, conversions: 0, errors: [], ms: 0 };
+  const report: SyncReport = { products: 0, vouchers: 0, emails: 0, groups: 0, requests: 0, conversions: 0, errors: [], ms: 0 };
   for (const adapter of enabledAdapters()) {
     try {
       const ps = (await adapter.fetchProducts?.()) ?? [];
@@ -43,7 +41,6 @@ export async function runSync(): Promise<SyncReport> {
     ["requests", () => retryProductRequests()],
     ["groups", groupProducts],
     ["emails", notifyWatchers],
-    ["telegram", postHotDealsToTelegram],
     ["conversions", syncConversions],
   ] as const) {
     try {

@@ -1,5 +1,6 @@
 import cron from "node-cron";
 import { pollTelegram, runDigests, runSaleReminders } from "./digest";
+import { postGoldenHour } from "./social";
 import { runSync } from "./sync";
 
 const g = globalThis as unknown as { __sanDealCron?: boolean };
@@ -32,6 +33,21 @@ export function startScheduler({ runNow = false } = {}) {
         if (d || r) console.log(`[notify] bản tin: ${d}, nhắc sale: ${r}`);
       } catch (err) {
         console.error("[notify] lỗi:", err);
+      }
+    },
+    { timezone: "Asia/Ho_Chi_Minh" },
+  );
+
+  // Đăng deal hot lên mạng xã hội vào giờ vàng (mặc định 11h và 20h)
+  const hours = (process.env.SOCIAL_HOURS || "11,20").replace(/\s/g, "");
+  cron.schedule(
+    `0 ${hours} * * *`,
+    async () => {
+      try {
+        const n = await postGoldenHour();
+        if (n) console.log(`[social] đã đăng ${n} bài`);
+      } catch (err) {
+        console.error("[social] lỗi:", err);
       }
     },
     { timezone: "Asia/Ho_Chi_Minh" },

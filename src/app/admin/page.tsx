@@ -75,6 +75,10 @@ export default async function AdminPage() {
 
   return (
     <>
+      <nav className="tabs" aria-label="Quản trị">
+        <Link href="/admin" aria-current="page">Thống kê</Link>
+        <Link href="/admin/dang-bai">Đăng bài</Link>
+      </nav>
       <div className="account-head">
         <div>
           <h1 className="page-title">Thống kê {DAYS} ngày</h1>

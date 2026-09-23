@@ -11,6 +11,7 @@ import { voteSummary } from "@/lib/community";
 import { CompareTable } from "@/components/CompareTable";
 import { RecordView } from "@/components/Personal";
 import { SaveButton } from "@/components/Saved";
+import { ShareButtons } from "@/components/ShareButtons";
 import { Freshness, ShopBadge } from "@/components/Trust";
 import { timeWeightedMedian } from "@/lib/score";
 import { slugify } from "@/lib/slug";
@@ -34,7 +35,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title,
     description,
     alternates: { canonical: `/product/${p.id}` },
-    openGraph: { title, description, images: p.imageUrl?.startsWith("http") ? [p.imageUrl] : undefined },
+    openGraph: { title, description, type: "website" },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 
@@ -176,6 +178,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
             <VoteBox productId={p.id} initial={votes} loggedIn={!!user} />
             <Freshness at={p.lastSeenAt} long />
           </div>
+
+          <ShareButtons url={`${siteUrl()}/product/${p.id}`} title={`${p.name} – ${vnd(p.price)} trên Săn Deal`} />
 
           {offers.length >= 2 && (
             <section className="panel" style={{ marginTop: 20 }}>

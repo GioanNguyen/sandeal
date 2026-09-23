@@ -236,6 +236,20 @@ export const pushSubscriptions = pgTable(
   (t) => [index("push_user_idx").on(t.userId)],
 );
 
+/** Lịch sử đăng deal lên mạng xã hội (tránh đăng lặp) */
+export const socialPosts = pgTable(
+  "social_posts",
+  {
+    id: serial("id").primaryKey(),
+    channel: text("channel").notNull(), // telegram | facebook
+    productId: integer("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    postedAt: ts("posted_at").notNull().defaultNow(),
+    externalId: text("external_id"),
+    error: text("error"),
+  },
+  (t) => [index("social_posts_idx").on(t.channel, t.productId, t.postedAt)],
+);
+
 export type Product = typeof products.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type Voucher = typeof vouchers.$inferSelect;

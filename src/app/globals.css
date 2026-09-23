@@ -745,3 +745,12 @@ main.container { flex: 1; width: 100%; }
   .shop-line .freshness.compact { font-size: 10px; }
   .shop-line .freshness.compact svg { display: none; }
 }
+
+/* ===== Nhóm 4: chia sẻ & đăng bài ===== */
+.share { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0 4px; font-size: 14px; }
+.composers { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.composer { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; }
+.composer img { width: 100%; aspect-ratio: 1200 / 630; object-fit: cover; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.composer-body { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.composer textarea { width: 100%; min-height: 150px; padding: 10px 12px; font: inherit; font-size: 14px; line-height: 1.5; resize: vertical; }
+@media (max-width: 900px) { .composers { grid-template-columns: 1fr; } }

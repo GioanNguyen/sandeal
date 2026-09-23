@@ -18,6 +18,7 @@ npm run dev              # http://localhost:3000
 - Vào trang thống kê: đặt `ADMIN_EMAILS="email-cua-ban"` trong `.env`, đăng nhập bằng email đó rồi mở `/admin`.
 
 Đăng ký tài khoản affiliate & lấy API key: xem [docs/huong-dan-dang-ky-affiliate.md](docs/huong-dan-dang-ky-affiliate.md)
+Ảnh chia sẻ & tự đăng deal lên mạng xã hội: xem [docs/huong-dan-dang-bai.md](docs/huong-dan-dang-bai.md)
 
 Kiểm thử: `npm test` (chạy trên Postgres trong RAM) · `npm run typecheck`
 

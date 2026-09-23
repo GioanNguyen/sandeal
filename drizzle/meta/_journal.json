@@ -29,6 +29,13 @@
       "when": 1790158103377,
       "tag": "0003_trust",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790158877594,
+      "tag": "0004_social",
+      "breakpoints": true
     }
   ]
 }
