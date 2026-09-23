@@ -31,7 +31,14 @@ function dealWhere(f: DealFilter) {
   return conds.length ? and(...conds) : undefined;
 }
 
-export type DealRow = Product & { low30: number | null };
+export type DealRow = Product & { low30: number | null; droppedAt?: Date | null; clicks24?: number };
+
+/** Lần gần nhất giá giảm ≥5% so với mức trước đó (chỉ số thật từ lịch sử giá) */
+const droppedAtSql = sql<string | null>`(select max(t.captured_at) from (
+  select pp.captured_at, pp.price, lag(pp.price) over (order by pp.captured_at) as prev
+  from price_points pp where pp.product_id = "products"."id") t where t.price <= t.prev * 0.95)`;
+/** Số lượt bấm mua thật trong 24 giờ qua */
+const clicks24Sql = sql<number>`(select count(*) from clicks c where c.product_id = "products"."id" and c.created_at > now() - interval '24 hours')`;
 
 export async function listDeals(f: DealFilter): Promise<{ items: DealRow[]; total: number }> {
   await ensureMigrated();
@@ -43,7 +50,7 @@ export async function listDeals(f: DealFilter): Promise<{ items: DealRow[]; tota
   const low30 = sql<number | null>`(select min(pp.price) from price_points pp where pp.product_id = "products"."id" and pp.captured_at >= ${since})`;
   const [items, [{ total }]] = await Promise.all([
     db
-      .select({ product: products, low30 })
+      .select({ product: products, low30, droppedAt: droppedAtSql, clicks24: clicks24Sql })
       .from(products)
       .where(where)
       .orderBy(...(SORTS[f.sort ?? "score"] ?? SORTS.score), asc(products.id))
@@ -51,7 +58,15 @@ export async function listDeals(f: DealFilter): Promise<{ items: DealRow[]; tota
       .offset((page - 1) * pageSize),
     db.select({ total: count() }).from(products).where(where),
   ]);
-  return { items: items.map((r) => ({ ...r.product, low30: r.low30 == null ? null : Number(r.low30) })), total };
+  return {
+    items: items.map((r) => ({
+      ...r.product,
+      low30: r.low30 == null ? null : Number(r.low30),
+      droppedAt: r.droppedAt ? new Date(r.droppedAt) : null,
+      clicks24: Number(r.clicks24),
+    })),
+    total,
+  };
 }
 
 export async function listCategories() {
@@ -108,7 +123,7 @@ export async function similarDeals(p: Product, limit = 5) {
     .where(and(p.category ? eq(products.category, p.category) : undefined, sql`${products.id} <> ${p.id}`))
     .orderBy(desc(products.dealScore))
     .limit(limit);
-  return rows.map((r) => ({ ...r, low30: null }));
+  return rows.map((r) => ({ ...r, low30: null, droppedAt: null, clicks24: 0 }));
 }
 
 /** Các lựa chọn cùng sản phẩm ở những sàn khác (rẻ nhất mỗi sàn) */
@@ -173,4 +188,30 @@ export async function calcVouchers(platform?: string) {
     max: v.maxDiscount,
     minSpend: v.minSpend,
   }));
+}
+
+/** Deal vừa giảm giá trong `hours` giờ qua (mới nhất trước) */
+export async function justDropped(hours = 24, limit = 12): Promise<DealRow[]> {
+  await ensureMigrated();
+  const since = new Date(Date.now() - hours * 3_600_000);
+  const rows = await db
+    .select({ product: products, droppedAt: droppedAtSql, clicks24: clicks24Sql })
+    .from(products)
+    .where(and(gte(products.realDropPct, 5), sql`${droppedAtSql} >= ${since}`))
+    .orderBy(sql`${droppedAtSql} desc`, desc(products.dealScore))
+    .limit(limit);
+  return rows.map((r) => ({ ...r.product, low30: null, droppedAt: r.droppedAt ? new Date(r.droppedAt) : null, clicks24: Number(r.clicks24) }));
+}
+
+/** Mã sắp hết hạn gần nhất của một sàn (để nhắc trên trang sản phẩm) */
+export async function soonestVoucher(platform: string, withinHours = 24) {
+  await ensureMigrated();
+  const now = new Date();
+  const [v] = await db
+    .select()
+    .from(vouchers)
+    .where(and(eq(vouchers.platform, platform), gte(vouchers.endAt, now), sql`${vouchers.endAt} <= ${new Date(now.getTime() + withinHours * 3_600_000)}`))
+    .orderBy(asc(vouchers.endAt))
+    .limit(1);
+  return v ?? null;
 }

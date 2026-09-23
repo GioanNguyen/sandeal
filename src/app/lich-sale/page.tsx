@@ -5,6 +5,7 @@ import { vouchers } from "@/db/schema";
 import { db, ensureMigrated } from "@/lib/db";
 import { FLASH_SLOTS, nextSale, upcomingSales } from "@/lib/sales";
 import { Countdown } from "@/components/Countdown";
+import { UrgencyTimer } from "@/components/UrgencyTimer";
 import { Icon } from "@/components/Icon";
 import { VoucherTicket } from "@/components/VoucherTicket";
 
@@ -43,7 +44,14 @@ export default async function SaleCalendar() {
           <h1>{major.name}</h1>
           <p>{dateLabel(major.start)} · {major.note}</p>
         </div>
-        <Countdown to={major.start.toISOString()} until={major.end.toISOString()} />
+        {now >= major.start ? (
+          <div className="sale-live">
+            <span className="live-badge light"><span className="pulse-dot" aria-hidden="true" /> ĐANG DIỄN RA</span>
+            <UrgencyTimer end={major.end.toISOString()} start={major.start.toISOString()} label="Kết thúc sau" />
+          </div>
+        ) : (
+          <Countdown to={major.start.toISOString()} until={major.end.toISOString()} />
+        )}
         <div className="hero-actions">
           <Link href="/account/so-thich" className="btn btn-light"><Icon name="bell" size={16} /> Nhắc tôi tối hôm trước</Link>
           <Link href="/kiem-tra-gia" className="btn btn-outline"><Icon name="link" size={16} /> Kiểm tra giá trước ngày sale</Link>

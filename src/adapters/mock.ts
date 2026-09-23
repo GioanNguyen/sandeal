@@ -85,11 +85,14 @@ export const mockAdapter: SourceAdapter = {
   async fetchVouchers(): Promise<VoucherInput[]> {
     const now = Date.now();
     const d = (days: number) => new Date(now + days * 86_400_000);
+    const hrs = (h: number) => new Date(now + h * 3_600_000);
     return [
       { source: "mock", externalId: "v1", platform: "shopee", code: "SHOPEE50K", title: "Giảm 50K đơn từ 300K", discountText: "50.000đ", minSpend: 300_000, startAt: d(-1), endAt: d(3), affiliateUrl: "https://example.com/shopee/voucher" },
       { source: "mock", externalId: "v2", platform: "shopee", title: "Freeship Xtra toàn quốc", discountText: "Freeship", minSpend: 0, startAt: d(-2), endAt: d(5), affiliateUrl: "https://example.com/shopee/freeship" },
       { source: "mock", externalId: "v3", platform: "lazada", code: "LAZ10", title: "Giảm 10% tối đa 100K", discountText: "10%", minSpend: 200_000, startAt: d(0), endAt: d(2), affiliateUrl: "https://example.com/lazada/voucher" },
       { source: "mock", externalId: "v4", platform: "tiktok", code: "TTS30K", title: "Giảm 30K cho đơn đầu tiên", discountText: "30.000đ", minSpend: 99_000, startAt: d(-3), endAt: d(10), affiliateUrl: "https://example.com/tiktok/voucher" },
+      { source: "mock", externalId: "v6", platform: "shopee", code: "FLASH15", title: "Flash: giảm 15% tối đa 60K", discountText: "15%", minSpend: 150_000, startAt: hrs(-5), endAt: hrs(0.75), affiliateUrl: "https://example.com/shopee/flash" },
+      { source: "mock", externalId: "v7", platform: "tiktok", code: "TTSLIVE", title: "Giảm 40K khung giờ live", discountText: "40.000đ", minSpend: 250_000, startAt: hrs(-3), endAt: hrs(2.5), affiliateUrl: "https://example.com/tiktok/live" },
       { source: "mock", externalId: "v5", platform: "lazada", title: "Hoàn xu 15% ngành Điện tử", discountText: "15% hoàn xu", startAt: d(-1), endAt: d(1), affiliateUrl: "https://example.com/lazada/cashback" },
     ];
   },

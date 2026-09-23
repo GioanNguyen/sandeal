@@ -3,7 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { siteUrl } from "@/lib/mail";
-import { calcVouchers, compareOffers, getProduct, similarDeals } from "@/lib/queries";
+import { calcVouchers, compareOffers, getProduct, similarDeals, soonestVoucher } from "@/lib/queries";
+import { UrgencyTimer } from "@/components/UrgencyTimer";
 import { bestPlan } from "@/lib/voucher";
 import { VoteBox } from "@/components/VoteBox";
 import { voteSummary } from "@/lib/community";
@@ -40,6 +41,13 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const [p, user] = await Promise.all([getProduct(Number(id)), getCurrentUser()]);
   if (!p) notFound();
   const [similar, offers, pv, votes] = await Promise.all([similarDeals(p, 5), compareOffers(p), calcVouchers(p.platform), voteSummary(p.id, user?.id)]);
+  const expiring = await soonestVoucher(p.platform, 24);
+  // Lần giảm giá gần nhất (≥5%) trong lịch sử
+  let droppedAt: Date | null = null;
+  for (let i = p.prices.length - 1; i > 0; i--) {
+    if (p.prices[i].price <= p.prices[i - 1].price * 0.95) { droppedAt = p.prices[i].capturedAt; break; }
+  }
+  const freshDrop = droppedAt && Date.now() - droppedAt.getTime() < 24 * 3_600_000 ? droppedAt : null;
   const plan = bestPlan({ platform: p.platform, subtotal: p.price, shipping: 30_000 }, pv);
   const afterCodes = p.price - plan.discount - plan.cashback;
 
@@ -138,6 +146,15 @@ export default async function ProductPage({ params, searchParams }: Props) {
             <div className="kpi"><span>Giá thường ngày</span><b>{vnd(med)}</b></div>
           </div>
 
+          {freshDrop && (
+            <p className="fresh-line"><span className="pulse-dot" aria-hidden="true" /> Giá vừa giảm lúc {freshDrop.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Ho_Chi_Minh" })} hôm nay. Giá sàn có thể đổi bất cứ lúc nào.</p>
+          )}
+          {expiring?.endAt && (
+            <div className="expiring">
+              <span><b>{expiring.code ? `Mã ${expiring.code}` : expiring.title}</b> {expiring.code ? `· ${expiring.title}` : ""}</span>
+              <UrgencyTimer end={expiring.endAt.toISOString()} start={expiring.startAt?.toISOString()} label="Hết hạn sau" endedLabel="Mã đã hết hạn" size="sm" />
+            </div>
+          )}
           {afterCodes < p.price && (
             <a className="best-price" href={`/tinh-gia?p=${p.id}`}>
               <Icon name="ticket" size={18} />
@@ -172,6 +189,18 @@ export default async function ProductPage({ params, searchParams }: Props) {
           </section>
         </div>
       </div>
+      <div className="buy-sticky" role="region" aria-label="Mua nhanh">
+        <div>
+          <b className="price">{vnd(p.price)}</b>
+          {expiring?.endAt ? (
+            <UrgencyTimer end={expiring.endAt.toISOString()} label="Mã hết hạn sau" endedLabel="Mã đã hết hạn" bar={false} size="sm" />
+          ) : afterCodes < p.price ? (
+            <span className="muted" style={{ fontSize: 12 }}>Sau mã: {vnd(afterCodes)}</span>
+          ) : null}
+        </div>
+        <a className="btn btn-primary" href={`/go/${p.id}`} target="_blank" rel="nofollow sponsored noopener">Mua ngay <Icon name="external" size={14} /></a>
+      </div>
+
       {similar.length > 0 && (
         <section className="section" aria-labelledby="sim-head">
           <div className="section-head"><h2 id="sim-head"><Icon name="flame" size={22} /> Deal cùng danh mục</h2></div>

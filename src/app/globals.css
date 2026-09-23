@@ -498,3 +498,86 @@ main.container { flex: 1; width: 100%; }
   .main-nav { gap: 0; }
   .main-nav a { padding: 0 9px; min-width: 40px; justify-content: center; }
 }
+
+/* ===== Hiệu ứng gấp rút (dựa trên thời gian & dữ liệu thật) ===== */
+:root { --hot: #dc2626; --hot-soft: #fee2e2; }
+@media (prefers-color-scheme: dark) { :root { --hot: #f87171; --hot-soft: #3b1414; } }
+
+@keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--hot) 55%, transparent); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+@keyframes blink { 50% { opacity: .35; } }
+@keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+@keyframes glow { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--hot) 0%, transparent), var(--shadow-sm); } 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--hot) 22%, transparent), var(--shadow-md); } }
+@keyframes flicker { 0%, 100% { transform: scale(1) rotate(0); } 25% { transform: scale(1.12) rotate(-6deg); } 50% { transform: scale(.95) rotate(4deg); } 75% { transform: scale(1.08) rotate(-2deg); } }
+@keyframes tick { 0% { transform: translateY(-2px); opacity: .6; } 100% { transform: none; opacity: 1; } }
+
+.pulse-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--hot); animation: pulse-ring 1.6s infinite; flex: none; }
+.live-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; letter-spacing: .06em; color: var(--hot); background: var(--hot-soft); padding: 3px 8px; border-radius: 999px; }
+.live-badge.light { color: #fff; background: rgb(255 255 255 / 20%); }
+.live-badge.light .pulse-dot { background: #fff; }
+
+/* Đồng hồ đếm ngược */
+.utimer { display: inline-flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); min-width: 0; }
+.utimer.sm { font-size: 13px; }
+.utimer-row { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.utimer-time { font-variant-numeric: tabular-nums; color: var(--text); }
+.utimer-bar { display: block; height: 5px; border-radius: 999px; background: var(--surface-2); overflow: hidden; min-width: 120px; }
+.utimer-bar i { display: block; height: 100%; border-radius: inherit; background: var(--primary); transition: width 1s linear; }
+.utimer.soon { color: var(--warn); } .utimer.soon .utimer-time { color: var(--warn); }
+.utimer.urgent, .utimer.critical { color: var(--hot); font-weight: 700; }
+.utimer.urgent .utimer-time, .utimer.critical .utimer-time { color: var(--hot); }
+.utimer.urgent .utimer-bar i, .utimer.critical .utimer-bar i { background: var(--hot); }
+.utimer.critical .utimer-row svg { animation: flicker 1s infinite; }
+.utimer.critical .utimer-time { animation: blink 1s steps(2) infinite; }
+.utimer.ended { color: var(--muted); text-decoration: line-through; }
+
+/* Voucher sắp hết hạn */
+.ticket-flag { position: absolute; top: -10px; right: 12px; z-index: 1; font-size: 11px; font-weight: 800; color: #fff; background: var(--hot); padding: 3px 10px; border-radius: 999px; box-shadow: var(--shadow-sm); }
+.ticket.lvl-urgent, .ticket.lvl-critical { border-color: var(--hot); animation: glow 2.2s ease-in-out infinite; }
+.ticket.lvl-ended { opacity: .55; filter: grayscale(.8); }
+
+/* Thẻ deal vừa giảm */
+.fresh-tag { position: absolute; left: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #fff; background: rgb(28 26 25 / 78%); padding: 4px 10px; border-radius: 999px; backdrop-filter: blur(4px); }
+.fresh-tag .pulse-dot { background: #ff6b5b; }
+.fresh-tag.live { background: var(--hot); }
+.fresh-tag.live .pulse-dot { background: #fff; }
+.deal-fresh { border-color: color-mix(in srgb, var(--hot) 45%, var(--border)); }
+.deal-fresh .deal-media::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 35%) 45%, transparent 60%); background-size: 200% 100%; animation: shimmer 2.8s ease-in-out infinite; }
+.hot-line { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; color: var(--hot); }
+.hot-line svg { animation: flicker 1.4s infinite; }
+
+/* Thanh sale trang chủ */
+.sale-bar.is-soon { border-color: var(--warn); background: linear-gradient(90deg, var(--warn-soft), var(--surface) 60%); }
+.sale-bar.is-live { border-color: var(--hot); background: linear-gradient(90deg, var(--hot-soft), var(--surface) 55%); animation: glow 2.2s ease-in-out infinite; }
+.sale-bar .utimer { flex-direction: row; align-items: center; gap: 10px; }
+.sale-bar .utimer-time { font-size: 16px; }
+.sale-live { display: flex; flex-direction: column; gap: 10px; }
+.sale-hero .utimer, .sale-hero .utimer-time { color: #fff; font-size: 22px; }
+.sale-hero .utimer-bar { height: 8px; background: rgb(255 255 255 / 25%); max-width: 420px; }
+.sale-hero .utimer-bar i { background: #fff; }
+
+/* Dải "vừa giảm giá" */
+.drop-strip { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 2px 2px 8px; scrollbar-width: thin; }
+.drop-item { flex: 0 0 260px; scroll-snap-align: start; display: flex; gap: 10px; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px; transition: border-color .2s, transform .2s; }
+.drop-item:hover { border-color: var(--hot); transform: translateY(-2px); }
+.drop-item img { width: 64px; height: 64px; border-radius: 10px; object-fit: cover; flex: none; background: var(--surface-2); }
+.drop-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.drop-name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.drop-meta { font-size: 12px; color: var(--muted); }
+.drop-meta .save { font-weight: 800; }
+.section-head h2 .live-badge { margin-right: 4px; }
+
+/* Trang sản phẩm */
+.fresh-line { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--hot); font-weight: 600; margin: 0 0 10px; }
+.expiring { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; border: 1.5px dashed var(--hot); background: var(--hot-soft); border-radius: var(--radius); padding: 10px 14px; margin: 0 0 12px; font-size: 14px; }
+.expiring .utimer { min-width: 180px; }
+.buy-sticky { display: none; }
+@media (max-width: 900px) {
+  .buy-sticky { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(10px); border-top: 1px solid var(--border); box-shadow: 0 -6px 20px rgb(0 0 0 / 8%); }
+  .buy-sticky > div { display: flex; flex-direction: column; min-width: 0; }
+  .buy-sticky .price { font-size: 18px; }
+  body:has(.buy-sticky) .site-footer { padding-bottom: 80px; }
+}
+@media (max-width: 640px) {
+  .sale-bar .utimer-time { font-size: 15px; }
+  .drop-item { flex-basis: 78%; }
+}

@@ -4,7 +4,10 @@ import { LinkCheckForm } from "@/components/LinkCheckForm";
 import { Countdown } from "@/components/Countdown";
 import { nextSale } from "@/lib/sales";
 import { PLATFORMS } from "@/lib/format";
-import { homeStats, listActiveVouchers, listCategories, listDeals } from "@/lib/queries";
+import { homeStats, justDropped, listActiveVouchers, listCategories, listDeals } from "@/lib/queries";
+import { UrgencyTimer } from "@/components/UrgencyTimer";
+import { agoShort } from "@/components/DealCard";
+import { vnd } from "@/lib/format";
 import { DealGrid, Pager } from "@/components/DealGrid";
 import { Icon } from "@/components/Icon";
 import { VoucherTicket } from "@/components/VoucherTicket";
@@ -22,11 +25,12 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
   const now = new Date();
   const isLanding = !sp.q && !sp.platform && !sp.category && !sp.min && page === 1;
 
-  const [{ items, total }, categories, stats, vouchers] = await Promise.all([
+  const [{ items, total }, categories, stats, vouchers, dropped] = await Promise.all([
     listDeals({ q: sp.q, platform: sp.platform, category: sp.category, minDrop: Number(sp.min) || undefined, sort: sp.sort, page, pageSize: PAGE_SIZE }),
     listCategories(),
     homeStats(),
     isLanding ? listActiveVouchers({ limit: 8 }) : Promise.resolve([]),
+    isLanding ? justDropped(24, 12) : Promise.resolve([]),
   ]);
   const pages = Math.ceil(total / PAGE_SIZE);
   const href = (patch: Record<string, string | undefined>) => {
@@ -66,15 +70,43 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
 
       {isLanding && (() => {
         const sale = nextSale(now, true);
+        const live = now >= sale.start;
+        const soon = !live && sale.start.getTime() - now.getTime() < 24 * 3_600_000;
         return (
-          <Link href="/lich-sale" className="sale-bar">
-            <Icon name="calendar" size={18} />
-            <span><b>{sale.name}</b> còn</span>
-            <Countdown to={sale.start.toISOString()} until={sale.end.toISOString()} compact />
-            <span className="sale-bar-cta">Xem lịch sale <Icon name="arrowRight" size={14} /></span>
+          <Link href="/lich-sale" className={`sale-bar${live ? " is-live" : soon ? " is-soon" : ""}`}>
+            {live ? <span className="live-badge"><span className="pulse-dot" aria-hidden="true" /> ĐANG DIỄN RA</span> : <Icon name="calendar" size={18} />}
+            <span><b>{sale.name}</b> {live ? "kết thúc sau" : "còn"}</span>
+            {live || soon ? (
+              <UrgencyTimer end={(live ? sale.end : sale.start).toISOString()} start={live ? sale.start.toISOString() : null} label="" endedLabel="Đã kết thúc" bar={live} />
+            ) : (
+              <Countdown to={sale.start.toISOString()} until={sale.end.toISOString()} compact />
+            )}
+            <span className="sale-bar-cta">{live ? "Săn ngay" : "Xem lịch sale"} <Icon name="arrowRight" size={14} /></span>
           </Link>
         );
       })()}
+
+      {isLanding && dropped.length > 0 && (
+        <section className="section" aria-labelledby="drop-head">
+          <div className="section-head">
+            <h2 id="drop-head"><span className="live-badge"><span className="pulse-dot" aria-hidden="true" /> MỚI</span> Vừa giảm giá trong 24 giờ</h2>
+            <a href="#deals">Xem tất cả <Icon name="arrowRight" size={16} /></a>
+          </div>
+          <div className="drop-strip">
+            {dropped.map((p) => (
+              <Link key={p.id} href={`/product/${p.id}`} className="drop-item">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.imageUrl ?? ""} alt="" width={64} height={64} loading="lazy" />
+                <span className="drop-info">
+                  <span className="drop-name">{p.name}</span>
+                  <b className="price" style={{ fontSize: 16 }}>{vnd(p.price)}</b>
+                  <span className="drop-meta"><span className="save">−{Math.round(p.realDropPct)}%</span> · {p.droppedAt ? agoShort(p.droppedAt) : ""}</span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {isLanding && (
         <nav className="tools" aria-label="Công cụ săn deal">

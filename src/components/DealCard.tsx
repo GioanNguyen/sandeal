@@ -1,18 +1,30 @@
 import Link from "next/link";
-import type { Product } from "@/db/schema";
+import type { DealRow } from "@/lib/queries";
 import { vnd } from "@/lib/format";
 import { Icon } from "./Icon";
 import { PlatformBadge } from "./PlatformBadge";
 
-export function DealCard({ p, isLowest = false }: { p: Product; isLowest?: boolean }) {
+export function agoShort(d: Date) {
+  const m = Math.max(1, Math.round((Date.now() - d.getTime()) / 60000));
+  return m < 60 ? `${m} phút trước` : `${Math.round(m / 60)} giờ trước`;
+}
+
+export function DealCard({ p, isLowest = false }: { p: DealRow; isLowest?: boolean }) {
   const score = Math.round(p.dealScore);
+  const fresh = p.droppedAt && Date.now() - p.droppedAt.getTime() < 24 * 3_600_000 ? p.droppedAt : null;
+  const veryFresh = fresh && Date.now() - fresh.getTime() < 3 * 3_600_000;
   return (
-    <Link href={`/product/${p.id}`} className="deal">
+    <Link href={`/product/${p.id}`} className={`deal${veryFresh ? " deal-fresh" : ""}`}>
       <div className="deal-media">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={p.imageUrl ?? ""} alt="" loading="lazy" width={400} height={400} />
         <PlatformBadge platform={p.platform} />
-        {isLowest && (
+        {fresh && (
+          <span className={`fresh-tag${veryFresh ? " live" : ""}`}>
+            <span className="pulse-dot" aria-hidden="true" /> Vừa giảm · {agoShort(fresh)}
+          </span>
+        )}
+        {isLowest && !fresh && (
           <span className="lowest-tag"><Icon name="trendingDown" size={14} /> Thấp nhất 30 ngày</span>
         )}
       </div>
@@ -27,6 +39,9 @@ export function DealCard({ p, isLowest = false }: { p: Product; isLowest?: boole
           <span className="real-drop" title="So với giá trung bình 30 ngày qua"><Icon name="shield" size={14} /> Giảm thật {Math.round(p.realDropPct)}%</span>
         ) : (
           <span className="real-drop neutral">Giá như mọi ngày</span>
+        )}
+        {(p.clicks24 ?? 0) >= 3 && (
+          <span className="hot-line"><Icon name="flame" size={13} /> {p.clicks24} lượt bấm mua · 24h</span>
         )}
         <div className="deal-foot">
           <span className="rating">
