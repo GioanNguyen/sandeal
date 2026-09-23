@@ -1,7 +1,7 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { PLATFORMS, shortDate, vnd } from "@/lib/format";
-import { PlatformBadge } from "@/components/PlatformBadge";
-import { CopyCode } from "@/components/CopyCode";
+import { PLATFORMS } from "@/lib/format";
+import { VoucherTicket } from "@/components/VoucherTicket";
 
 export const dynamic = "force-dynamic";
 
@@ -18,38 +18,23 @@ export default async function Vouchers({ searchParams }: { searchParams: Promise
 
   return (
     <>
-      <h1>Mã giảm giá & khuyến mãi</h1>
-      <p className="sub">Chỉ hiện mã còn hạn, sắp hết hạn xếp trước.</p>
-      <form className="filters">
-        <select name="platform" defaultValue={platform ?? ""}>
-          <option value="">Tất cả sàn</option>
-          {Object.entries(PLATFORMS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </select>
-        <button className="primary" type="submit">Lọc</button>
-      </form>
-      <div className="vlist">
-        {vouchers.map((v) => {
-          const hoursLeft = v.endAt ? (v.endAt.getTime() - now.getTime()) / 3_600_000 : Infinity;
-          return (
-            <div className="voucher" key={v.id}>
-              <div className="row">
-                <PlatformBadge platform={v.platform} />
-                {v.discountText && <b>{v.discountText}</b>}
-              </div>
-              <div>{v.title}</div>
-              {v.minSpend ? <div className="muted">Đơn tối thiểu {vnd(v.minSpend)}</div> : null}
-              <div className={hoursLeft < 24 ? "warn" : "muted"}>
-                {v.endAt ? (hoursLeft < 24 ? `Hết hạn sau ${Math.max(1, Math.round(hoursLeft))} giờ` : `HSD ${shortDate(v.endAt)}`) : "Không rõ hạn"}
-              </div>
-              <div className="row">
-                {v.code ? <CopyCode code={v.code} /> : null}
-                <a className="btn" href={v.affiliateUrl} target="_blank" rel="nofollow sponsored noopener">Dùng ngay</a>
-              </div>
-            </div>
-          );
-        })}
-        {vouchers.length === 0 && <p className="muted">Chưa có mã nào còn hạn.</p>}
-      </div>
+      <h1 className="page-title">Mã giảm giá & khuyến mãi</h1>
+      <p className="page-sub">Chỉ hiện mã còn hạn, mã sắp hết hạn xếp trước. Bấm vào mã để chép.</p>
+      <nav className="chips" aria-label="Lọc theo sàn" style={{ marginBottom: 20 }}>
+        <Link className="chip" href="/vouchers" aria-current={!platform}>Tất cả sàn</Link>
+        {Object.entries(PLATFORMS).map(([k, v]) => (
+          <Link key={k} className="chip" href={`/vouchers?platform=${k}`} aria-current={platform === k}>
+            <span className="dot" style={{ background: v.color }} aria-hidden="true" />{v.label}
+          </Link>
+        ))}
+      </nav>
+      {vouchers.length > 0 ? (
+        <div className="tickets">
+          {vouchers.map((v) => <VoucherTicket key={v.id} v={v} now={now} />)}
+        </div>
+      ) : (
+        <div className="empty">Chưa có mã nào còn hạn cho sàn này.</div>
+      )}
     </>
   );
 }
