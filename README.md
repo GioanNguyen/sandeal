@@ -33,8 +33,12 @@ Kiểm thử: `npm test` (chạy trên Postgres trong RAM) · `npm run typecheck
 | Chống spam | Giới hạn tần suất theo IP và email, ô bẫy bot |
 | Link `/go/[id]` | Ghi lượt bấm rồi chuyển sang link affiliate |
 | Thống kê `/admin` | Lượt bấm, đơn, doanh số, hoa hồng theo ngày/sàn; nút đồng bộ |
-| Telegram | Tự đăng deal hot lên kênh (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`) |
+| Telegram | Tự đăng deal hot lên kênh (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`); người dùng kết nối bot cá nhân cần thêm `TELEGRAM_BOT_USERNAME` |
 | SEO | `sitemap.xml`, `robots.txt`, title/description/OG từng trang |
+| Kiểm tra giá `/kiem-tra-gia` | Dán link Shopee/Lazada/TikTok (cả link rút gọn) → lịch sử giá, điểm deal; link chưa có dữ liệu được xếp hàng tra cứu lại |
+| Lịch sale `/lich-sale` | Ngày đôi, 15, 25 hằng tháng, Black Friday; đếm ngược, khung giờ vàng, mã theo đợt; nhắc 20h tối hôm trước |
+| So sánh giá `/so-sanh` | Ghép sản phẩm giống nhau giữa các sàn theo tên; bảng so sánh trên trang chi tiết |
+| Săn deal theo sở thích `/account/so-thich` | Từ khoá, danh mục, sàn, mức giảm; bản tin mỗi sáng qua email/Telegram, không gửi trùng |
 
 ## Nguồn dữ liệu
 

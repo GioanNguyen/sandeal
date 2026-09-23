@@ -46,6 +46,8 @@ export interface SourceAdapter {
   name: string;
   fetchProducts?(): Promise<ProductInput[]>;
   fetchVouchers?(): Promise<VoucherInput[]>;
+  /** Tra cứu 1 sản phẩm theo mã (khi người dùng dán link) */
+  lookup?(ref: { platform: Platform; externalId: string; shopId?: string; url: string }): Promise<ProductInput | null>;
   /** Đơn hàng/hoa hồng phát sinh từ `since` (báo cáo của mạng affiliate) */
   fetchConversions?(since: Date): Promise<ConversionInput[]>;
 }

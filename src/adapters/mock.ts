@@ -58,6 +58,27 @@ export function mockProducts(random: () => number = Math.random): ProductInput[]
 
 export const mockAdapter: SourceAdapter = {
   name: "mock",
+  /** Dữ liệu mẫu: tạo sản phẩm giả cho mọi link hợp lệ để thử tính năng dán link */
+  async lookup(ref) {
+    const r = rng([...ref.externalId].reduce((a, c) => a * 31 + c.charCodeAt(0), 7) % 100000);
+    const [name, category, base] = CATALOG[Math.floor(r() * CATALOG.length)];
+    const discountPct = Math.round(r() * 40);
+    const listPrice = Math.round((base * (0.9 + r() * 0.3)) / 1000) * 1000;
+    return {
+      platform: ref.platform,
+      externalId: ref.externalId,
+      name: `${name} (dữ liệu mẫu #${ref.externalId.slice(-4)})`,
+      category,
+      shopName: "Shop mẫu",
+      imageUrl: `https://picsum.photos/seed/sandeal-${ref.externalId}/400/400`,
+      price: Math.round((listPrice * (1 - discountPct / 100)) / 1000) * 1000,
+      originalPrice: listPrice,
+      discountPct,
+      rating: Math.round((3.8 + r() * 1.2) * 10) / 10,
+      sold: Math.round(r() * 5000),
+      affiliateUrl: ref.url,
+    };
+  },
   async fetchProducts() {
     return mockProducts();
   },

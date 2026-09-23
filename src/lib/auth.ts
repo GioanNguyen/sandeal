@@ -138,3 +138,13 @@ export function verifyUnsubscribeSig(watchId: number, sig: string) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 export const unsubscribeUrl = (watchId: number) => `${siteUrl()}/unsubscribe?w=${watchId}&s=${unsubscribeSig(watchId)}`;
+
+/** Link một chạm tắt bản tin / nhắc sale trong email */
+export function signedFor(kind: string, id: number) {
+  return createHmac("sha256", secret()).update(`${kind}:${id}`).digest("base64url").slice(0, 22);
+}
+export function verifySignedFor(kind: string, id: number, sig: string) {
+  const a = Buffer.from(signedFor(kind, id));
+  const b = Buffer.from(sig);
+  return a.length === b.length && timingSafeEqual(a, b);
+}

@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { LinkCheckForm } from "@/components/LinkCheckForm";
+import { Countdown } from "@/components/Countdown";
+import { nextSale } from "@/lib/sales";
 import { PLATFORMS } from "@/lib/format";
 import { homeStats, listActiveVouchers, listCategories, listDeals } from "@/lib/queries";
 import { DealGrid, Pager } from "@/components/DealGrid";
@@ -12,6 +16,8 @@ type SP = Promise<Record<string, string | undefined>>;
 
 export default async function Home({ searchParams }: { searchParams: SP }) {
   const sp = await searchParams;
+  // Người dùng dán link sản phẩm vào ô tìm kiếm -> chuyển sang kiểm tra giá
+  if (sp.q && /(shopee|shope\.ee|shp\.ee|lazada|tiktok)\./i.test(sp.q)) redirect(`/kiem-tra-gia?url=${encodeURIComponent(sp.q)}`);
   const page = Math.max(1, Number(sp.page) || 1);
   const now = new Date();
   const isLanding = !sp.q && !sp.platform && !sp.category && !sp.min && page === 1;
@@ -38,6 +44,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
             <span className="hero-eyebrow"><Icon name="shield" size={14} /> So với giá 30 ngày, không tin giá ảo</span>
             <h1>Chỉ săn deal giảm thật trên Shopee, Lazada, TikTok Shop</h1>
             <p className="hero-lead">Chúng tôi theo dõi lịch sử giá mỗi ngày để lọc ra món thật sự rẻ, kèm mã giảm giá còn hạn.</p>
+            <LinkCheckForm />
             <div className="hero-actions">
               <a href="#deals" className="btn btn-light">Xem deal hot <Icon name="arrowRight" size={16} /></a>
               <Link href="/vouchers" className="btn btn-outline"><Icon name="ticket" size={16} /> Lấy mã giảm giá</Link>
@@ -56,6 +63,18 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
           <p className="page-sub">Xếp theo điểm deal: giảm thật so với giá 30 ngày, đánh giá và lượt bán.</p>
         </>
       )}
+
+      {isLanding && (() => {
+        const sale = nextSale(now, true);
+        return (
+          <Link href="/lich-sale" className="sale-bar">
+            <Icon name="calendar" size={18} />
+            <span><b>{sale.name}</b> còn</span>
+            <Countdown to={sale.start.toISOString()} until={sale.end.toISOString()} compact />
+            <span className="sale-bar-cta">Xem lịch sale <Icon name="arrowRight" size={14} /></span>
+          </Link>
+        );
+      })()}
 
       {isLanding && vouchers.length > 0 && (
         <section className="section" aria-labelledby="v-head">

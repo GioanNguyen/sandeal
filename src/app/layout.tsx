@@ -49,6 +49,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <nav className="main-nav" aria-label="Điều hướng chính">
               <Link href="/" aria-label="Deal hot"><Icon name="flame" /><span>Deal hot</span></Link>
               <Link href="/vouchers" aria-label="Mã giảm giá"><Icon name="ticket" /><span>Mã giảm giá</span></Link>
+              <Link href="/so-sanh" aria-label="So sánh giá"><Icon name="scale" /><span>So sánh</span></Link>
+              <Link href="/lich-sale" aria-label="Lịch sale"><Icon name="calendar" /><span>Lịch sale</span></Link>
               {user && isAdmin(user.email) && (
                 <Link href="/admin" aria-label="Thống kê"><Icon name="chart" /><span>Thống kê</span></Link>
               )}

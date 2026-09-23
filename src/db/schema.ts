@@ -1,5 +1,5 @@
 import {
-  doublePrecision, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex,
+  boolean, doublePrecision, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
@@ -26,8 +26,11 @@ export const products = pgTable(
     lastSeenAt: ts("last_seen_at").notNull().defaultNow(),
     createdAt: ts("created_at").notNull().defaultNow(),
     telegramPostedAt: ts("telegram_posted_at"),
+    /** Khoá nhóm sản phẩm giống nhau giữa các sàn (dùng để so sánh giá) */
+    groupKey: text("group_key"),
   },
   (t) => [
+    index("products_group_idx").on(t.groupKey),
     uniqueIndex("products_platform_ext_uq").on(t.platform, t.externalId),
     index("products_score_idx").on(t.dealScore),
     index("products_cat_idx").on(t.platform, t.category),
@@ -136,6 +139,54 @@ export const rateLimits = pgTable("rate_limits", {
   resetAt: ts("reset_at").notNull(),
 });
 
+/** Link người dùng dán vào mà chưa có dữ liệu – worker sẽ thử tra cứu lại */
+export const productRequests = pgTable(
+  "product_requests",
+  {
+    id: serial("id").primaryKey(),
+    platform: text("platform").notNull(),
+    externalId: text("external_id").notNull(),
+    shopId: text("shop_id"),
+    url: text("url").notNull(),
+    count: integer("count").notNull().default(1),
+    attempts: integer("attempts").notNull().default(0),
+    productId: integer("product_id").references(() => products.id, { onDelete: "set null" }),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("product_requests_uq").on(t.platform, t.externalId)],
+);
+
+/** Sở thích săn deal + kênh nhận thông báo của từng người dùng */
+export const subscriptions = pgTable("subscriptions", {
+  userId: integer("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  keywords: text("keywords").notNull().default(""),
+  categories: jsonb("categories").$type<string[]>().notNull().default([]),
+  platforms: jsonb("platforms").$type<string[]>().notNull().default([]),
+  minDrop: integer("min_drop").notNull().default(15),
+  maxPrice: doublePrecision("max_price"),
+  emailDigest: boolean("email_digest").notNull().default(false),
+  telegramDigest: boolean("telegram_digest").notNull().default(false),
+  saleReminder: boolean("sale_reminder").notNull().default(false),
+  telegramChatId: text("telegram_chat_id"),
+  telegramLinkCode: text("telegram_link_code"),
+  lastDigestAt: ts("last_digest_at"),
+  lastSaleReminderKey: text("last_sale_reminder_key"),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
+/** Deal đã gửi cho người dùng (tránh gửi trùng trong bản tin) */
+export const sentDeals = pgTable(
+  "sent_deals",
+  {
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    productId: integer("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    sentAt: ts("sent_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("sent_deals_uq").on(t.userId, t.productId)],
+);
+
 export type Product = typeof products.$inferSelect;
+export type Subscription = typeof subscriptions.$inferSelect;
 export type Voucher = typeof vouchers.$inferSelect;
 export type PricePoint = typeof pricePoints.$inferSelect;

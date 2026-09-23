@@ -118,8 +118,28 @@ export function mapShopeeConversion(c: ShopeeConversion): ConversionInput {
   };
 }
 
+const LOOKUP_QUERY = `query ($itemId: Int64, $shopId: Int64) {
+  productOfferV2(itemId: $itemId, shopId: $shopId, page: 1, limit: 1) {
+    nodes {
+      itemId shopId productName shopName
+      priceMin priceMax priceDiscountRate
+      commissionRate sales ratingStar
+      imageUrl offerLink productLink productCatIds
+    }
+  }
+}`;
+
 export const shopeeAdapter: SourceAdapter = {
   name: "shopee",
+  async lookup(ref) {
+    if (ref.platform !== "shopee" || !process.env.SHOPEE_APP_ID || !process.env.SHOPEE_SECRET) return null;
+    const data = await gql<{ productOfferV2: { nodes: ShopeeNode[] } }>(LOOKUP_QUERY, {
+      itemId: Number(ref.externalId),
+      shopId: ref.shopId ? Number(ref.shopId) : undefined,
+    });
+    const node = data.productOfferV2.nodes[0];
+    return node ? mapShopeeNode(node) : null;
+  },
   async fetchProducts() {
     if (!process.env.SHOPEE_APP_ID || !process.env.SHOPEE_SECRET) {
       console.warn("[shopee] Thiếu SHOPEE_APP_ID/SHOPEE_SECRET, bỏ qua");

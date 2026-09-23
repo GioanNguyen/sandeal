@@ -110,3 +110,48 @@ export async function similarDeals(p: Product, limit = 5) {
     .limit(limit);
   return rows.map((r) => ({ ...r, low30: null }));
 }
+
+/** Các lựa chọn cùng sản phẩm ở những sàn khác (rẻ nhất mỗi sàn) */
+export async function compareOffers(p: Product) {
+  if (!p.groupKey) return [];
+  await ensureMigrated();
+  const rows = await db.select().from(products).where(eq(products.groupKey, p.groupKey)).orderBy(asc(products.price));
+  const best = new Map<string, Product>();
+  for (const r of rows) if (!best.has(r.platform)) best.set(r.platform, r);
+  return [...best.values()].sort((a, b) => a.price - b.price);
+}
+
+/** Nhóm sản phẩm có chênh lệch giá giữa các sàn lớn nhất */
+export async function biggestGaps(limit = 20) {
+  await ensureMigrated();
+  const groups = await db
+    .select({
+      key: products.groupKey,
+      minP: sql<number>`min(${products.price})`,
+      maxP: sql<number>`max(${products.price})`,
+      platforms: sql<number>`count(distinct ${products.platform})`,
+    })
+    .from(products)
+    .where(isNotNull(products.groupKey))
+    .groupBy(products.groupKey)
+    .having(sql`count(distinct ${products.platform}) >= 2`)
+    .orderBy(sql`(max(${products.price}) - min(${products.price})) / max(${products.price}) desc`)
+    .limit(limit * 2);
+  if (!groups.length) return [];
+  const members = await db
+    .select()
+    .from(products)
+    .where(sql`${products.groupKey} in (${sql.join(groups.map((g) => sql`${g.key}`), sql`, `)})`)
+    .orderBy(asc(products.price));
+  return groups.map((g) => {
+    const list = members.filter((m) => m.groupKey === g.key);
+    const perPlatform = new Map<string, Product>();
+    for (const m of list) if (!perPlatform.has(m.platform)) perPlatform.set(m.platform, m);
+    const offers = [...perPlatform.values()];
+    const min = offers[0].price, max = offers[offers.length - 1].price;
+    return { key: g.key!, name: offers[0].name, image: offers.find((o) => o.imageUrl)?.imageUrl ?? null, offers, save: max - min, savePct: max ? ((max - min) / max) * 100 : 0 };
+  })
+    .filter((g) => g.offers.length >= 2 && g.save > 0)
+    .sort((a, b) => b.savePct - a.savePct)
+    .slice(0, limit);
+}

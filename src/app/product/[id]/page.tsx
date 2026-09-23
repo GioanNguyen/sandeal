@@ -3,8 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { siteUrl } from "@/lib/mail";
-import { getProduct, similarDeals } from "@/lib/queries";
-import { median } from "@/lib/score";
+import { compareOffers, getProduct, similarDeals } from "@/lib/queries";
+import { CompareTable } from "@/components/CompareTable";
+import { timeWeightedMedian } from "@/lib/score";
 import { slugify } from "@/lib/slug";
 import { DealGrid } from "@/components/DealGrid";
 import { PLATFORMS, vnd } from "@/lib/format";
@@ -15,7 +16,7 @@ import { WatchForm } from "@/components/WatchForm";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ id: string }>; searchParams?: Promise<{ watch?: string; msg?: string }> };
+type Props = { params: Promise<{ id: string }>; searchParams?: Promise<{ watch?: string; msg?: string; moi?: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = await getProduct(Number((await params).id));
@@ -35,12 +36,14 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const sp = (await searchParams) ?? {};
   const [p, user] = await Promise.all([getProduct(Number(id)), getCurrentUser()]);
   if (!p) notFound();
-  const similar = await similarDeals(p, 5);
+  const [similar, offers] = await Promise.all([similarDeals(p, 5), compareOffers(p)]);
 
   const prices = p.prices.map((x) => x.price);
   const low = prices.length ? Math.min(...prices) : p.price;
-  const med = prices.length ? median(prices) : p.price;
-  const good = p.price <= low || p.realDropPct >= 10;
+  const med = p.prices.length ? timeWeightedMedian(p.prices, new Date()) : p.price;
+  const trackedDays = p.prices.length ? (Date.now() - p.prices[0].capturedAt.getTime()) / 86_400_000 : 0;
+  const isNewTrack = trackedDays < 7;
+  const good = !isNewTrack && (p.price <= low || p.realDropPct >= 10);
   const platformLabel = PLATFORMS[p.platform]?.label ?? p.platform;
 
   const jsonLd = {
@@ -90,22 +93,44 @@ export default async function ProductPage({ params, searchParams }: Props) {
             ) : null}
           </div>
 
-          <div className={`verdict ${good ? "good" : "wait"}`} role="status">
-            <Icon name={good ? "shield" : "alert"} size={22} />
-            <div>
-              <b>{good ? "Giá tốt, có thể mua ngay" : "Chưa phải giá tốt nhất"}</b>
-              <p>
-                {good
-                  ? `Rẻ hơn ${Math.max(0, Math.round(((med - p.price) / med) * 100))}% so với giá trung bình 90 ngày.`
-                  : `Từng có giá ${vnd(low)}. Đặt cảnh báo bên dưới để được báo khi giá giảm.`}
-              </p>
+          {sp.moi && (
+            <p className="form-msg save" role="status"><Icon name="check" size={16} /> Đã thêm sản phẩm vào danh sách theo dõi giá.</p>
+          )}
+          {isNewTrack ? (
+            <div className="verdict wait" role="status">
+              <Icon name="clock" size={22} />
+              <div>
+                <b>Mới bắt đầu theo dõi giá</b>
+                <p>
+                  Chúng tôi theo dõi sản phẩm này từ {p.prices[0]?.capturedAt.toLocaleDateString("vi-VN") ?? "hôm nay"}, cần khoảng 7 ngày để
+                  biết giá hiện tại có thật sự rẻ. Đặt cảnh báo bên dưới để được báo khi giá giảm.
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className={`verdict ${good ? "good" : "wait"}`} role="status">
+              <Icon name={good ? "shield" : "alert"} size={22} />
+              <div>
+                <b>{good ? "Giá tốt, có thể mua ngay" : "Chưa phải giá tốt nhất"}</b>
+                <p>
+                  {good
+                    ? `Rẻ hơn ${Math.max(0, Math.round(((med - p.price) / med) * 100))}% so với giá thường ngày (90 ngày qua).`
+                    : `Từng có giá ${vnd(low)}. Đặt cảnh báo bên dưới để được báo khi giá giảm.`}
+                </p>
+                {offers.length >= 2 && offers[0].id !== p.id && (
+                  <p>
+                    <b>{PLATFORMS[offers[0].platform]?.label}</b> đang bán rẻ hơn {vnd(p.price - offers[0].price)},{" "}
+                    <a href={`/product/${offers[0].id}`} style={{ color: "inherit", textDecoration: "underline" }}>xem ngay</a>.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="kpis">
             <div className="kpi"><span>Giá hiện tại</span><b>{vnd(p.price)}</b></div>
             <div className="kpi"><span>Thấp nhất 90 ngày</span><b className="save">{vnd(low)}</b></div>
-            <div className="kpi"><span>Giá trung bình</span><b>{vnd(med)}</b></div>
+            <div className="kpi"><span>Giá thường ngày</span><b>{vnd(med)}</b></div>
           </div>
 
           <div className="buy-row">
@@ -115,6 +140,13 @@ export default async function ProductPage({ params, searchParams }: Props) {
             <span className="updated"><Icon name="clock" size={14} /> Cập nhật {p.lastSeenAt.toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}</span>
           </div>
 
+          {offers.length >= 2 && (
+            <section className="panel" style={{ marginTop: 20 }}>
+              <h2><Icon name="scale" /> So sánh giá giữa các sàn</h2>
+              <p className="muted" style={{ margin: 0, fontSize: 13 }}>Ghép tự động theo tên sản phẩm, hãy kiểm tra lại phân loại/phiên bản trước khi mua.</p>
+              <CompareTable offers={offers} currentId={p.id} />
+            </section>
+          )}
           <section className="panel" style={{ marginTop: 20 }}>
             <h2><Icon name="trendingDown" /> Lịch sử giá 90 ngày</h2>
             <PriceChart points={p.prices} current={p.price} />

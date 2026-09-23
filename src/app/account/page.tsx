@@ -1,4 +1,5 @@
 import { desc, eq } from "drizzle-orm";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { products, watches } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
@@ -26,6 +27,10 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
+      <nav className="tabs" aria-label="Tài khoản">
+        <Link href="/account" aria-current="page">Theo dõi giá</Link>
+        <Link href="/account/so-thich">Sở thích & thông báo</Link>
+      </nav>
       <div className="account-head">
         <div>
           <h1 className="page-title">Theo dõi giá của bạn</h1>
