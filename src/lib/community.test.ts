@@ -38,4 +38,9 @@ test("chia sẻ deal, bình chọn, bảng xếp hạng", async () => {
   const board = await c.leaderboard();
   assert.deepEqual(board[0], { id: a.id, name: "An", deals: 1, votes: 1, points: 11 }); // tự vote không tính
   assert.equal(c.displayName({ name: null, email: "binh@test.vn" }), "bin***");
+
+  const { dealsByIds } = await import("./queries");
+  const [row] = await dealsByIds([pid]);
+  assert.equal(row.communityNote, "rẻ quá");
+  assert.equal(row.communityUp, 2);
 });

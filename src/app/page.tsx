@@ -73,6 +73,15 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
         </>
       )}
 
+      {isLanding && (
+        <Link href="/cach-hoat-dong" className="trust-bar" aria-label="Cách Săn Deal hoạt động">
+          <span><Icon name="refresh" size={16} /> Cập nhật giá mỗi 2 giờ</span>
+          <span><Icon name="shield" size={16} /> So với giá 30 ngày, không tin giá gốc</span>
+          <span><Icon name="scale" size={16} /> Xếp hạng theo giá, không theo hoa hồng</span>
+          <span className="trust-more">Cách chúng tôi tính <Icon name="arrowRight" size={14} /></span>
+        </Link>
+      )}
+
       {isLanding && (() => {
         const sale = nextSale(now, true);
         const live = now >= sale.start;

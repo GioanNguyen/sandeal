@@ -42,6 +42,8 @@ export function mockProducts(random: () => number = Math.random): ProductInput[]
         name,
         category,
         shopName: `${["Official", "Mall", "Store"][j]} ${category}`,
+        shopType: fixed() < 0.45 ? "mall" : fixed() < 0.6 ? "preferred" : undefined,
+        shopRating: Math.round((4.3 + fixed() * 0.7) * 10) / 10,
         imageUrl: `https://picsum.photos/seed/sandeal${i}/400/400`,
         price,
         originalPrice: listPrice,

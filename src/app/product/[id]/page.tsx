@@ -11,6 +11,7 @@ import { voteSummary } from "@/lib/community";
 import { CompareTable } from "@/components/CompareTable";
 import { RecordView } from "@/components/Personal";
 import { SaveButton } from "@/components/Saved";
+import { Freshness, ShopBadge } from "@/components/Trust";
 import { timeWeightedMedian } from "@/lib/score";
 import { slugify } from "@/lib/slug";
 import { DealGrid } from "@/components/DealGrid";
@@ -94,7 +95,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
         <div>
           <div className="buy-row" style={{ margin: 0 }}>
             <PlatformBadge platform={p.platform} inline />
-            {p.shopName && <span className="muted">{p.shopName}</span>}
+            <ShopBadge type={p.shopType} />
+            {p.shopName && <span className="muted">{p.shopName}{p.shopRating ? ` · shop ${p.shopRating.toFixed(1)}/5` : ""}</span>}
             {p.rating ? <span className="rating muted"><Icon name="star" size={14} />{p.rating.toFixed(1)}</span> : null}
             {p.sold ? <span className="muted">· Đã bán {p.sold.toLocaleString("vi-VN")}</span> : null}
           </div>
@@ -172,7 +174,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
             </a>
             <span className="save-inline"><SaveButton id={p.id} name={p.name} /></span>
             <VoteBox productId={p.id} initial={votes} loggedIn={!!user} />
-            <span className="updated"><Icon name="clock" size={14} /> Cập nhật {p.lastSeenAt.toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}</span>
+            <Freshness at={p.lastSeenAt} long />
           </div>
 
           {offers.length >= 2 && (

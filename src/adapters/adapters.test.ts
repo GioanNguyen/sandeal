@@ -26,6 +26,8 @@ test("map dữ liệu các sàn", () => {
   const s = mapShopeeNode({ itemId: 9, productName: "A", priceMin: "80000", priceDiscountRate: 20, offerLink: "https://s.shopee.vn/x" });
   assert.equal(s.originalPrice, 100000);
   assert.equal(s.affiliateUrl, "https://s.shopee.vn/x");
+  assert.equal(mapShopeeNode({ itemId: 1, productName: "M", priceMin: 1, shopType: [1] }).shopType, "mall");
+  assert.equal(mapShopeeNode({ itemId: 1, productName: "M", priceMin: 1, shopType: [2] }).shopType, "preferred");
   const l = mapLazadaItem({ productId: 1, productName: "B", discountPrice: 50, originalPrice: 100, totalCommissionRate: 8 });
   assert.equal(l?.discountPct, 50);
   assert.equal(l?.commissionRate, 0.08);

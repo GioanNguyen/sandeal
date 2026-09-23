@@ -6,6 +6,7 @@ import { Icon, type IconName } from "./Icon";
 import { PlatformBadge } from "./PlatformBadge";
 import { QuickView } from "./QuickView";
 import { SaveButton } from "./Saved";
+import { Freshness, ShopBadge } from "./Trust";
 import { Sparkline } from "./Sparkline";
 
 export function agoShort(d: Date) {
@@ -48,6 +49,11 @@ export function DealCard({ p }: { p: DealRow; isLowest?: boolean }) {
         </div>
         <div className="deal-body">
           <h3 className="deal-name">{p.name}</h3>
+          <span className="shop-line">
+            <ShopBadge type={p.shopType} />
+            {p.shopName && <span className="shop-name">{p.shopName}</span>}
+            <Freshness at={p.lastSeenAt} compact />
+          </span>
           <div className="price-row">
             <span className="price">{vnd(p.price)}</span>
             {p.discountPct >= 5 && <span className="pct">-{Math.round(p.discountPct)}%</span>}
@@ -72,10 +78,21 @@ export function DealCard({ p }: { p: DealRow; isLowest?: boolean }) {
             <span className="hot-line"><Icon name="flame" size={13} /> {p.clicks24} lượt bấm mua · 24h</span>
           )}
 
+          {(p.communityNote || (p.communityUp ?? 0) >= 2) && (
+            <span className="cm-line">
+              <Icon name="users" size={13} />
+              <span>
+                {p.communityNote && <q>{p.communityNote}</q>}
+                {p.communityNote && (p.communityUp ?? 0) >= 1 ? " · " : ""}
+                {(p.communityUp ?? 0) >= 1 && <b>{p.communityUp} người thấy hot</b>}
+              </span>
+            </span>
+          )}
+
           <div className="deal-foot">
             <span className="rating">
               {p.rating ? <><Icon name="star" size={13} />{p.rating.toFixed(1)}</> : null}
-              {p.sold ? <span>{p.rating ? " · " : ""}Đã bán {p.sold >= 1000 ? `${(p.sold / 1000).toFixed(1).replace(".0", "")}k` : p.sold}</span> : null}
+              {p.sold ? <span>{p.rating ? " · " : ""}{p.sold >= 1000 ? `${(p.sold / 1000).toFixed(1).replace(".0", "")}k` : p.sold} đã bán</span> : null}
             </span>
             {label && (
               <span className={`deal-label ${label.tone}`} title={`Điểm deal ${score}/100`}>

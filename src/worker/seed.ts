@@ -19,6 +19,8 @@ export async function seed() {
       await upsertProduct(list[i], new Date(now - day * 86_400_000 - jitter));
     }
   }
+  // Lần đồng bộ gần nhất (giống worker chạy mỗi 2 giờ): mọi sản phẩm vừa được kiểm tra giá trong 2 giờ qua
+  await db.execute(sql`update products set last_seen_at = now() - (id % 12) * interval '9 minutes'`);
   for (const v of await mockAdapter.fetchVouchers!()) await upsertVoucher(v);
   if ((process.env.SOURCES || "mock").includes("mock")) await syncConversions();
   await groupProducts();

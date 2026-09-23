@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, gte, ilike, inArray, isNotNull, isNull, lte, notInArray, or, sql, type SQL } from "drizzle-orm";
-import { clicks, pricePoints, products, votes, vouchers, type Product } from "@/db/schema";
+import { clicks, posts, pricePoints, products, votes, vouchers, type Product } from "@/db/schema";
 import { db, ensureMigrated } from "./db";
 import { slugify } from "./slug";
 
@@ -52,6 +52,10 @@ export type DealRow = Product & {
   trackedDays?: number;
   /** Điểm cộng đồng (lượt hot trừ lượt không đáng) */
   communityNet?: number;
+  /** Số người thấy hot */
+  communityUp?: number;
+  /** Nhận xét ngắn của người chia sẻ deal */
+  communityNote?: string | null;
   /** Cùng sản phẩm ở sàn khác đang rẻ hơn */
   cheaperElsewhere?: { platform: string; price: number; id: number } | null;
   /** Rẻ nhất trong nhóm cùng sản phẩm ở nhiều sàn */
@@ -68,7 +72,7 @@ export async function enrichDeals(rows: Product[]): Promise<DealRow[]> {
   const ids = rows.map((r) => r.id);
   const since = new Date(Date.now() - 31 * DAY);
   const groupKeys = [...new Set(rows.map((r) => r.groupKey).filter((k): k is string => !!k))];
-  const [points, firstSeen, clickRows, voteRows, groupRows] = await Promise.all([
+  const [points, firstSeen, clickRows, voteRows, groupRows, noteRows] = await Promise.all([
     db
       .select({ productId: pricePoints.productId, price: pricePoints.price, at: pricePoints.capturedAt })
       .from(pricePoints)
@@ -85,20 +89,25 @@ export async function enrichDeals(rows: Product[]): Promise<DealRow[]> {
       .where(and(inArray(clicks.productId, ids), gte(clicks.createdAt, new Date(Date.now() - DAY))))
       .groupBy(clicks.productId),
     db
-      .select({ productId: votes.productId, net: sql<number>`sum(${votes.value})` })
+      .select({ productId: votes.productId, net: sql<number>`sum(${votes.value})`, up: sql<number>`count(*) filter (where ${votes.value} > 0)` })
       .from(votes)
       .where(inArray(votes.productId, ids))
       .groupBy(votes.productId),
     groupKeys.length
       ? db.select({ id: products.id, groupKey: products.groupKey, platform: products.platform, price: products.price }).from(products).where(inArray(products.groupKey, groupKeys))
       : Promise.resolve([] as { id: number; groupKey: string | null; platform: string; price: number }[]),
+    db
+      .select({ productId: posts.productId, note: posts.note })
+      .from(posts)
+      .where(and(inArray(posts.productId, ids), eq(posts.hidden, false), sql`${posts.note} <> ''`)),
   ]);
 
   const byProduct = new Map<number, { price: number; at: Date }[]>();
   for (const pt of points) (byProduct.get(pt.productId) ?? byProduct.set(pt.productId, []).get(pt.productId)!).push(pt);
   const first = new Map(firstSeen.map((f) => [f.productId, { first: new Date(f.first), before: f.before == null ? null : Number(f.before) }]));
   const clickMap = new Map(clickRows.map((c) => [c.productId!, Number(c.n)]));
-  const voteMap = new Map(voteRows.map((v) => [v.productId, Number(v.net)]));
+  const voteMap = new Map(voteRows.map((v) => [v.productId, { net: Number(v.net), up: Number(v.up) }]));
+  const noteMap = new Map(noteRows.map((n) => [n.productId, n.note]));
 
   return rows.map((p) => {
     const pts = byProduct.get(p.id) ?? [];
@@ -128,7 +137,9 @@ export async function enrichDeals(rows: Product[]): Promise<DealRow[]> {
       droppedAt,
       trackedDays: f ? (Date.now() - f.first.getTime()) / DAY : 0,
       clicks24: clickMap.get(p.id) ?? 0,
-      communityNet: voteMap.get(p.id) ?? 0,
+      communityNet: voteMap.get(p.id)?.net ?? 0,
+      communityUp: voteMap.get(p.id)?.up ?? 0,
+      communityNote: noteMap.get(p.id) ?? null,
       cheaperElsewhere,
       cheapestAcross,
     };

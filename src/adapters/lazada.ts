@@ -48,6 +48,7 @@ interface LazadaItem {
   commissionRate?: number | string;
   categoryL1Name?: string;
   sellerName?: string;
+  isLazMall?: boolean | string;
   trackingLink?: string;
   productUrl?: string;
 }
@@ -64,6 +65,7 @@ export function mapLazadaItem(i: LazadaItem): ProductInput | null {
     name: i.productName ?? i.title ?? "Sản phẩm Lazada",
     imageUrl: i.pictures?.[0] ?? i.imageUrl,
     shopName: i.sellerName,
+    shopType: i.isLazMall === true || i.isLazMall === "true" ? "mall" : undefined,
     category: i.categoryL1Name,
     price,
     originalPrice: original && original > price ? original : undefined,

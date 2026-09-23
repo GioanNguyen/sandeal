@@ -13,6 +13,9 @@ export const products = pgTable(
     name: text("name").notNull(),
     imageUrl: text("image_url"),
     shopName: text("shop_name"),
+    /** mall (chính hãng) | preferred (shop yêu thích) | null */
+    shopType: text("shop_type"),
+    shopRating: doublePrecision("shop_rating"),
     category: text("category"),
     price: doublePrecision("price").notNull(),
     originalPrice: doublePrecision("original_price"),

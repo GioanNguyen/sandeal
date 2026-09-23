@@ -13,6 +13,8 @@ export async function upsertProduct(p: ProductInput, now = new Date()) {
     name: p.name,
     imageUrl: p.imageUrl ?? null,
     shopName: p.shopName ?? null,
+    shopType: p.shopType ?? null,
+    shopRating: p.shopRating ?? null,
     category: p.category ?? null,
     price: p.price,
     originalPrice: p.originalPrice ?? null,

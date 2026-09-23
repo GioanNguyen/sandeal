@@ -6,6 +6,8 @@ export interface ProductInput {
   name: string;
   imageUrl?: string;
   shopName?: string;
+  shopType?: "mall" | "preferred";
+  shopRating?: number;
   category?: string;
   price: number;
   originalPrice?: number;

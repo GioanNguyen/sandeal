@@ -12,7 +12,7 @@ const PRODUCT_QUERY = `query ($keyword: String, $page: Int, $limit: Int, $sortTy
       itemId shopId productName shopName
       priceMin priceMax priceDiscountRate
       commissionRate sales ratingStar
-      imageUrl offerLink productLink productCatIds
+      imageUrl offerLink productLink productCatIds __SHOP_FIELDS__
     }
     pageInfo { page limit hasNextPage }
   }
@@ -33,6 +33,8 @@ interface ShopeeNode {
   offerLink?: string;
   productLink?: string;
   productCatIds?: number[];
+  /** 1 = Shopee Mall, 2 = Shop yêu thích, 4 = Yêu thích+ (theo tài liệu Affiliate Open API) */
+  shopType?: number[] | number;
 }
 
 export function signShopee(appId: string, secret: string, payload: string, ts: number) {
@@ -40,7 +42,23 @@ export function signShopee(appId: string, secret: string, payload: string, ts: n
   return `SHA256 Credential=${appId}, Timestamp=${ts}, Signature=${signature}`;
 }
 
-async function gql<T>(query: string, variables: Record<string, unknown>): Promise<T> {
+/** Trường loại shop; nếu tài khoản/phiên bản API không hỗ trợ thì tự bỏ và gọi lại */
+let shopFields = process.env.SHOPEE_SHOP_FIELDS ?? "shopType";
+
+async function gql<T>(rawQuery: string, variables: Record<string, unknown>): Promise<T> {
+  try {
+    return await gqlOnce<T>(rawQuery.replaceAll("__SHOP_FIELDS__", shopFields), variables);
+  } catch (err) {
+    if (shopFields && /shopType|field|Cannot query/i.test((err as Error).message)) {
+      console.warn("[shopee] API không hỗ trợ trường shopType, bỏ qua");
+      shopFields = "";
+      return gqlOnce<T>(rawQuery.replaceAll("__SHOP_FIELDS__", ""), variables);
+    }
+    throw err;
+  }
+}
+
+async function gqlOnce<T>(query: string, variables: Record<string, unknown>): Promise<T> {
   const appId = process.env.SHOPEE_APP_ID!;
   const secret = process.env.SHOPEE_SECRET!;
   const endpoint = process.env.SHOPEE_ENDPOINT || "https://open-api.affiliate.shopee.vn/graphql";
@@ -68,11 +86,13 @@ async function gql<T>(query: string, variables: Record<string, unknown>): Promis
 export function mapShopeeNode(n: ShopeeNode): ProductInput {
   const price = Number(n.priceMin);
   const discountPct = Number(n.priceDiscountRate ?? 0);
+  const types = n.shopType == null ? [] : Array.isArray(n.shopType) ? n.shopType : [n.shopType];
   return {
     platform: "shopee",
     externalId: String(n.itemId),
     name: n.productName,
     shopName: n.shopName,
+    shopType: types.includes(1) ? "mall" : types.some((t) => t === 2 || t === 4) ? "preferred" : undefined,
     imageUrl: n.imageUrl,
     category: n.productCatIds?.[0] != null ? String(n.productCatIds[0]) : undefined,
     price,
@@ -124,7 +144,7 @@ const LOOKUP_QUERY = `query ($itemId: Int64, $shopId: Int64) {
       itemId shopId productName shopName
       priceMin priceMax priceDiscountRate
       commissionRate sales ratingStar
-      imageUrl offerLink productLink productCatIds
+      imageUrl offerLink productLink productCatIds __SHOP_FIELDS__
     }
   }
 }`;
