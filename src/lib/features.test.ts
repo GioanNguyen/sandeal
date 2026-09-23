@@ -56,6 +56,13 @@ test("so sánh giá: gom nhóm khác sàn, rẻ nhất lên đầu", async () =>
   const p = (await q.getProduct(a))!;
   const offers = await q.compareOffers(p);
   assert.deepEqual(offers.map((o) => o.platform), ["lazada", "tiktok", "shopee"]);
+  const rows = await q.enrichDeals(offers);
+  const shopee = rows.find((r) => r.platform === "shopee")!;
+  const lazada = rows.find((r) => r.platform === "lazada")!;
+  assert.deepEqual(shopee.cheaperElsewhere && [shopee.cheaperElsewhere.platform, shopee.cheaperElsewhere.price], ["lazada", 750_000]);
+  assert.equal(lazada.cheaperElsewhere, null);
+  assert.equal(lazada.cheapestAcross, 3);
+  assert.ok(Array.isArray(shopee.spark) && shopee.spark.length >= 1);
   const gaps = await q.biggestGaps();
   const g = gaps.find((x) => x.offers.some((o) => o.id === a))!;
   assert.equal(g.save, 150_000);

@@ -1,5 +1,5 @@
-import { and, asc, count, desc, eq, gte, ilike, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
-import { pricePoints, products, vouchers, type Product } from "@/db/schema";
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
+import { clicks, pricePoints, products, votes, vouchers, type Product } from "@/db/schema";
 import { db, ensureMigrated } from "./db";
 import { slugify } from "./slug";
 
@@ -31,7 +31,98 @@ function dealWhere(f: DealFilter) {
   return conds.length ? and(...conds) : undefined;
 }
 
-export type DealRow = Product & { low30: number | null; droppedAt?: Date | null; clicks24?: number };
+export type DealRow = Product & {
+  low30: number | null;
+  droppedAt?: Date | null;
+  clicks24?: number;
+  /** Lịch sử giá 30 ngày [thời điểm ms, giá] cho biểu đồ nhỏ trên thẻ */
+  spark?: [number, number][];
+  /** Số ngày đã theo dõi giá */
+  trackedDays?: number;
+  /** Điểm cộng đồng (lượt hot trừ lượt không đáng) */
+  communityNet?: number;
+  /** Cùng sản phẩm ở sàn khác đang rẻ hơn */
+  cheaperElsewhere?: { platform: string; price: number; id: number } | null;
+  /** Rẻ nhất trong nhóm cùng sản phẩm ở nhiều sàn */
+  cheapestAcross?: number; // số sàn so sánh
+};
+
+/**
+ * Bổ sung dữ liệu cho thẻ deal bằng vài truy vấn gộp (không truy vấn từng sản phẩm):
+ * lịch sử giá 30 ngày, lần giảm gần nhất, lượt bấm 24h, bình chọn, giá ở sàn khác.
+ */
+export async function enrichDeals(rows: Product[]): Promise<DealRow[]> {
+  if (!rows.length) return [];
+  await ensureMigrated();
+  const ids = rows.map((r) => r.id);
+  const since = new Date(Date.now() - 31 * DAY);
+  const groupKeys = [...new Set(rows.map((r) => r.groupKey).filter((k): k is string => !!k))];
+  const [points, firstSeen, clickRows, voteRows, groupRows] = await Promise.all([
+    db
+      .select({ productId: pricePoints.productId, price: pricePoints.price, at: pricePoints.capturedAt })
+      .from(pricePoints)
+      .where(and(inArray(pricePoints.productId, ids), gte(pricePoints.capturedAt, since)))
+      .orderBy(asc(pricePoints.capturedAt)),
+    db
+      .select({ productId: pricePoints.productId, first: sql<string>`min(${pricePoints.capturedAt})`, before: sql<number | null>`(array_agg(${pricePoints.price} order by ${pricePoints.capturedAt} desc) filter (where ${pricePoints.capturedAt} < ${since}))[1]` })
+      .from(pricePoints)
+      .where(inArray(pricePoints.productId, ids))
+      .groupBy(pricePoints.productId),
+    db
+      .select({ productId: clicks.productId, n: count() })
+      .from(clicks)
+      .where(and(inArray(clicks.productId, ids), gte(clicks.createdAt, new Date(Date.now() - DAY))))
+      .groupBy(clicks.productId),
+    db
+      .select({ productId: votes.productId, net: sql<number>`sum(${votes.value})` })
+      .from(votes)
+      .where(inArray(votes.productId, ids))
+      .groupBy(votes.productId),
+    groupKeys.length
+      ? db.select({ id: products.id, groupKey: products.groupKey, platform: products.platform, price: products.price }).from(products).where(inArray(products.groupKey, groupKeys))
+      : Promise.resolve([] as { id: number; groupKey: string | null; platform: string; price: number }[]),
+  ]);
+
+  const byProduct = new Map<number, { price: number; at: Date }[]>();
+  for (const pt of points) (byProduct.get(pt.productId) ?? byProduct.set(pt.productId, []).get(pt.productId)!).push(pt);
+  const first = new Map(firstSeen.map((f) => [f.productId, { first: new Date(f.first), before: f.before == null ? null : Number(f.before) }]));
+  const clickMap = new Map(clickRows.map((c) => [c.productId!, Number(c.n)]));
+  const voteMap = new Map(voteRows.map((v) => [v.productId, Number(v.net)]));
+
+  return rows.map((p) => {
+    const pts = byProduct.get(p.id) ?? [];
+    const f = first.get(p.id);
+    // Chuỗi giá: giá trước mốc 30 ngày (nếu có) làm điểm đầu, rồi các lần đổi giá
+    const series: [number, number][] = [];
+    if (f?.before != null) series.push([since.getTime(), f.before]);
+    for (const pt of pts) series.push([pt.at.getTime(), pt.price]);
+    let droppedAt: Date | null = null;
+    for (let i = series.length - 1; i > 0; i--) {
+      if (series[i][1] <= series[i - 1][1] * 0.95) { droppedAt = new Date(series[i][0]); break; }
+    }
+    const low30 = series.length ? Math.min(...series.map((x) => x[1])) : null;
+
+    let cheaperElsewhere: DealRow["cheaperElsewhere"] = null;
+    let cheapestAcross: number | undefined;
+    if (p.groupKey) {
+      const members = groupRows.filter((g) => g.groupKey === p.groupKey);
+      const others = members.filter((g) => g.platform !== p.platform).sort((a, b) => a.price - b.price);
+      if (others[0] && others[0].price < p.price * 0.99) cheaperElsewhere = { platform: others[0].platform, price: others[0].price, id: others[0].id };
+      else if (others.length) cheapestAcross = new Set(members.map((m) => m.platform)).size;
+    }
+    return {
+      ...p,
+      low30,
+      spark: series,
+      droppedAt,
+      trackedDays: f ? (Date.now() - f.first.getTime()) / DAY : 0,
+      clicks24: clickMap.get(p.id) ?? 0,
+      communityNet: voteMap.get(p.id) ?? 0,
+      cheaperElsewhere,
+      cheapestAcross,
+    };
+  });
+}
 
 /** Lần gần nhất giá giảm ≥5% so với mức trước đó (chỉ số thật từ lịch sử giá) */
 const droppedAtSql = sql<string | null>`(select max(t.captured_at) from (
@@ -45,12 +136,9 @@ export async function listDeals(f: DealFilter): Promise<{ items: DealRow[]; tota
   const pageSize = f.pageSize ?? 24;
   const page = Math.max(1, f.page ?? 1);
   const where = dealWhere(f);
-  const since = new Date(Date.now() - 30 * DAY);
-  // Viết tên bảng/cột đầy đủ: trong subquery Drizzle không tự thêm tiền tố bảng
-  const low30 = sql<number | null>`(select min(pp.price) from price_points pp where pp.product_id = "products"."id" and pp.captured_at >= ${since})`;
-  const [items, [{ total }]] = await Promise.all([
+  const [rows, [{ total }]] = await Promise.all([
     db
-      .select({ product: products, low30, droppedAt: droppedAtSql, clicks24: clicks24Sql })
+      .select()
       .from(products)
       .where(where)
       .orderBy(...(SORTS[f.sort ?? "score"] ?? SORTS.score), asc(products.id))
@@ -58,15 +146,7 @@ export async function listDeals(f: DealFilter): Promise<{ items: DealRow[]; tota
       .offset((page - 1) * pageSize),
     db.select({ total: count() }).from(products).where(where),
   ]);
-  return {
-    items: items.map((r) => ({
-      ...r.product,
-      low30: r.low30 == null ? null : Number(r.low30),
-      droppedAt: r.droppedAt ? new Date(r.droppedAt) : null,
-      clicks24: Number(r.clicks24),
-    })),
-    total,
-  };
+  return { items: await enrichDeals(rows), total };
 }
 
 export async function listCategories() {
@@ -123,7 +203,7 @@ export async function similarDeals(p: Product, limit = 5) {
     .where(and(p.category ? eq(products.category, p.category) : undefined, sql`${products.id} <> ${p.id}`))
     .orderBy(desc(products.dealScore))
     .limit(limit);
-  return rows.map((r) => ({ ...r, low30: null, droppedAt: null, clicks24: 0 }));
+  return enrichDeals(rows);
 }
 
 /** Các lựa chọn cùng sản phẩm ở những sàn khác (rẻ nhất mỗi sàn) */
@@ -200,7 +280,7 @@ export async function justDropped(hours = 24, limit = 12): Promise<DealRow[]> {
     .where(and(gte(products.realDropPct, 5), sql`${droppedAtSql} >= ${since}`))
     .orderBy(sql`${droppedAtSql} desc`, desc(products.dealScore))
     .limit(limit);
-  return rows.map((r) => ({ ...r.product, low30: null, droppedAt: r.droppedAt ? new Date(r.droppedAt) : null, clicks24: Number(r.clicks24) }));
+  return enrichDeals(rows.map((r) => r.product));
 }
 
 /** Mã sắp hết hạn gần nhất của một sàn (để nhắc trên trang sản phẩm) */

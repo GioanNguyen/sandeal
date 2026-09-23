@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { PLATFORMS } from "@/lib/format";
-import { listCategories } from "@/lib/queries";
+import { enrichDeals, listCategories } from "@/lib/queries";
 import { nextSale } from "@/lib/sales";
 import { getSubscription } from "@/lib/subscription";
 import { botUsername } from "@/lib/telegram";
@@ -19,7 +19,7 @@ export default async function PreferencesPage({ searchParams }: { searchParams: 
   if (!user) redirect("/login?next=/account/so-thich");
   const { saved, tg } = await searchParams;
   const [s, categories] = await Promise.all([getSubscription(user.id), listCategories()]);
-  const preview = (await matchingDeals(user.id, s, new Date(), 5)).map((p) => ({ ...p, low30: null }));
+  const preview = await enrichDeals(await matchingDeals(user.id, s, new Date(), 5));
   const sale = nextSale(new Date(), true);
   const hasBot = !!botUsername();
 

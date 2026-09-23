@@ -7,7 +7,7 @@ export function DealGrid({ items }: { items: DealRow[] }) {
   return (
     <div className="grid">
       {items.map((p) => (
-        <DealCard key={p.id} p={p} isLowest={p.low30 != null && p.price <= p.low30 && p.realDropPct >= 5} />
+        <DealCard key={p.id} p={p} />
       ))}
     </div>
   );

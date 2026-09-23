@@ -581,3 +581,76 @@ main.container { flex: 1; width: 100%; }
   .sale-bar .utimer-time { font-size: 15px; }
   .drop-item { flex-basis: 78%; }
 }
+
+/* ===== Thẻ deal v2 ===== */
+.deal { position: relative; }
+.deal-link { display: flex; flex-direction: column; flex: 1; color: inherit; }
+.deal-name { margin: 0; font-weight: 500; font-size: 14px; line-height: 1.4; min-height: 2.8em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.deal:hover .deal-name { color: var(--primary); }
+.deal .price-row .strike { margin-top: 0; }
+
+/* Ảnh: giữ chỗ + shimmer khi tải, hiện dần, phóng nhẹ khi rê chuột */
+.card-img { position: absolute; inset: 0; overflow: hidden; background: linear-gradient(100deg, var(--surface-2) 30%, color-mix(in srgb, var(--surface-2) 55%, var(--surface)) 50%, var(--surface-2) 70%); background-size: 200% 100%; }
+.card-img.loading { animation: shimmer 1.3s linear infinite; }
+.card-img img { width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.02); transition: opacity .35s ease, transform .5s cubic-bezier(.2,.8,.3,1); }
+.card-img.done img { opacity: 1; transform: none; }
+.card-img.error::after { content: "Chưa có ảnh"; position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 12px; }
+.deal:hover .card-img.done img { transform: scale(1.06); }
+
+/* Tiết kiệm so với thường ngày: nổi bật hơn % shop tự khai */
+.saving { display: inline-flex; flex-direction: column; align-self: flex-start; color: var(--save); background: var(--save-soft); padding: 4px 10px; border-radius: 10px; line-height: 1.25; }
+.saving small { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; }
+.saving b { font-size: 16px; font-weight: 800; }
+.saving.neutral { color: var(--muted); background: var(--surface-2); font-weight: 500; font-size: 12px; padding: 3px 8px; }
+
+/* Biểu đồ tí hon */
+.spark { display: block; width: 100%; }
+.spark-line { fill: none; stroke: var(--primary); stroke-width: 1.8; opacity: .85; }
+.spark-low { stroke: var(--save); stroke-width: 1; stroke-dasharray: 3 3; }
+.spark-dot { fill: var(--primary); stroke: var(--surface); stroke-width: 1.5; }
+.spark.at-low .spark-dot { fill: var(--save); }
+.spark-empty { display: flex; align-items: center; font-size: 11px; color: var(--muted); border-bottom: 1px dashed var(--border); }
+
+.elsewhere { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--warn); }
+.deal-label { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.deal-label.save { background: var(--save); color: #fff; }
+.deal-label.hot { background: var(--primary); color: var(--on-primary); }
+@media (prefers-color-scheme: dark) { .deal-label.save { color: #0b1f16; } }
+
+/* Nút Xem nhanh: hiện khi rê chuột/tab (máy tính), luôn hiện dạng icon (cảm ứng) */
+.qv-btn { position: absolute; top: 10px; right: 10px; z-index: 2; display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 0 12px; border: 0; border-radius: 999px; background: rgb(28 26 25 / 80%); color: #fff; font-size: 12px; font-weight: 700; backdrop-filter: blur(4px); opacity: 0; transform: translateY(-4px); transition: opacity .2s, transform .2s, background .2s; }
+.qv-btn:hover { background: var(--primary); }
+.deal:hover .qv-btn, .qv-btn:focus-visible { opacity: 1; transform: none; }
+@media (hover: none) {
+  .qv-btn { opacity: 1; transform: none; width: 36px; padding: 0; justify-content: center; }
+  .qv-btn span { display: none; }
+}
+
+/* Hộp thoại Xem nhanh */
+.qv { width: min(600px, calc(100vw - 24px)); max-height: calc(100vh - 32px); border: 0; border-radius: 20px; padding: 0; background: var(--surface); color: var(--text); box-shadow: 0 24px 60px rgb(0 0 0 / 30%); }
+.qv::backdrop { background: rgb(20 18 16 / 55%); backdrop-filter: blur(2px); }
+.qv[open] { animation: qv-in .22s cubic-bezier(.2,.8,.3,1.1); }
+@keyframes qv-in { from { opacity: 0; transform: translateY(16px) scale(.98); } }
+.qv-close { position: absolute; top: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--surface-2); color: var(--text); font-size: 22px; line-height: 1; }
+.qv-body { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.qv-head { display: flex; gap: 14px; padding-right: 40px; }
+.qv-head img { width: 96px; height: 96px; border-radius: 14px; object-fit: cover; background: var(--surface-2); flex: none; }
+.qv-head h2 { font-size: 17px; line-height: 1.35; margin: 2px 0 6px; }
+.qv .verdict { margin: 0; }
+.qv .kpis { margin: 0; }
+.qv-offers { display: flex; flex-wrap: wrap; gap: 6px; }
+.qv-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.qv-actions .btn-primary { grid-column: 1 / -1; }
+.qv-loading { padding: 28px 20px; display: flex; flex-direction: column; gap: 12px; }
+.qv-skel { display: block; height: 18px; border-radius: 8px; background: linear-gradient(100deg, var(--surface-2) 30%, var(--border) 50%, var(--surface-2) 70%); background-size: 200% 100%; animation: shimmer 1.3s linear infinite; }
+.qv-skel.short { width: 60%; } .qv-skel.tall { height: 130px; }
+@media (max-width: 640px) {
+  .qv { margin: auto auto 0; width: 100vw; max-width: 100vw; border-radius: 20px 20px 0 0; max-height: 90vh; }
+  .qv[open] { animation: qv-up .25s cubic-bezier(.2,.8,.3,1); }
+  @keyframes qv-up { from { transform: translateY(40%); opacity: .5; } }
+  .qv-head img { width: 72px; height: 72px; }
+  .saving small { font-size: 10px; } .saving b { font-size: 14px; }
+  .fresh-tag { font-size: 11px; padding: 3px 8px; white-space: nowrap; max-width: calc(100% - 20px); overflow: hidden; text-overflow: ellipsis; }
+  .deal-label { font-size: 10px; padding: 2px 6px; }
+  .deal-foot { flex-wrap: wrap; }
+}
