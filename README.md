@@ -17,6 +17,8 @@ npm run dev              # http://localhost:3000
 - Chưa cấu hình SMTP thì email (link đăng nhập, báo giá) được **in ra terminal**, bấm link ở đó để đăng nhập.
 - Vào trang thống kê: đặt `ADMIN_EMAILS="email-cua-ban"` trong `.env`, đăng nhập bằng email đó rồi mở `/admin`.
 
+Đăng ký tài khoản affiliate & lấy API key: xem [docs/huong-dan-dang-ky-affiliate.md](docs/huong-dan-dang-ky-affiliate.md)
+
 Kiểm thử: `npm test` (chạy trên Postgres trong RAM) · `npm run typecheck`
 
 ## Tính năng
