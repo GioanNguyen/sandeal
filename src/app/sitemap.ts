@@ -4,6 +4,7 @@ import { products } from "@/db/schema";
 import { db, ensureMigrated } from "@/lib/db";
 import { siteUrl } from "@/lib/mail";
 import { listCategories } from "@/lib/queries";
+import { COLLECTIONS } from "@/lib/collections";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     { url: `${base}/`, changeFrequency: "hourly", priority: 1 },
     { url: `${base}/vouchers`, changeFrequency: "hourly", priority: 0.9 },
+    { url: `${base}/bo-suu-tap`, changeFrequency: "daily" as const, priority: 0.8 },
+    ...COLLECTIONS.map((c) => ({ url: `${base}/bo-suu-tap/${c.slug}`, changeFrequency: "daily" as const, priority: 0.7 })),
     ...cats.map((c) => ({ url: `${base}/danh-muc/${c.slug}`, changeFrequency: "daily" as const, priority: 0.8 })),
     ...prods.map((p) => ({ url: `${base}/product/${p.id}`, lastModified: p.at, changeFrequency: "daily" as const, priority: 0.6 })),
   ];

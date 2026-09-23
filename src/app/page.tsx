@@ -8,7 +8,10 @@ import { homeStats, justDropped, listActiveVouchers, listCategories, listDeals }
 import { UrgencyTimer } from "@/components/UrgencyTimer";
 import { agoShort } from "@/components/DealCard";
 import { vnd } from "@/lib/format";
-import { DealGrid, Pager } from "@/components/DealGrid";
+import { DealGrid } from "@/components/DealGrid";
+import { ForYou, LoadMore, RecentlyViewed } from "@/components/Personal";
+import { CollectionCards } from "@/components/CollectionCards";
+import { PRICE_BANDS } from "@/lib/collections";
 import { Icon } from "@/components/Icon";
 import { VoucherTicket } from "@/components/VoucherTicket";
 
@@ -23,16 +26,18 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
   if (sp.q && /(shopee|shope\.ee|shp\.ee|lazada|tiktok)\./i.test(sp.q)) redirect(`/kiem-tra-gia?url=${encodeURIComponent(sp.q)}`);
   const page = Math.max(1, Number(sp.page) || 1);
   const now = new Date();
-  const isLanding = !sp.q && !sp.platform && !sp.category && !sp.min && page === 1;
+  const isLanding = !sp.q && !sp.platform && !sp.category && !sp.min && !sp.max && page === 1;
 
   const [{ items, total }, categories, stats, vouchers, dropped] = await Promise.all([
-    listDeals({ q: sp.q, platform: sp.platform, category: sp.category, minDrop: Number(sp.min) || undefined, sort: sp.sort, page, pageSize: PAGE_SIZE }),
+    listDeals({ q: sp.q, platform: sp.platform, category: sp.category, minDrop: Number(sp.min) || undefined, maxPrice: Number(sp.max) || undefined, sort: sp.sort, page, pageSize: PAGE_SIZE }),
     listCategories(),
     homeStats(),
     isLanding ? listActiveVouchers({ limit: 8 }) : Promise.resolve([]),
     isLanding ? justDropped(24, 12) : Promise.resolve([]),
   ]);
   const pages = Math.ceil(total / PAGE_SIZE);
+  // Query cho "tải thêm" (giữ bộ lọc hiện tại, bỏ page)
+  const moreQuery = new URLSearchParams(Object.entries({ q: sp.q, platform: sp.platform, category: sp.category, min: sp.min, max: sp.max, sort: sp.sort }).filter(([, v]) => v) as [string, string][]).toString();
   const href = (patch: Record<string, string | undefined>) => {
     const q = new URLSearchParams();
     for (const [k, v] of Object.entries({ ...sp, page: undefined, ...patch })) if (v) q.set(k, v);
@@ -117,6 +122,24 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
         </nav>
       )}
 
+      {isLanding && <RecentlyViewed />}
+      {isLanding && <ForYou />}
+
+      {isLanding && (
+        <section className="section" aria-labelledby="band-head">
+          <div className="section-head"><h2 id="band-head"><Icon name="tag" size={22} /> Săn theo tầm giá</h2></div>
+          <nav className="bands" aria-label="Deal theo tầm giá">
+            {PRICE_BANDS.map((b) => (
+              <Link key={b.max} href={`/?max=${b.max}&sort=drop#deals`} className="band">
+                <small>Deal</small>
+                <b>{b.label}</b>
+                <span>giảm thật, xếp theo mức giảm</span>
+              </Link>
+            ))}
+          </nav>
+        </section>
+      )}
+
       {isLanding && vouchers.length > 0 && (
         <section className="section" aria-labelledby="v-head">
           <div className="section-head">
@@ -128,6 +151,8 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
           </div>
         </section>
       )}
+
+      {isLanding && <CollectionCards />}
 
       {isLanding && categories.length > 0 && (
         <section className="section" aria-labelledby="c-head">
@@ -175,6 +200,13 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
               </select>
             </div>
             <div className="field">
+              <label htmlFor="max">Tầm giá</label>
+              <select id="max" className="select" name="max" defaultValue={sp.max ?? ""}>
+                <option value="">Mọi mức giá</option>
+                {PRICE_BANDS.map((b) => <option key={b.max} value={b.max}>{b.label}</option>)}
+              </select>
+            </div>
+            <div className="field">
               <label htmlFor="sort">Sắp xếp</label>
               <select id="sort" className="select" name="sort" defaultValue={sp.sort ?? "score"}>
                 <option value="score">Điểm deal cao nhất</option>
@@ -191,7 +223,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
 
         <p className="result-count">{total.toLocaleString("vi-VN")} sản phẩm</p>
         <DealGrid items={items} />
-        <Pager page={page} pages={pages} href={(p) => href({ page: String(p) })} />
+        <LoadMore key={moreQuery} query={moreQuery} startPage={page + 1} hasMore={page < pages} nextHref={href({ page: String(page + 1) })} />
       </section>
     </>
   );

@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, ilike, inArray, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNotNull, isNull, lte, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { clicks, pricePoints, products, votes, vouchers, type Product } from "@/db/schema";
 import { db, ensureMigrated } from "./db";
 import { slugify } from "./slug";
@@ -10,6 +10,13 @@ export interface DealFilter {
   platform?: string;
   category?: string;
   minDrop?: number;
+  /** Giá tối đa (đ) – dùng cho "Deal dưới 99K/199K/499K" và bộ sưu tập */
+  maxPrice?: number;
+  /** Nhiều danh mục (OR) */
+  categories?: string[];
+  /** Tên chứa một trong các từ khoá (OR) */
+  keywords?: string[];
+  excludeIds?: number[];
   sort?: string;
   page?: number;
   pageSize?: number;
@@ -28,6 +35,10 @@ function dealWhere(f: DealFilter) {
   if (f.category) conds.push(eq(products.category, f.category));
   if (f.q) conds.push(ilike(products.name, `%${f.q.replace(/[%_]/g, "")}%`));
   if (f.minDrop) conds.push(gte(products.realDropPct, f.minDrop));
+  if (f.maxPrice) conds.push(lte(products.price, f.maxPrice));
+  if (f.categories?.length) conds.push(inArray(products.category, f.categories));
+  if (f.keywords?.length) conds.push(or(...f.keywords.map((k) => ilike(products.name, `%${k.replace(/[%_]/g, "")}%`)))!);
+  if (f.excludeIds?.length) conds.push(notInArray(products.id, f.excludeIds));
   return conds.length ? and(...conds) : undefined;
 }
 
@@ -294,4 +305,14 @@ export async function soonestVoucher(platform: string, withinHours = 24) {
     .orderBy(asc(vouchers.endAt))
     .limit(1);
   return v ?? null;
+}
+
+/** Sản phẩm theo danh sách id (giữ nguyên thứ tự) – dùng cho "Bạn vừa xem" */
+export async function dealsByIds(ids: number[]): Promise<DealRow[]> {
+  const clean = [...new Set(ids.filter((n) => Number.isInteger(n) && n > 0))].slice(0, 30);
+  if (!clean.length) return [];
+  await ensureMigrated();
+  const rows = await db.select().from(products).where(inArray(products.id, clean));
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return enrichDeals(clean.map((id) => byId.get(id)).filter((r): r is Product => !!r));
 }

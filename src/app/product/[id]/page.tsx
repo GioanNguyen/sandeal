@@ -9,6 +9,8 @@ import { bestPlan } from "@/lib/voucher";
 import { VoteBox } from "@/components/VoteBox";
 import { voteSummary } from "@/lib/community";
 import { CompareTable } from "@/components/CompareTable";
+import { RecordView } from "@/components/Personal";
+import { SaveButton } from "@/components/Saved";
 import { timeWeightedMedian } from "@/lib/score";
 import { slugify } from "@/lib/slug";
 import { DealGrid } from "@/components/DealGrid";
@@ -78,6 +80,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <RecordView id={p.id} price={p.price} category={p.category} />
       <nav className="crumbs" aria-label="Breadcrumb">
         <Link href="/">Deal hot</Link> <span aria-hidden="true">/</span>
         {p.category ? <><Link href={`/danh-muc/${slugify(p.category)}`}>{p.category}</Link> <span aria-hidden="true">/</span></> : null}
@@ -167,6 +170,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
             <a className="btn btn-primary" href={`/go/${p.id}`} target="_blank" rel="nofollow sponsored noopener">
               Mua trên {platformLabel} <Icon name="external" size={16} />
             </a>
+            <span className="save-inline"><SaveButton id={p.id} name={p.name} /></span>
             <VoteBox productId={p.id} initial={votes} loggedIn={!!user} />
             <span className="updated"><Icon name="clock" size={14} /> Cập nhật {p.lastSeenAt.toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}</span>
           </div>

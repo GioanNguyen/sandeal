@@ -654,3 +654,55 @@ main.container { flex: 1; width: 100%; }
   .deal-label { font-size: 10px; padding: 2px 6px; }
   .deal-foot { flex-wrap: wrap; }
 }
+
+/* ===== Nhóm 2: lưu, vừa xem, tầm giá, bộ sưu tập, cuộn vô hạn ===== */
+.save-btn { position: absolute; top: 10px; right: 10px; z-index: 3; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgb(255 255 255 / 92%); color: #5b6170; box-shadow: var(--shadow-sm); transition: color .2s, transform .15s; }
+.save-btn:hover { color: var(--hot); transform: scale(1.08); }
+.save-btn.on { color: var(--hot); }
+.save-btn.pop { animation: heart-pop .35s ease; }
+@keyframes heart-pop { 40% { transform: scale(1.3); } 100% { transform: scale(1); } }
+.deal .qv-btn { right: 52px; }
+.save-inline .save-btn { position: static; box-shadow: none; border: 1.5px solid var(--border); width: 44px; height: 44px; }
+.toast { position: fixed; left: 50%; bottom: 24px; z-index: 60; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; display: flex; align-items: center; gap: 14px; max-width: min(520px, calc(100vw - 32px)); background: #1c1a19; color: #fff; padding: 12px 16px; border-radius: 14px; box-shadow: 0 12px 30px rgb(0 0 0 / 30%); font-size: 14px; transition: opacity .25s, transform .25s; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.toast a { color: #ffb38f; font-weight: 700; white-space: nowrap; }
+@media (max-width: 900px) { body:has(.buy-sticky) .toast { bottom: 84px; } }
+.link-btn { background: none; border: 0; color: var(--muted); font-size: 13px; text-decoration: underline; min-height: 44px; }
+.drop-item.went-down { border-color: var(--save); }
+
+.bands { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.band { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; position: relative; overflow: hidden; transition: transform .2s, border-color .2s; }
+.band::after { content: ""; position: absolute; right: -24px; bottom: -24px; width: 80px; height: 80px; border-radius: 50%; background: var(--primary-soft); transition: transform .3s; }
+.band:hover { border-color: var(--primary); transform: translateY(-2px); }
+.band:hover::after { transform: scale(1.4); }
+.band small { font-size: 12px; color: var(--muted); font-weight: 600; position: relative; z-index: 1; }
+.band b { font-size: 24px; letter-spacing: -0.02em; color: var(--primary); position: relative; z-index: 1; }
+.band span { font-size: 12px; color: var(--muted); position: relative; z-index: 1; }
+
+.collections { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.collection { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: transform .2s, box-shadow .2s, border-color .2s; }
+.collection:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--primary-soft); }
+.collection.seasonal { border-color: color-mix(in srgb, var(--primary) 40%, var(--border)); }
+.col-thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background: var(--border); }
+.col-thumbs img { width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--surface-2); }
+.col-text { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; }
+.col-text .live-badge { align-self: flex-start; }
+.col-text b { font-size: 16px; }
+.col-text .muted { font-size: 13px; }
+.collection-hero { display: flex; gap: 14px; align-items: flex-start; margin: 8px 0 16px; }
+.collection-hero > svg { color: var(--primary); flex: none; margin-top: 6px; }
+
+.more-grid { margin-top: 16px; }
+.loadmore { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 20px 0; min-height: 44px; }
+.loadmore .more-grid { width: 100%; margin-top: 0; }
+.skeleton-card { min-height: 360px; background: linear-gradient(100deg, var(--surface) 30%, var(--surface-2) 50%, var(--surface) 70%); background-size: 200% 100%; animation: shimmer 1.3s linear infinite; }
+.foryou { background: linear-gradient(180deg, var(--primary-soft), transparent 70%); border-radius: 20px; padding: 16px; margin-left: -16px; margin-right: -16px; }
+
+@media (max-width: 900px) { .collections { grid-template-columns: 1fr 1fr; } .bands { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 640px) {
+  .collections { grid-template-columns: 1fr; }
+  .band b { font-size: 20px; }
+  .deal .qv-btn { right: 10px; top: 52px; }
+  .foryou { margin-left: 0; margin-right: 0; padding: 12px; }
+}
+.tickets.strip { padding-top: 12px; }

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
 import { PwaInstall } from "@/components/Pwa";
+import { SavedProvider } from "@/components/Saved";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { siteUrl } from "@/lib/mail";
 import "./globals.css";
@@ -38,6 +39,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body>
+        <SavedProvider>
         <header className="site-header">
           <div className="container">
             <Link href="/" className="logo" aria-label="Săn Deal – trang chủ">
@@ -73,6 +75,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <Link href="/kiem-tra-gia">Kiểm tra giá thật</Link>
             <Link href="/tinh-gia">Máy tính giá cuối cùng</Link>
             <Link href="/so-sanh">So sánh giá giữa các sàn</Link>
+            <Link href="/bo-suu-tap">Bộ sưu tập deal</Link>
             <Link href="/tien-ich">Tiện ích trình duyệt</Link>
             <Link href="/cong-dong?tab=top">Bảng xếp hạng thợ săn</Link>
           </nav>
@@ -81,6 +84,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <span>Trang có sử dụng link tiếp thị liên kết.</span>
           </div>
         </footer>
+        </SavedProvider>
       </body>
     </html>
   );

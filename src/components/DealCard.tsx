@@ -5,6 +5,7 @@ import { CardImage } from "./CardImage";
 import { Icon, type IconName } from "./Icon";
 import { PlatformBadge } from "./PlatformBadge";
 import { QuickView } from "./QuickView";
+import { SaveButton } from "./Saved";
 import { Sparkline } from "./Sparkline";
 
 export function agoShort(d: Date) {
@@ -84,6 +85,7 @@ export function DealCard({ p }: { p: DealRow; isLowest?: boolean }) {
           </div>
         </div>
       </Link>
+      <SaveButton id={p.id} name={p.name} />
       <QuickView id={p.id} name={p.name} />
     </article>
   );
