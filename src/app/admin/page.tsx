@@ -1,5 +1,6 @@
 import { and, count, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
-import { notFound } from "next/navigation";
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import { clicks, conversions, products, users, watches } from "@/db/schema";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { db, ensureMigrated } from "@/lib/db";
@@ -16,7 +17,18 @@ const TZ = "Asia/Ho_Chi_Minh";
 
 export default async function AdminPage() {
   const user = await getCurrentUser();
-  if (!user || !isAdmin(user.email)) notFound();
+  if (!user) redirect("/login?next=/admin");
+  if (!isAdmin(user.email)) {
+    return (
+      <div className="auth-card">
+        <h1>Không có quyền truy cập</h1>
+        <p className="muted">
+          Tài khoản <b>{user.email}</b> không phải quản trị viên. Thêm email này vào <code>ADMIN_EMAILS</code> trong file <code>.env</code> rồi khởi động lại server.
+        </p>
+        <Link className="btn btn-ghost btn-block" href="/">Về trang chủ</Link>
+      </div>
+    );
+  }
   await ensureMigrated();
   const since = new Date(Date.now() - DAYS * 86_400_000);
   const okConv = and(gte(conversions.purchasedAt, since), ne(conversions.status, "cancelled"));

@@ -1,13 +1,14 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, safeNext } from "@/lib/auth";
 import { Icon } from "@/components/Icon";
 import { LoginForm } from "@/components/LoginForm";
 
 export const metadata = { title: "Đăng nhập", robots: { index: false } };
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ expired?: string; sent?: string; error?: string }> }) {
-  if (await getCurrentUser()) redirect("/account");
-  const { expired, sent, error } = await searchParams;
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ expired?: string; sent?: string; error?: string; next?: string }> }) {
+  const { expired, sent, error, next } = await searchParams;
+  const to = safeNext(next);
+  if (await getCurrentUser()) redirect(to ?? "/account");
   return (
     <div className="auth-card">
       <span className="auth-icon"><Icon name="user" size={26} /></span>
@@ -16,7 +17,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       {expired && (
         <p className="form-msg warn" role="alert"><Icon name="alert" size={16} /> Link đã hết hạn hoặc đã được dùng. Hãy yêu cầu link mới.</p>
       )}
-      <LoginForm sent={!!sent} error={error} />
+      {to === "/admin" && !sent && <p className="muted" style={{ fontSize: 14 }}>Trang thống kê chỉ dành cho quản trị viên. Đăng nhập bằng email có trong <code>ADMIN_EMAILS</code>.</p>}
+      <LoginForm sent={!!sent} error={error} next={to} />
     </div>
   );
 }

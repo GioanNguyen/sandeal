@@ -21,7 +21,14 @@ function secret() {
 }
 
 /** Gửi link đăng nhập; nếu có pendingWatch thì link sẽ tạo luôn lượt theo dõi sau khi xác minh email */
-export async function sendLoginLink(email: string, pendingWatch?: { productId: number; targetPrice: number; productName?: string }) {
+/** Chỉ cho phép chuyển hướng nội bộ (chặn open redirect) */
+export const safeNext = (n: unknown) => (typeof n === "string" && /^\/(?!\/)/.test(n) ? n : undefined);
+
+export async function sendLoginLink(
+  email: string,
+  pendingWatch?: { productId: number; targetPrice: number; productName?: string },
+  next?: string,
+) {
   await ensureMigrated();
   const token = newToken();
   await db.insert(loginTokens).values({
@@ -30,7 +37,8 @@ export async function sendLoginLink(email: string, pendingWatch?: { productId: n
     expiresAt: new Date(Date.now() + LOGIN_TTL_MIN * 60_000),
     pendingWatch: pendingWatch ? { productId: pendingWatch.productId, targetPrice: pendingWatch.targetPrice } : null,
   });
-  const url = `${siteUrl()}/auth/verify?token=${token}`;
+  const n = safeNext(next);
+  const url = `${siteUrl()}/auth/verify?token=${token}${n ? `&next=${encodeURIComponent(n)}` : ""}`;
   const intro = pendingWatch?.productName
     ? `<p>Bấm nút dưới đây để xác nhận email và bắt đầu theo dõi giá <b>${escapeHtml(pendingWatch.productName)}</b>.</p>`
     : `<p>Bấm nút dưới đây để đăng nhập Săn Deal.</p>`;

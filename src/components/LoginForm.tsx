@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Icon } from "./Icon";
 
-export function LoginForm({ sent = false, error = "" }: { sent?: boolean; error?: string }) {
+export function LoginForm({ sent = false, error = "", next }: { sent?: boolean; error?: string; next?: string }) {
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">(sent ? "sent" : error ? "error" : "idle");
   const [msg, setMsg] = useState(error);
 
@@ -14,7 +14,7 @@ export function LoginForm({ sent = false, error = "" }: { sent?: boolean; error?
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: f.get("email"), website: f.get("website") }),
+        body: JSON.stringify({ email: f.get("email"), website: f.get("website"), next }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? "Có lỗi, thử lại sau.");
@@ -38,6 +38,7 @@ export function LoginForm({ sent = false, error = "" }: { sent?: boolean; error?
         <label htmlFor="l-email">Email</label>
         <input id="l-email" className="input" name="email" type="email" required autoComplete="email" placeholder="ban@email.com" />
       </div>
+      {next && <input type="hidden" name="next" value={next} />}
       <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="hp" />
       <button className="btn btn-primary btn-block" disabled={state === "sending"}>
         <Icon name="mail" size={16} /> {state === "sending" ? "Đang gửi…" : "Gửi link đăng nhập"}

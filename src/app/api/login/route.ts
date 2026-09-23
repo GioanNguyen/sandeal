@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { EMAIL_RE, normalizeEmail, sendLoginLink } from "@/lib/auth";
+import { EMAIL_RE, normalizeEmail, safeNext, sendLoginLink } from "@/lib/auth";
 import { allow, clientIp } from "@/lib/ratelimit";
 
 /** Nhận JSON (từ JS) hoặc form thường (khi JS chưa tải xong) */
@@ -19,6 +19,6 @@ export async function POST(req: Request) {
   if (!(await allow(`login:ip:${clientIp(req)}`, 10, 3600)) || !(await allow(`mail:${email}`, 5, 3600))) {
     return reply(429, "Bạn gửi quá nhiều yêu cầu, thử lại sau ít phút.");
   }
-  await sendLoginLink(email);
+  await sendLoginLink(email, undefined, safeNext(body?.next));
   return reply(200);
 }
