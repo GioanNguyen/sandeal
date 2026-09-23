@@ -1,12 +1,10 @@
-/** Chạy khi server Next.js khởi động: migrate DB và (tuỳ chọn) chạy lịch đồng bộ ngay trong tiến trình web. */
+/**
+ * Chạy khi server Next.js khởi động. Import có điều kiện theo đúng mẫu của Next.js
+ * để bản build cho Edge runtime không kéo theo các module chỉ có ở Node (fs, pg, pglite...).
+ */
 export async function register() {
-  if (process.env.NEXT_RUNTIME !== "nodejs") return;
-  const { ensureMigrated, dbKind } = await import("@/lib/db");
-  await ensureMigrated();
-  // Với PGlite (dev) chỉ một tiến trình được mở DB, nên worker chạy chung với web.
-  const inWeb = process.env.RUN_WORKER_IN_WEB ? process.env.RUN_WORKER_IN_WEB === "1" : dbKind() === "pglite";
-  if (inWeb) {
-    const { startScheduler } = await import("@/worker/scheduler");
-    startScheduler({ runNow: process.env.SYNC_ON_START === "1" });
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { startup } = await import("./instrumentation-node");
+    await startup();
   }
 }
