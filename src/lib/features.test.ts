@@ -99,3 +99,37 @@ test("nhắc sale: 20h tối hôm trước, mỗi đợt một lần", async () 
   assert.match(mail.outbox.at(-1)!.subject, /10\.10/);
   assert.equal(await digest.runSaleReminders(new Date(eve.getTime() + 3_600_000)), 0);
 });
+
+test("thẻ deal: giá sau mã giảm & nhãn giá thấp kỷ lục", async () => {
+  const list = [
+    { id: 1, title: "Giảm 50K đơn từ 300K", code: "A50", platform: "shopee", type: "fixed" as const, value: 50_000, max: null, minSpend: 300_000 },
+    { id: 2, title: "Giảm 10% tối đa 40K", code: "B10", platform: "shopee", type: "percent" as const, value: 10, max: 40_000, minSpend: 0 },
+    { id: 3, title: "Freeship", code: null, platform: "shopee", type: "freeship" as const, value: 30_000, max: null, minSpend: 0 },
+  ];
+  assert.deepEqual(q.bestVoucherFor({ platform: "shopee", price: 350_000 }, list), { price: 300_000, save: 50_000, code: "A50", title: "Giảm 50K đơn từ 300K" });
+  assert.equal(q.bestVoucherFor({ platform: "shopee", price: 200_000 }, list)?.code, "B10"); // chưa đủ 300K
+  assert.equal(q.bestVoucherFor({ platform: "lazada", price: 500_000 }, list), null); // khác sàn
+  assert.equal(q.bestVoucherFor({ platform: "shopee", price: 5_000 }, list), null); // giảm < 1.000đ thì bỏ
+
+  const day = 86_400_000, now = Date.now();
+  const mk = (id: string) => ({ platform: "tiktok" as const, externalId: id, name: `Đèn học ${id}`, discountPct: 0, affiliateUrl: "#" });
+  // Theo dõi 40 ngày, hôm nay lập đáy mới -> có nhãn
+  await ingest.upsertProduct({ ...mk("r1"), price: 500_000 }, new Date(now - 40 * day));
+  await ingest.upsertProduct({ ...mk("r1"), price: 420_000 }, new Date(now - 20 * day));
+  await ingest.upsertProduct({ ...mk("r1"), price: 480_000 }, new Date(now - 10 * day));
+  const r1 = await ingest.upsertProduct({ ...mk("r1"), price: 380_000 }, new Date(now - day));
+  // Quay lại mức đáy cũ (không phải đáy mới) -> không gắn nhãn
+  await ingest.upsertProduct({ ...mk("r2"), price: 500_000 }, new Date(now - 40 * day));
+  await ingest.upsertProduct({ ...mk("r2"), price: 380_000 }, new Date(now - 20 * day));
+  await ingest.upsertProduct({ ...mk("r2"), price: 480_000 }, new Date(now - 10 * day));
+  const r2 = await ingest.upsertProduct({ ...mk("r2"), price: 380_000 }, new Date(now - day));
+  // Mới theo dõi 5 ngày -> chưa đủ lâu
+  await ingest.upsertProduct({ ...mk("r3"), price: 500_000 }, new Date(now - 5 * day));
+  const r3 = await ingest.upsertProduct({ ...mk("r3"), price: 300_000 }, new Date(now - day));
+  const rows = await q.dealsByIds([r1, r2, r3]);
+  const by = (id: number) => rows.find((r) => r.id === id)!;
+  assert.equal(by(r1).recordLow, true);
+  assert.equal(by(r1).allTimeLow, 380_000);
+  assert.equal(by(r2).recordLow, false);
+  assert.equal(by(r3).recordLow, false);
+});

@@ -2,6 +2,7 @@ import { and, asc, count, desc, eq, gte, ilike, inArray, isNotNull, isNull, lte,
 import { clicks, posts, pricePoints, products, votes, vouchers, type Product } from "@/db/schema";
 import { db, ensureMigrated } from "./db";
 import { slugify } from "./slug";
+import { voucherGain, type CalcVoucher } from "./voucher";
 
 const DAY = 86_400_000;
 
@@ -60,7 +61,27 @@ export type DealRow = Product & {
   cheaperElsewhere?: { platform: string; price: number; id: number } | null;
   /** Rẻ nhất trong nhóm cùng sản phẩm ở nhiều sàn */
   cheapestAcross?: number; // số sàn so sánh
+  /** Giá thấp nhất trong toàn bộ lịch sử đã theo dõi */
+  allTimeLow?: number | null;
+  /** Giá hiện tại là đáy lịch sử (đã theo dõi đủ lâu và giảm thật) */
+  recordLow?: boolean;
+  /** Mã giảm giá toàn sàn tốt nhất áp được cho 1 sản phẩm (đủ điều kiện đơn tối thiểu) */
+  withVoucher?: { price: number; save: number; code: string | null; title: string } | null;
 };
+
+/** Số ngày theo dõi tối thiểu để gắn nhãn "thấp nhất từ trước tới nay" */
+export const RECORD_MIN_DAYS = 30;
+
+/** Mã giảm trực tiếp (không tính freeship/hoàn xu vì phụ thuộc phí ship & chương trình) tốt nhất cho 1 sản phẩm */
+export function bestVoucherFor(p: { platform: string; price: number }, list: CalcVoucher[]): DealRow["withVoucher"] {
+  let best: DealRow["withVoucher"] = null;
+  for (const v of list) {
+    if (v.type !== "percent" && v.type !== "fixed") continue;
+    const save = voucherGain(v, { platform: p.platform, subtotal: p.price, shipping: 0 }).discount;
+    if (save >= 1000 && (!best || save > best.save)) best = { price: p.price - save, save, code: v.code ?? null, title: v.title };
+  }
+  return best;
+}
 
 /**
  * Bổ sung dữ liệu cho thẻ deal bằng vài truy vấn gộp (không truy vấn từng sản phẩm):
@@ -72,14 +93,18 @@ export async function enrichDeals(rows: Product[]): Promise<DealRow[]> {
   const ids = rows.map((r) => r.id);
   const since = new Date(Date.now() - 31 * DAY);
   const groupKeys = [...new Set(rows.map((r) => r.groupKey).filter((k): k is string => !!k))];
-  const [points, firstSeen, clickRows, voteRows, groupRows, noteRows] = await Promise.all([
+  const [points, firstSeen, clickRows, voteRows, groupRows, noteRows, voucherList] = await Promise.all([
     db
       .select({ productId: pricePoints.productId, price: pricePoints.price, at: pricePoints.capturedAt })
       .from(pricePoints)
       .where(and(inArray(pricePoints.productId, ids), gte(pricePoints.capturedAt, since)))
       .orderBy(asc(pricePoints.capturedAt)),
     db
-      .select({ productId: pricePoints.productId, first: sql<string>`min(${pricePoints.capturedAt})`, before: sql<number | null>`(array_agg(${pricePoints.price} order by ${pricePoints.capturedAt} desc) filter (where ${pricePoints.capturedAt} < ${since}))[1]` })
+      .select({ productId: pricePoints.productId, first: sql<string>`min(${pricePoints.capturedAt})`, low: sql<number>`min(${pricePoints.price})`,
+        // lần ĐẦU TIÊN chạm mức thấp nhất & lần đổi giá gần nhất: trùng nhau = vừa lập đáy mới
+        lowAt: sql<string>`(array_agg(${pricePoints.capturedAt} order by ${pricePoints.price} asc, ${pricePoints.capturedAt} asc))[1]`,
+        lastAt: sql<string>`max(${pricePoints.capturedAt})`,
+        before: sql<number | null>`(array_agg(${pricePoints.price} order by ${pricePoints.capturedAt} desc) filter (where ${pricePoints.capturedAt} < ${since}))[1]` })
       .from(pricePoints)
       .where(inArray(pricePoints.productId, ids))
       .groupBy(pricePoints.productId),
@@ -100,11 +125,12 @@ export async function enrichDeals(rows: Product[]): Promise<DealRow[]> {
       .select({ productId: posts.productId, note: posts.note })
       .from(posts)
       .where(and(inArray(posts.productId, ids), eq(posts.hidden, false), sql`${posts.note} <> ''`)),
+    calcVouchers(),
   ]);
 
   const byProduct = new Map<number, { price: number; at: Date }[]>();
   for (const pt of points) (byProduct.get(pt.productId) ?? byProduct.set(pt.productId, []).get(pt.productId)!).push(pt);
-  const first = new Map(firstSeen.map((f) => [f.productId, { first: new Date(f.first), before: f.before == null ? null : Number(f.before) }]));
+  const first = new Map(firstSeen.map((f) => [f.productId, { first: new Date(f.first), low: Number(f.low), newLow: new Date(f.lowAt).getTime() === new Date(f.lastAt).getTime(), before: f.before == null ? null : Number(f.before) }]));
   const clickMap = new Map(clickRows.map((c) => [c.productId!, Number(c.n)]));
   const voteMap = new Map(voteRows.map((v) => [v.productId, { net: Number(v.net), up: Number(v.up) }]));
   const noteMap = new Map(noteRows.map((n) => [n.productId, n.note]));
@@ -130,12 +156,17 @@ export async function enrichDeals(rows: Product[]): Promise<DealRow[]> {
       if (others[0] && others[0].price < p.price * 0.99) cheaperElsewhere = { platform: others[0].platform, price: others[0].price, id: others[0].id };
       else if (others.length) cheapestAcross = new Set(members.map((m) => m.platform)).size;
     }
+    const trackedDays = f ? (Date.now() - f.first.getTime()) / DAY : 0;
+    const allTimeLow = f ? Math.min(f.low, p.price) : null;
     return {
       ...p,
       low30,
+      allTimeLow,
+      recordLow: trackedDays >= RECORD_MIN_DAYS && !!f?.newLow && allTimeLow != null && p.price <= allTimeLow && p.realDropPct >= 5,
+      withVoucher: bestVoucherFor(p, voucherList),
       spark: series,
       droppedAt,
-      trackedDays: f ? (Date.now() - f.first.getTime()) / DAY : 0,
+      trackedDays,
       clicks24: clickMap.get(p.id) ?? 0,
       communityNet: voteMap.get(p.id)?.net ?? 0,
       communityUp: voteMap.get(p.id)?.up ?? 0,

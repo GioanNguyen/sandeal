@@ -5,6 +5,8 @@ export interface ProductInput {
   externalId: string;
   name: string;
   imageUrl?: string;
+  /** Ảnh phụ (không gồm ảnh chính) */
+  images?: string[];
   shopName?: string;
   shopType?: "mall" | "preferred";
   shopRating?: number;

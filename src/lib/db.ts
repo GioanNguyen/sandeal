@@ -109,17 +109,37 @@ function brokenMessage(dir: string) {
   );
 }
 
-export const db: DB = (holder.db ??= create());
-export const dbKind = () => holder.kind;
+/** Mở DB khi dùng lần đầu (không mở ngay lúc import) */
+function real(): DB {
+  return (holder.db ??= create());
+}
+
+/**
+ * Mở DB "lười": chỉ import module thì chưa mở. Quan trọng với PGlite khi `next dev`: Next nạp module trang
+ * trong các tiến trình phụ ngắn hạn (kiểm tra route động). Nếu mở DB ngay lúc import, các tiến trình đó
+ * cùng mở thư mục dữ liệu với server chính -> dễ hỏng dữ liệu.
+ */
+export const db: DB = new Proxy({} as DB, {
+  get(_t, key) {
+    const target = real() as unknown as Record<PropertyKey, unknown>;
+    const v = target[key];
+    return typeof v === "function" ? (v as (...a: unknown[]) => unknown).bind(target) : v;
+  },
+});
+export const dbKind = () => {
+  real();
+  return holder.kind;
+};
 
 /** Chạy migration (idempotent). Gọi khi khởi động web/worker/script. */
 export function ensureMigrated(): Promise<void> {
   holder.migrated ??= (async () => {
     const migrationsFolder = path.resolve(process.cwd(), "drizzle");
-    if (holder.kind === "pg") await migratePg(db, { migrationsFolder });
+    const conn = real();
+    if (holder.kind === "pg") await migratePg(conn, { migrationsFolder });
     else {
       try {
-        await migrateLite(db as never, { migrationsFolder });
+        await migrateLite(conn as never, { migrationsFolder });
       } catch (err) {
         if (holder.dir) console.error(brokenMessage(holder.dir));
         throw err;

@@ -1,3 +1,4 @@
+import { ViewToggle } from "@/components/ViewToggle";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -55,6 +56,10 @@ export default async function CategoryPage({ params, searchParams }: Props) {
           </Link>
         ))}
       </nav>
+      <div className="results-bar">
+        <p className="result-count">{total.toLocaleString("vi-VN")} deal</p>
+        <ViewToggle />
+      </div>
       <LoadMore
         initial={items}
         query={new URLSearchParams(Object.entries({ category: cat.name, platform: sp.platform ?? "" }).filter(([, v]) => v)).toString()}

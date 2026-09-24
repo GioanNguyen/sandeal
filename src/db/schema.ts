@@ -12,6 +12,8 @@ export const products = pgTable(
     externalId: text("external_id").notNull(),
     name: text("name").notNull(),
     imageUrl: text("image_url"),
+    /** Ảnh phụ (ảnh thứ 2 trở đi) – hiện khi rê chuột lên thẻ */
+    images: jsonb("images").$type<string[]>(),
     shopName: text("shop_name"),
     /** mall (chính hãng) | preferred (shop yêu thích) | null */
     shopType: text("shop_type"),

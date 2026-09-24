@@ -64,6 +64,7 @@ export function mapLazadaItem(i: LazadaItem): ProductInput | null {
     externalId: String(id),
     name: i.productName ?? i.title ?? "Sản phẩm Lazada",
     imageUrl: i.pictures?.[0] ?? i.imageUrl,
+    images: i.pictures?.slice(1),
     shopName: i.sellerName,
     shopType: i.isLazMall === true || i.isLazMall === "true" ? "mall" : undefined,
     category: i.categoryL1Name,

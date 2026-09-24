@@ -92,7 +92,7 @@ export function ForYou() {
         <h2 id="fy-head"><Icon name="sparkles" size={22} /> Dành cho bạn</h2>
         <span className="muted" style={{ fontSize: 13 }}>Vì bạn hay xem {state.cats.join(", ")}</span>
       </div>
-      <div className="grid">{state.items.map((p) => <DealCard key={p.id} p={p} />)}</div>
+      <div className="grid deal-grid">{state.items.map((p) => <DealCard key={p.id} p={p} />)}</div>
     </section>
   );
 }
@@ -145,7 +145,7 @@ export function LoadMore({ initial, query, startPage, hasMore: initialMore, next
       {items.length === 0 ? (
         <div className="empty">Không có deal nào khớp bộ lọc. Thử bỏ bớt điều kiện nhé.</div>
       ) : (
-        <div className="grid">
+        <div className="grid deal-grid">
           {items.map((p) => <DealCard key={p.id} p={p} />)}
           {loading && Array.from({ length: 5 }, (_, i) => <div key={`sk${i}`} className="deal skeleton-card" aria-hidden="true" />)}
         </div>

@@ -12,6 +12,7 @@ export async function upsertProduct(p: ProductInput, now = new Date()) {
   const data = {
     name: p.name,
     imageUrl: p.imageUrl ?? null,
+    images: p.images?.filter(Boolean).slice(0, 4) ?? null,
     shopName: p.shopName ?? null,
     shopType: p.shopType ?? null,
     shopRating: p.shopRating ?? null,

@@ -1,3 +1,4 @@
+import { ViewToggle } from "@/components/ViewToggle";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -36,7 +37,10 @@ export default async function CollectionPage({ params, searchParams }: Props) {
           {c.season && !isInSeason(c) && <p className="form-msg warn">Bộ sưu tập theo mùa, hiện chưa tới mùa. Danh sách vẫn cập nhật theo giá hiện tại.</p>}
         </div>
       </section>
-      <p className="result-count">{total} deal</p>
+      <div className="results-bar">
+        <p className="result-count">{total} deal</p>
+        <ViewToggle />
+      </div>
       <LoadMore initial={items} query={`collection=${c.slug}`} startPage={page + 1} hasMore={page < pages} nextHref={`/bo-suu-tap/${c.slug}?page=${page + 1}`} />
     </>
   );

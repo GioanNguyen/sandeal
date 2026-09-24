@@ -1,3 +1,4 @@
+import { ViewToggle } from "@/components/ViewToggle";
 import Form from "next/form";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -230,7 +231,10 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
           </div>
         </Form>
 
-        <p className="result-count">{total.toLocaleString("vi-VN")} sản phẩm</p>
+        <div className="results-bar">
+          <p className="result-count">{total.toLocaleString("vi-VN")} sản phẩm</p>
+          <ViewToggle />
+        </div>
         <LoadMore key={`${moreQuery}|${page}`} initial={items} query={moreQuery} startPage={page + 1} hasMore={page < pages} nextHref={href({ page: String(page + 1) })} />
       </section>
     </>

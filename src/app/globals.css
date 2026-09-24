@@ -793,3 +793,82 @@ html.is-navigating .grid:has(.is-opening) > :not(.is-opening) { filter: opacity(
 .drop-item.is-opening::after, .band.is-opening::after, .tool.is-opening::after { width: 22px; height: 22px; margin: -11px 0 0 -11px; border-width: 2.5px; left: auto; right: 12px; }
 .main-nav a.is-opening, .chip.is-opening { background: var(--primary-soft); color: var(--primary); }
 html.is-navigating .result-count::after { content: " · đang cập nhật kết quả…"; color: var(--primary); font-weight: 600; }
+
+/* ===== Nhóm 5: thẻ sản phẩm ===== */
+/* Giá sau mã giảm giá */
+.voucher-line { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; max-width: 100%; font-size: 12px; color: var(--primary); background: var(--primary-soft); border: 1px dashed color-mix(in srgb, var(--primary) 45%, transparent); padding: 4px 8px; border-radius: 8px; line-height: 1.3; }
+.voucher-line svg { flex: none; }
+.voucher-line > span { min-width: 0; }
+.voucher-line small { font-size: 11px; white-space: nowrap; }
+.voucher-line b { font-weight: 800; font-size: 13px; }
+.voucher-line code { font-family: inherit; font-weight: 800; letter-spacing: .02em; }
+
+/* Đáy lịch sử */
+.record-ribbon { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 8px; font-size: 12px; font-weight: 800; color: #3b2300; background: linear-gradient(90deg, #ffcf4a, var(--gold) 50%, #ffcf4a); background-size: 200% 100%; animation: ribbon-shine 3.5s linear infinite; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.deal-media.has-record .fresh-tag { bottom: 40px; }
+.deal-record { border-color: color-mix(in srgb, var(--gold) 70%, var(--border)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 45%, transparent); }
+@keyframes ribbon-shine { to { background-position: -200% 0; } }
+
+/* Ảnh thứ 2 khi rê chuột */
+.card-img .alt-img { position: absolute; inset: 0; opacity: 0; transition: opacity .35s ease; }
+.card-img.has-alt .alt-img { transform: none; }
+.deal:hover .card-img.has-alt .alt-img { opacity: 1; }
+
+/* Biểu đồ giá phóng to */
+.spark-peek { position: relative; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+.spark-pop { position: absolute; left: -8px; right: -8px; bottom: calc(100% + 6px); z-index: 6; opacity: 0; visibility: hidden; transform: translateY(6px); transition: opacity .18s, transform .18s, visibility 0s .18s; pointer-events: none; }
+.spark-peek.open .spark-pop { opacity: 1; visibility: visible; transform: none; transition: opacity .18s, transform .18s; }
+@media (hover: hover) {
+  .spark-peek:hover .spark-pop { opacity: 1; visibility: visible; transform: none; transition: opacity .18s .25s, transform .18s .25s; }
+}
+.spark-detail { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 12px 32px -8px rgb(28 26 25 / 28%); padding: 10px 12px; font-size: 12px; color: var(--text); }
+.sd-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; white-space: nowrap; font-size: 11.5px; }
+.sd-head span { color: var(--muted); }
+.sd-head span b { color: var(--primary); }
+.spark-detail .save { color: var(--save) !important; }
+.spark-detail svg { display: block; }
+.sd-area { fill: color-mix(in srgb, var(--primary) 12%, transparent); }
+.sd-hi { fill: var(--surface); stroke: var(--primary); stroke-width: 1.5; }
+.sd-axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 2px; }
+.sd-stats { display: flex; gap: 12px; flex-wrap: wrap; margin: 8px 0 0; padding-top: 8px; border-top: 1px dashed var(--border); }
+.sd-stats dt { color: var(--muted); font-size: 11px; }
+.sd-stats dd { margin: 0; font-weight: 800; }
+.sd-stats small { font-weight: 500; color: var(--muted); }
+
+/* Lưới / danh sách */
+.results-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; }
+.results-bar .result-count { margin: 0; }
+.view-toggle { display: inline-flex; padding: 3px; gap: 2px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; }
+.view-toggle button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.view-toggle button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+@media (max-width: 640px) { .view-toggle button span { display: none; } .view-toggle button { padding: 0 10px; min-width: 40px; justify-content: center; } }
+
+html[data-view="list"] .deal-grid { grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
+html[data-view="list"] .deal-grid .deal-link { flex-direction: row; }
+html[data-view="list"] .deal-grid .deal-media { flex: none; width: 150px; aspect-ratio: auto; min-height: 150px; }
+html[data-view="list"] .deal-grid .deal-body { gap: 6px; min-width: 0; padding-right: 52px; }
+html[data-view="list"] .deal-grid .deal-name { min-height: 0; }
+html[data-view="list"] .deal-grid .spark-peek, html[data-view="list"] .deal-grid .cm-line, html[data-view="list"] .deal-grid .saving.neutral { display: none; }
+html[data-view="list"] .deal-grid .saving { flex-direction: row; align-items: baseline; gap: 6px; padding: 2px 8px; }
+html[data-view="list"] .deal-grid .saving b { font-size: 13px; }
+html[data-view="list"] .deal-grid .fresh-tag { left: 6px; right: 6px; bottom: 6px; font-size: 10px; padding: 2px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: none; }
+html[data-view="list"] .deal-grid .deal-media.has-record .fresh-tag { bottom: 34px; }
+html[data-view="list"] .deal-grid .record-ribbon { font-size: 10px; padding: 4px; }
+html[data-view="list"] .deal-grid .deal-media > .platform { transform: scale(.85); transform-origin: top left; }
+html[data-view="list"] .deal-grid .qv-btn { display: none; }
+html[data-view="list"] .deal-grid .skeleton-card { min-height: 150px; }
+@media (max-width: 640px) {
+  html[data-view="list"] .deal-grid { grid-template-columns: 1fr; gap: 8px; }
+  html[data-view="list"] .deal-grid .deal-media { width: 112px; min-height: 0; }
+  html[data-view="list"] .deal-grid .deal-body { padding: 8px 44px 8px 10px; }
+  html[data-view="list"] .deal-grid .hot-line, html[data-view="list"] .deal-grid .elsewhere { font-size: 11px; }
+  html[data-view="list"] .deal-grid .shop-line { display: none; }
+  html[data-view="list"] .deal-grid .save-btn { top: 6px; right: 6px; width: 32px; height: 32px; }
+  html[data-view="list"] .deal-grid .saving { flex-wrap: wrap; column-gap: 6px; row-gap: 0; }
+  html[data-view="list"] .deal-grid .saving small { font-size: 10px; }
+  html[data-view="list"] .deal-grid .platform { white-space: nowrap; }
+  .voucher-line { gap: 4px; padding: 3px 6px; font-size: 11px; }
+  .voucher-line svg { display: none; }
+  .voucher-line b { font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .record-ribbon { animation: none; } }
