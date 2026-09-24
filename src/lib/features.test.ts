@@ -194,3 +194,35 @@ test("giữ khách: báo món đã lưu vừa giảm, deal bí ẩn theo ngày",
     assert.notEqual(c?.deal.id, a.deal.id); // bỏ món đã có ở "Deal nổi bật"
   }
 });
+
+test("mini game đoán giá & danh sách chia sẻ", async () => {
+  const play = await import("./play");
+  for (let k = 0; k < 50; k++) {
+    const rand = play.seeded(`t${k}`);
+    const price = 100_000 + k * 37_000, usual = Math.round(price * 1.6);
+    const o = play.buildOptions(price, usual, rand);
+    assert.equal(o.length, 4);
+    assert.ok(o.includes(price));
+    assert.equal(new Set(o).size, 4);
+    assert.ok(o.every((x) => x > 0 && x < usual));
+  }
+  const d1 = await play.guessRounds(new Date("2026-09-24T02:00:00Z"));
+  const d1b = await play.guessRounds(new Date("2026-09-24T16:00:00Z"));
+  assert.deepEqual(d1.rounds.map((r) => r.id), d1b.rounds.map((r) => r.id)); // cả ngày cùng đề
+  assert.deepEqual(d1.rounds.map((r) => r.options), d1b.rounds.map((r) => r.options));
+  assert.equal(new Set(d1.rounds.map((r) => r.name.toLowerCase())).size, d1.rounds.length);
+  for (const r of d1.rounds) assert.ok(r.options.includes(r.answer) && r.realDropPct >= 10);
+
+  assert.equal(play.cleanTitle("  <b>Đồ   cho bé</b> "), "Đồ cho bé");
+  assert.equal(play.cleanTitle(""), "Deal mình đã chọn");
+  assert.ok(!play.cleanTitle("<script>").includes("<"));
+  const [a, b] = (await q.listDeals({ pageSize: 2 })).items;
+  const r = await play.createList("Quà 20/10", [a.id, b.id, a.id, 999999, "x"]);
+  assert.ok("slug" in r);
+  const l = (await play.getList((r as { slug: string }).slug, true))!;
+  assert.equal(l.title, "Quà 20/10");
+  assert.deepEqual(l.items.map((x) => x.id), [a.id, b.id]); // bỏ trùng, bỏ id không tồn tại, giữ thứ tự
+  assert.equal((await play.getList(l.slug))!.views, 1);
+  assert.deepEqual(await play.createList("x", [999999]), { error: "Sản phẩm không còn tồn tại" });
+  assert.equal(await play.getList("../etc"), null);
+});

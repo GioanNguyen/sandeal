@@ -281,6 +281,19 @@ export const productViews = pgTable(
   ],
 );
 
+/** Danh sách deal khách gom lại để chia sẻ (link ngắn /ds/<slug>) */
+export const sharedLists = pgTable(
+  "shared_lists",
+  {
+    slug: text("slug").primaryKey(),
+    title: text("title").notNull(),
+    productIds: jsonb("product_ids").$type<number[]>().notNull(),
+    views: integer("views").notNull().default(0),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("shared_lists_created_idx").on(t.createdAt)],
+);
+
 export type Product = typeof products.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type Voucher = typeof vouchers.$inferSelect;

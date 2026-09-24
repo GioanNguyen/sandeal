@@ -50,6 +50,13 @@
       "when": 1790240218090,
       "tag": "0006_discovery",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790243346345,
+      "tag": "0007_shared_lists",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,7 @@ import { vnd } from "@/lib/format";
 import { DealCard } from "./DealCard";
 import { Icon } from "./Icon";
 import { useSaved, type Drop } from "./Saved";
+import { ShareListPanel } from "./ShareList";
 
 /** Trang "Đã lưu": món vừa giảm lên đầu kèm mức giảm; mở trang xong thì đánh dấu đã xem */
 export function SavedList() {
@@ -69,7 +70,10 @@ export function SavedList() {
       {!loggedIn && (
         <p className="saved-note"><Icon name="bell" size={16} /> Danh sách này lưu trên trình duyệt. <Link href="/login?next=/da-luu">Đăng nhập</Link> để được báo qua email khi giá giảm và xem trên mọi thiết bị.</p>
       )}
-      <p className="result-count">{items.length} món</p>
+      <div className="results-bar">
+        <p className="result-count">{items.length} món</p>
+        <ShareListPanel items={sorted.map((p) => ({ id: p.id, name: p.name, price: p.price }))} />
+      </div>
       <div className="grid deal-grid">{sorted.map((p) => <DealCard key={p.id} p={p} />)}</div>
     </>
   );

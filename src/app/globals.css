@@ -410,7 +410,7 @@ main.container { flex: 1; width: 100%; }
 @media (max-width: 640px) { .compare .col-shop { display: none; } .compare td, .compare th { padding-left: 4px; padding-right: 4px; } }
 
 /* ===== Công cụ trang chủ ===== */
-.tools { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 16px 0 8px; }
+.tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 16px 0 8px; }
 .tool { display: flex; flex-direction: column; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; transition: border-color .2s, transform .2s; }
 .tool:hover { border-color: var(--primary); transform: translateY(-2px); }
 .tool svg { color: var(--primary); margin-bottom: 4px; }
@@ -950,7 +950,6 @@ html[data-view="list"] .deal-grid .skeleton-card { min-height: 150px; }
 }
 
 /* ===== Nhóm 7: giữ khách quay lại ===== */
-@media (max-width: 1100px) { .tools { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 640px) { .tools > :last-child:nth-child(odd) { grid-column: span 2; } }
 
 /* Menu "Đã lưu" có chấm đỏ */
@@ -1055,3 +1054,79 @@ html[data-view="list"] .deal-grid .skeleton-card { min-height: 150px; }
   .nav-dot { left: 18px; top: 2px; }
 }
 @media (max-width: 370px) { .logo-text { display: none; } }
+
+/* ===== Nhóm 8: mini game & chia sẻ ===== */
+/* Đoán giá */
+.guess { max-width: 860px; margin: 0 auto; }
+.guess-progress { display: flex; align-items: center; gap: 6px; margin: 0 0 14px; }
+.guess-progress span { flex: 1; height: 6px; border-radius: 999px; background: var(--border); }
+.guess-progress span.cur { background: var(--primary); }
+.guess-progress span.ok { background: var(--save); }
+.guess-progress span.bad { background: #e11d48; }
+.guess-progress b { margin-left: 8px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.guess-card { display: grid; grid-template-columns: minmax(220px, 320px) 1fr; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; overflow: hidden; box-shadow: var(--shadow-sm); }
+.guess-media { position: relative; aspect-ratio: 1; background: var(--surface-2); }
+.guess-body { display: flex; flex-direction: column; gap: 10px; padding: 22px 24px; min-width: 0; }
+.guess-body h2 { margin: 0; font-size: 22px; line-height: 1.3; }
+.guess-usual { margin: 0; color: var(--muted); }
+.guess-usual b { color: var(--text); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
+.guess-q { margin: 6px 0 0; font-weight: 700; }
+.guess-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.guess-opt { min-height: 56px; border-radius: 14px; border: 2px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: 18px; font-weight: 800; cursor: pointer; transition: border-color .15s, background .15s, transform .15s; }
+.guess-opt:hover:not(:disabled) { border-color: var(--primary); background: var(--primary-soft); transform: translateY(-2px); }
+.guess-opt:disabled { cursor: default; }
+.guess-opt.right { border-color: var(--save); background: var(--save-soft); color: var(--save); animation: dot-pop .35s ease; }
+.guess-opt.wrong { border-color: #e11d48; background: #ffe4e6; color: #be123c; animation: shake .35s ease; }
+.guess-opt.dim { opacity: .45; }
+@keyframes shake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+.guess-reveal { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 12px; font-size: 14px; }
+.guess-reveal.ok { background: var(--save-soft); }
+.guess-reveal.ok b { color: var(--save); }
+.guess-reveal.bad { background: #fff1f2; }
+.guess-reveal.bad b { color: #be123c; }
+.guess-next-row { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.guess-end { max-width: 720px; margin: 0 auto; display: grid; gap: 18px; }
+.guess-score { text-align: center; padding: 26px 20px; border-radius: 22px; color: #fff; background: radial-gradient(circle at 20% 20%, rgb(255 255 255 / 18%), transparent 40%), linear-gradient(120deg, #6d28d9, #db2777 55%, #f97316); }
+.guess-score span { font-size: 14px; font-weight: 700; opacity: .9; }
+.guess-score b { display: block; font-size: 72px; line-height: 1.1; font-weight: 800; }
+.guess-score p { margin: 4px 0 6px; font-size: 18px; font-weight: 700; }
+.guess-score small { opacity: .9; }
+.guess-end .share { justify-content: center; }
+.guess-review { display: grid; gap: 8px; }
+.guess-row { display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: 12px; padding: 8px 12px 8px 8px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--border); color: inherit; }
+.guess-row.ok { border-left-color: var(--save); }
+.guess-row.bad { border-left-color: #e11d48; }
+.guess-thumb { position: relative; width: 52px; height: 52px; border-radius: 10px; overflow: hidden; background: var(--surface-2); }
+.guess-row-name { font-size: 14px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.guess-row-price { display: flex; flex-direction: column; align-items: flex-end; font-size: 14px; }
+.guess-row-price b { color: var(--primary); }
+.guess-row-price small { color: var(--save); font-weight: 700; }
+.guess-next { text-align: center; margin: 0; font-size: 13px; }
+.guess-invite { max-width: 560px; margin: 40px auto; text-align: center; display: grid; justify-items: center; gap: 12px; }
+.guess-invite h1 { margin: 0; font-size: 28px; }
+.guess-invite-score { display: grid; place-items: center; width: 130px; height: 130px; border-radius: 32px; color: #fff; font-size: 44px; font-weight: 800; background: linear-gradient(120deg, #6d28d9, #db2777 55%, #f97316); }
+@media (max-width: 640px) {
+  .guess-card { grid-template-columns: 1fr; }
+  .guess-media { aspect-ratio: 16 / 10; }
+  .guess-body { padding: 14px; }
+  .guess-body h2 { font-size: 18px; }
+  .guess-opt { min-height: 50px; font-size: 16px; }
+  .guess-score b { font-size: 56px; }
+}
+@media (prefers-reduced-motion: reduce) { .guess-opt.right, .guess-opt.wrong { animation: none; } }
+
+/* Danh sách chia sẻ */
+.share-list { display: grid; gap: 12px; margin: 0 0 16px; }
+.share-list .field { display: grid; gap: 6px; }
+.share-list .field span { font-size: 13px; font-weight: 600; color: var(--muted); }
+.share-list-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px 14px; max-height: 240px; overflow-y: auto; margin: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; }
+.share-list-items legend { padding: 0 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.share-list-items label { display: flex; align-items: center; gap: 8px; min-height: 36px; font-size: 14px; }
+.share-list-items label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.share-list-items input { width: 18px; height: 18px; accent-color: var(--primary); flex: none; }
+.share-list-ok { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--save); font-weight: 600; }
+.form-error { margin: 0; color: #be123c; font-size: 14px; }
+.list-eyebrow { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; font-size: 13px; font-weight: 700; color: var(--primary); }
+.list-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 18px; }
+.page-sub .save { color: var(--save); }
+.saved-page .results-bar { flex-wrap: wrap; }

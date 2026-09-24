@@ -153,3 +153,37 @@ export async function genericOgImage(title: string, subtitle: string) {
     { ...OG_SIZE, fonts: await fonts() },
   );
 }
+
+/** Ảnh xem trước cho danh sách deal chia sẻ: tiêu đề, số món, tổng tiết kiệm, 4 ảnh sản phẩm */
+export async function listOgImage(title: string, items: { imageUrl: string | null; price: number; realDropPct: number }[]) {
+  const imgs = await Promise.all(items.slice(0, 4).map((x) => imageData(x.imageUrl)));
+  const saving = items.reduce((s, x) => s + (x.realDropPct >= 1 ? x.price / (1 - x.realDropPct / 100) - x.price : 0), 0);
+  return new ImageResponse(
+    (
+      <div style={{ width: "100%", height: "100%", display: "flex", padding: 56, gap: 44, fontFamily: FAMILY, background: C.bg, color: C.text }}>
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", flex: 1 }}>
+          <Brand />
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <div style={{ display: "flex", fontSize: 26, fontWeight: 700, color: C.primary }}>Danh sách deal chia sẻ</div>
+            <div style={{ display: "flex", fontSize: 56, fontWeight: 800, lineHeight: 1.15 }}>{title.slice(0, 60)}</div>
+            <div style={{ display: "flex", fontSize: 30, fontWeight: 700, color: C.muted }}>{items.length} món đang giảm thật</div>
+          </div>
+          {saving >= 1000 ? (
+            <div style={{ display: "flex", alignSelf: "flex-start", fontSize: 30, fontWeight: 800, color: C.save, background: C.saveSoft, padding: "12px 22px", borderRadius: 16 }}>
+              Rẻ hơn thường ngày tổng {vnd(Math.round(saving / 1000) * 1000)}
+            </div>
+          ) : <div style={{ display: "flex" }} />}
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", width: 500, gap: 16, alignContent: "center" }}>
+          {[0, 1, 2, 3].map((k) => (
+            <div key={k} style={{ display: "flex", width: 242, height: 242, borderRadius: 24, overflow: "hidden", background: "#ffe6dc", border: `2px solid ${C.border}` }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {imgs[k] ? <img src={imgs[k]!} width={242} height={242} style={{ objectFit: "cover" }} alt="" /> : null}
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+    { ...OG_SIZE, fonts: await fonts() },
+  );
+}

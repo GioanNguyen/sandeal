@@ -10,6 +10,8 @@ interface Ctx {
   toggle: (id: number, name: string, price?: number) => void;
   /** Chỉ lưu (không bỏ lưu) – dùng cho chế độ lướt deal */
   save: (id: number, name: string, price?: number) => void;
+  /** Lưu nhiều món một lần (danh sách chia sẻ) */
+  saveMany: (items: { id: number; name: string; price?: number }[]) => Promise<void>;
   loggedIn: boolean | null;
   ids: number[];
   /** Món đã lưu giảm giá kể từ lần cuối xem trang Đã lưu */
@@ -19,7 +21,7 @@ interface Ctx {
   /** Đánh dấu đã xem các mức giá hiện tại (trang Đã lưu gọi) */
   markSeen: (prices: Record<string, number>) => void;
 }
-const SavedCtx = createContext<Ctx>({ isSaved: () => false, toggle: () => {}, save: () => {}, loggedIn: null, ids: [], drops: [], dropsReady: false, markSeen: () => {} });
+const SavedCtx = createContext<Ctx>({ isSaved: () => false, toggle: () => {}, save: () => {}, saveMany: async () => {}, loggedIn: null, ids: [], drops: [], dropsReady: false, markSeen: () => {} });
 export const useSaved = () => useContext(SavedCtx);
 
 const rememberPrice = (id: number, price?: number) => {
@@ -95,6 +97,25 @@ export function SavedProvider({ children }: { children: React.ReactNode }) {
       .catch(() => setDropsReady(true));
   }, [ids, loggedIn]);
 
+  const saveMany = useCallback(
+    async (items: { id: number; name: string; price?: number }[]) => {
+      const add = items.filter((x) => !ids.has(x.id));
+      if (!add.length) return;
+      for (const x of add) rememberPrice(x.id, x.price);
+      const next = new Set(ids);
+      for (const x of add) next.add(x.id);
+      setIds(next);
+      if (!loggedIn) {
+        writeLocal(SAVED_KEY, [...next]);
+        show({ text: `Đã lưu ${add.length} món trên trình duyệt này.`, action: { href: "/da-luu", label: "Xem đã lưu" } });
+        return;
+      }
+      await Promise.all(add.map((x) => fetch("/api/saved", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ productId: x.id, save: true }) }).catch(() => null)));
+      show({ text: `Đã lưu ${add.length} món. Sẽ báo bạn khi giá giảm.`, action: { href: "/da-luu", label: "Xem đã lưu" } });
+    },
+    [ids, loggedIn],
+  );
+
   const markSeen = useCallback((prices: Record<string, number>) => {
     const seen = readLocal<Record<string, number>>(SAVED_SEEN_KEY, {});
     for (const [id, p] of Object.entries(prices)) seen[id] = p;
@@ -135,6 +156,7 @@ export function SavedProvider({ children }: { children: React.ReactNode }) {
         isSaved: (id) => ids.has(id),
         toggle: (id, name, price) => toggle(id, name, price),
         save: (id, name, price) => toggle(id, name, price, true),
+        saveMany,
         loggedIn,
         ids: [...ids],
         drops,

@@ -154,6 +154,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
           <Link href="/tinh-gia" className="tool"><Icon name="calculator" size={22} /><b>Tính giá cuối cùng</b><span>Ghép mã giảm, freeship, hoàn xu tốt nhất</span></Link>
           <Link href="/so-sanh" className="tool"><Icon name="scale" size={22} /><b>So sánh giữa các sàn</b><span>Cùng món, sàn nào rẻ hơn</span></Link>
           <Link href="/tien-ich" className="tool"><Icon name="puzzle" size={22} /><b>Tiện ích Chrome</b><span>Xem lịch sử giá ngay trên Shopee</span></Link>
+          <Link href="/doan-gia" className="tool"><Icon name="trophy" size={22} /><b>Đoán giá</b><span>5 câu mỗi ngày, rủ bạn so điểm</span></Link>
           <Link href="/luot-deal" className="tool"><Icon name="heart" size={22} /><b>Lướt deal</b><span>Vuốt phải để lưu, vuốt trái bỏ qua</span></Link>
         </nav>
       )}
