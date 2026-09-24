@@ -1,5 +1,5 @@
 import { enabledAdapters } from "@/adapters";
-import { ensureMigrated } from "@/lib/db";
+import { closeDb, ensureMigrated } from "@/lib/db";
 import { upsertProduct, upsertVoucher } from "@/lib/ingest";
 import { notifyWatchers } from "./notify";
 import { syncConversions } from "./conversions";
@@ -57,5 +57,5 @@ export async function runSync(): Promise<SyncReport> {
 
 // Chạy trực tiếp: npm run sync
 if (process.argv[1]?.endsWith("sync.ts")) {
-  runSync().then(() => process.exit(0));
+  runSync().then(closeDb).then(() => process.exit(0));
 }

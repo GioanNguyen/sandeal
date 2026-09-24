@@ -2,7 +2,7 @@
 import { desc, sql } from "drizzle-orm";
 import { clicks, posts, products, users, votes } from "@/db/schema";
 import { mockAdapter, mockProducts } from "@/adapters/mock";
-import { db, ensureMigrated } from "@/lib/db";
+import { closeDb, db, ensureMigrated } from "@/lib/db";
 import { syncConversions } from "./conversions";
 import { groupProducts } from "./grouping";
 import { upsertProduct, upsertVoucher } from "./sync";
@@ -59,4 +59,11 @@ export async function seed() {
   console.log(`[seed] xong: ${n} sản phẩm`);
 }
 
-if (process.argv[1]?.endsWith("seed.ts")) seed().then(() => process.exit(0));
+if (process.argv[1]?.endsWith("seed.ts")) seed()
+    .then(closeDb)
+    .then(() => process.exit(0))
+    .catch(async (err) => {
+      console.error(err);
+      await closeDb();
+      process.exit(1);
+    });

@@ -1,7 +1,8 @@
 /** npm run db:migrate – áp dụng các migration trong thư mục drizzle/ */
-import { ensureMigrated } from "@/lib/db";
+import { closeDb, ensureMigrated } from "@/lib/db";
 
 ensureMigrated()
+  .then(closeDb)
   .then(() => {
     console.log("[db] migrate xong");
     process.exit(0);

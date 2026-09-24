@@ -14,11 +14,9 @@ npm run dev              # http://localhost:3000
 ```
 
 - Database khi dev là **PGlite** (Postgres nhúng, lưu ở `.data/pglite`). Chỉ một tiến trình mở được, nên hãy **tắt `npm run dev` trước khi chạy `npm run seed` / `npm run sync`**. Khi web đang chạy, lịch đồng bộ tự chạy bên trong web; admin có nút “Đồng bộ ngay”.
+- Nếu `npm run dev` tự tắt ngay sau khi khởi động và terminal báo *“Không mở được cơ sở dữ liệu PGlite”* (hoặc `RuntimeError: Aborted()`), dữ liệu dev đã hỏng: chạy `npm run db:reset` (cất thư mục cũ sang `.data/pglite-hong-*` và tạo lại dữ liệu mẫu) rồi `npm run dev`. Các lệnh seed/sync giờ tự từ chối chạy khi dev đang mở DB để tránh hỏng dữ liệu.
 - Chưa cấu hình SMTP thì email (link đăng nhập, báo giá) được **in ra terminal**, bấm link ở đó để đăng nhập.
 - Vào trang thống kê: đặt `ADMIN_EMAILS="email-cua-ban"` trong `.env`, đăng nhập bằng email đó rồi mở `/admin`.
-
-Đăng ký tài khoản affiliate & lấy API key: xem [docs/huong-dan-dang-ky-affiliate.md](docs/huong-dan-dang-ky-affiliate.md)
-Ảnh chia sẻ & tự đăng deal lên mạng xã hội: xem [docs/huong-dan-dang-bai.md](docs/huong-dan-dang-bai.md)
 
 Kiểm thử: `npm test` (chạy trên Postgres trong RAM) · `npm run typecheck`
 
@@ -34,16 +32,8 @@ Kiểm thử: `npm test` (chạy trên Postgres trong RAM) · `npm run typecheck
 | Chống spam | Giới hạn tần suất theo IP và email, ô bẫy bot |
 | Link `/go/[id]` | Ghi lượt bấm rồi chuyển sang link affiliate |
 | Thống kê `/admin` | Lượt bấm, đơn, doanh số, hoa hồng theo ngày/sàn; nút đồng bộ |
-| Telegram | Tự đăng deal hot lên kênh (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`); người dùng kết nối bot cá nhân cần thêm `TELEGRAM_BOT_USERNAME` |
+| Telegram | Tự đăng deal hot lên kênh (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`) |
 | SEO | `sitemap.xml`, `robots.txt`, title/description/OG từng trang |
-| Kiểm tra giá `/kiem-tra-gia` | Dán link Shopee/Lazada/TikTok (cả link rút gọn) → lịch sử giá, điểm deal; link chưa có dữ liệu được xếp hàng tra cứu lại |
-| Lịch sale `/lich-sale` | Ngày đôi, 15, 25 hằng tháng, Black Friday; đếm ngược, khung giờ vàng, mã theo đợt; nhắc 20h tối hôm trước |
-| So sánh giá `/so-sanh` | Ghép sản phẩm giống nhau giữa các sàn theo tên; bảng so sánh trên trang chi tiết |
-| Săn deal theo sở thích `/account/so-thich` | Từ khoá, danh mục, sàn, mức giảm; bản tin mỗi sáng qua email/Telegram, không gửi trùng |
-| Tiện ích Chrome `/tien-ich` | Bảng giá nổi trên trang sản phẩm Shopee/Lazada/TikTok: kết luận, biểu đồ, giá sau mã, sàn rẻ hơn. Mã nguồn ở `extension/`, đóng gói bằng `npm run ext:build` (tự chạy khi `npm run build`) |
-| Máy tính giá cuối cùng `/tinh-gia` | Nhập giỏ hàng, chọn tổ hợp 1 mã giảm/hoàn xu + 1 freeship tốt nhất, gợi ý mua thêm để dùng mã lớn hơn |
-| Cộng đồng `/cong-dong` | Chia sẻ deal, bình chọn hot/không, bảng xếp hạng thợ săn 30 ngày, admin ẩn bài |
-| PWA & thông báo đẩy | Cài web lên màn hình chính, trang offline, chia sẻ link từ app sàn vào Săn Deal (Android); push khi giá chạm mục tiêu, bản tin, nhắc sale. Tạo khoá: `npm run vapid` |
 
 ## Nguồn dữ liệu
 
