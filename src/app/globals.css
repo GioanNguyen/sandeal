@@ -1193,3 +1193,8 @@ html[data-view="list"] .deal-grid .skeleton-card { min-height: 150px; }
 .list-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 18px; }
 .page-sub .save { color: var(--save); }
 .saved-page .results-bar { flex-wrap: wrap; }
+/* Dạng danh sách: giờ cập nhật đi liền sau tên shop (không đẩy sang sát mép phải, dưới nút ♡) */
+html[data-view="list"] .deal-grid .shop-line .freshness.compact { margin-left: 0; }
+html[data-view="list"] .deal-grid .shop-line .freshness.compact::before { content: "·"; margin-right: 2px; color: var(--muted); }
+html[data-view="list"] .deal-grid .fresh-tag { white-space: normal; text-overflow: clip; line-height: 1.25; align-items: flex-start; border-radius: 10px; }
+html[data-view="list"] .deal-grid .fresh-tag .pulse-dot { margin-top: 3px; flex: none; }
