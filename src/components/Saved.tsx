@@ -204,7 +204,7 @@ export function SavedNavLink() {
   const { ids, drops } = useContext(SavedCtx);
   const n = drops.length;
   return (
-    <Link href="/da-luu" aria-label={n ? `Đã lưu – ${n} món vừa giảm giá` : `Đã lưu (${ids.length})`} className="nav-saved" title="Đã lưu">
+    <Link href="/da-luu" aria-label={n ? `Đã lưu – ${n} món vừa giảm giá` : `Đã lưu (${ids.length})`} className="nav-saved">
       <Icon name="heart" />
       <span>Đã lưu</span>
       {n > 0 && <b className="nav-dot" aria-hidden="true">{n > 9 ? "9+" : n}</b>}

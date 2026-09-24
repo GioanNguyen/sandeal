@@ -62,19 +62,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </Form>
             <PwaInstall />
             <nav className="main-nav" aria-label="Điều hướng chính">
-              <Link href="/" aria-label="Deal hot" title="Deal hot"><Icon name="flame" /><span>Deal hot</span></Link>
-              <Link href="/vouchers" aria-label="Mã giảm giá" title="Mã giảm giá"><Icon name="ticket" /><span>Mã giảm giá</span></Link>
-              <Link href="/lich-sale" aria-label="Lịch sale" title="Lịch sale"><Icon name="calendar" /><span>Lịch sale</span></Link>
-              <Link href="/cong-dong" aria-label="Cộng đồng" title="Cộng đồng"><Icon name="users" /><span>Cộng đồng</span></Link>
+              <Link href="/" aria-label="Deal hot"><Icon name="flame" /><span>Deal hot</span></Link>
+              <Link href="/vouchers" aria-label="Mã giảm giá"><Icon name="ticket" /><span>Mã giảm giá</span></Link>
+              <Link href="/lich-sale" aria-label="Lịch sale"><Icon name="calendar" /><span>Lịch sale</span></Link>
+              <Link href="/cong-dong" aria-label="Cộng đồng"><Icon name="users" /><span>Cộng đồng</span></Link>
               <SavedNavLink />
 
               {user && isAdmin(user.email) && (
-                <Link href="/admin" aria-label="Thống kê" title="Thống kê"><Icon name="chart" /><span>Thống kê</span></Link>
+                <Link href="/admin" aria-label="Thống kê"><Icon name="chart" /><span>Thống kê</span></Link>
               )}
               {user ? (
-                <Link href="/account" aria-label="Tài khoản" title="Tài khoản"><Icon name="user" /><span>Tài khoản</span></Link>
+                <Link href="/account" aria-label="Tài khoản"><Icon name="user" /><span>Tài khoản</span></Link>
               ) : (
-                <Link href="/login" aria-label="Đăng nhập" title="Đăng nhập"><Icon name="user" /><span>Đăng nhập</span></Link>
+                <Link href="/login" aria-label="Đăng nhập"><Icon name="user" /><span>Đăng nhập</span></Link>
               )}
             </nav>
             <HeaderFit />
