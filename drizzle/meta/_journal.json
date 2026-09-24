@@ -64,6 +64,13 @@
       "when": 1790264273532,
       "tag": "0008_view_last_seen",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790266028418,
+      "tag": "0009_sale_alerts_weekly",
+      "breakpoints": true
     }
   ]
 }

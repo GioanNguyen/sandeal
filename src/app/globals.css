@@ -1400,3 +1400,14 @@ html[data-theme="dark"] .view-line { color: #c4b5fd; }
   .main-nav a { padding: 0 8px; }
   .theme-toggle { margin-left: -6px; width: 36px; height: 36px; }
 }
+
+/* ===== Nhắc khi sale bắt đầu ===== */
+.sale-alert { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; padding: 12px 14px; border-radius: 14px; border: 1.5px dashed color-mix(in srgb, #7c3aed 45%, var(--border)); background: color-mix(in srgb, #7c3aed 6%, var(--surface)); }
+.sale-alert.is-on { border-style: solid; border-color: color-mix(in srgb, var(--save) 45%, var(--border)); background: var(--save-soft); }
+.sale-alert-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: #fff; background: linear-gradient(135deg, #7c3aed, #db2777); }
+.sale-alert.is-on .sale-alert-icon { background: var(--save); }
+.sale-alert-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.sale-alert-text small { color: var(--muted); font-size: 13px; }
+.sale-alert-text a { color: var(--primary); font-weight: 600; }
+.sale-alert .btn { flex: none; }
+@media (max-width: 480px) { .sale-alert { flex-wrap: wrap; } .sale-alert .btn { margin-left: 52px; } }

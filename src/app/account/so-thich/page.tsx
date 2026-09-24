@@ -78,6 +78,7 @@ export default async function PreferencesPage({ searchParams }: { searchParams: 
             <span><b>Telegram mỗi sáng</b><small>{s.telegramChatId ? "Đã kết nối" : "Kết nối Telegram ở bên cạnh trước"}</small></span>
           </label>
           <label className="toggle"><input type="checkbox" name="pushDigest" defaultChecked={s.pushDigest} /> <span><b>Thông báo đẩy mỗi sáng</b><small>Cần bật thông báo trên thiết bị (bên cạnh)</small></span></label>
+          <label className="toggle"><input type="checkbox" name="weeklySummary" defaultChecked={s.weeklySummary} /> <span><b>Tóm tắt cuối tuần</b><small>Tối Chủ nhật: các món bạn lưu đã giảm bao nhiêu (chỉ gửi khi có món giảm)</small></span></label>
           <label className="toggle"><input type="checkbox" name="saleReminder" defaultChecked={s.saleReminder} /> <span><b>Nhắc trước ngày sale lớn</b><small>20h tối hôm trước, gần nhất: {sale.name}</small></span></label>
           <button className="btn btn-primary" type="submit"><Icon name="check" size={16} /> Lưu sở thích</button>
         </form>

@@ -31,6 +31,7 @@ export async function POST(req: Request) {
       telegramDigest: f.get("telegramDigest") === "on",
       pushDigest: f.get("pushDigest") === "on",
       saleReminder: f.get("saleReminder") === "on",
+      weeklySummary: f.get("weeklySummary") === "on",
       updatedAt: new Date(),
     })
     .where(eq(subscriptions.userId, user.id));

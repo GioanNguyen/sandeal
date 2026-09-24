@@ -261,3 +261,49 @@ test("tốc độ & hiển thị: ảnh thu nhỏ, người xem 1 giờ qua", as
   await d.recordView("v2", p.id, now);
   assert.equal((await d.recentViewers([p.id], now)).get(p.id), 2);
 });
+
+test("nhắc từng món khi sale bắt đầu & mail tóm tắt cuối tuần", async () => {
+  const al = await import("@/worker/alerts");
+  const DAY = 86_400_000;
+  const [u] = await dbm.db.insert(schema.users).values({ email: "nhac-tung-mon@test.vn" }).returning();
+  const before = new Date("2026-10-05T03:00:00Z"); // 10h sáng 5/10 giờ VN, 10.10 còn 5 ngày
+  const t = al.targetSale(before)!;
+  assert.equal(t.key, "2026-10-10");
+  assert.equal(t.days, 5);
+  const pid = await ingest.upsertProduct({ platform: "shopee", externalId: "sa1", name: "Máy xay sinh tố", discountPct: 0, affiliateUrl: "#", price: 800_000 }, new Date(before.getTime() - 20 * DAY));
+  const r = await al.setSaleAlert(u.id, pid, true, before);
+  assert.ok(r.ok && r.sale.name === "Siêu sale 10.10");
+  await al.setSaleAlert(u.id, pid, true, before); // bấm lại không tạo trùng
+  assert.equal((await dbm.db.select().from(schema.saleAlerts)).filter((a) => a.userId === u.id).length, 1);
+
+  // Trước giờ sale: chưa gửi; 0h05 ngày sale: chưa (chờ đồng bộ giá); 0h20: gửi 1 lần kèm giá mới
+  await ingest.upsertProduct({ platform: "shopee", externalId: "sa1", name: "Máy xay sinh tố", discountPct: 0, affiliateUrl: "#", price: 650_000 }, new Date("2026-10-09T17:10:00Z"));
+  assert.equal(await al.runSaleStartAlerts(new Date("2026-10-09T16:00:00Z")), 0);
+  assert.equal(await al.runSaleStartAlerts(new Date("2026-10-09T17:05:00Z")), 0);
+  const n0 = mail.outbox.length;
+  assert.equal(await al.runSaleStartAlerts(new Date("2026-10-09T17:20:00Z")), 1);
+  const m = mail.outbox.slice(n0).find((x) => x.to === "nhac-tung-mon@test.vn")!;
+  assert.match(m.subject, /10\.10 bắt đầu: Máy xay sinh tố giờ 650\.000/);
+  assert.match(m.html, /rẻ hơn lúc bạn hẹn 150\.000/);
+  assert.equal(await al.runSaleStartAlerts(new Date("2026-10-09T18:00:00Z")), 0); // không gửi lại
+  // Sale đang diễn ra thì không hẹn nhắc được
+  assert.equal((await al.setSaleAlert(u.id, pid, true, new Date("2026-10-10T03:00:00Z"))).ok, false);
+
+  // Tóm tắt tuần: lưu 2 món, 1 món giảm 120K so với 7 ngày trước
+  const now = new Date("2026-10-18T13:00:00Z"); // 20h Chủ nhật 18/10 giờ VN
+  const a = await ingest.upsertProduct({ platform: "lazada", externalId: "wk1", name: "Ấm siêu tốc", discountPct: 0, affiliateUrl: "#", price: 420_000 }, new Date(now.getTime() - 10 * DAY));
+  await ingest.upsertProduct({ platform: "lazada", externalId: "wk1", name: "Ấm siêu tốc", discountPct: 0, affiliateUrl: "#", price: 300_000 }, new Date(now.getTime() - 2 * DAY));
+  const b = await ingest.upsertProduct({ platform: "lazada", externalId: "wk2", name: "Quạt bàn", discountPct: 0, affiliateUrl: "#", price: 350_000 }, new Date(now.getTime() - 10 * DAY));
+  await dbm.db.insert(schema.watches).values([{ userId: u.id, productId: a, targetPrice: 1000 }, { userId: u.id, productId: b, targetPrice: 1000 }]);
+  const w = await al.weeklyDrops(u.id, now);
+  assert.deepEqual(w.drops.map((d) => [d.name, d.before, d.price]), [["Ấm siêu tốc", 420_000, 300_000]]);
+  assert.equal(w.total, 120_000);
+  assert.equal(await al.runWeeklySummary(new Date("2026-10-17T13:00:00Z")), 0); // thứ Bảy: chưa gửi
+  const n1 = mail.outbox.length;
+  assert.ok((await al.runWeeklySummary(now)) >= 1);
+  const wm = mail.outbox.slice(n1).find((x) => x.to === "nhac-tung-mon@test.vn")!;
+  assert.match(wm.subject, /^1 món bạn lưu đã giảm tổng 120\.000\s₫ tuần này$/);
+  assert.match(wm.html, /\/go\/\d+/);
+  assert.match(wm.html, /unsubscribe\?t=weekly/);
+  assert.equal(await al.runWeeklySummary(new Date(now.getTime() + 3_600_000)), 0); // tuần này đã gửi
+});

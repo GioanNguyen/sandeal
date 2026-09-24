@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { siteUrl } from "@/lib/mail";
 import { calcVouchers, compareOffers, dealsByIds, getProduct, similarDeals, soonestVoucher } from "@/lib/queries";
 import { alsoViewed, alternativesFor, cheaperSimilar, recentViewers, VIEWERS_MIN_PAGE } from "@/lib/discovery";
 import { buyAdvice } from "@/lib/advice";
+import { hasSaleAlert, setSaleAlert, targetSale } from "@/worker/alerts";
+import { SaleAlertButton } from "@/components/SaleAlertButton";
+import { eq } from "drizzle-orm";
+import { pushSubscriptions } from "@/db/schema";
+import { db } from "@/lib/db";
 import { AdviceBox } from "@/components/AdviceBox";
 import { CompareAlternatives } from "@/components/CompareAlternatives";
 import { UrgencyTimer } from "@/components/UrgencyTimer";
@@ -27,7 +32,7 @@ import { WatchForm } from "@/components/WatchForm";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ id: string }>; searchParams?: Promise<{ watch?: string; msg?: string; moi?: string }> };
+type Props = { params: Promise<{ id: string }>; searchParams?: Promise<{ watch?: string; msg?: string; moi?: string; nhacsale?: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = await getProduct(productIdFromParam((await params).id));
@@ -75,6 +80,15 @@ export default async function ProductPage({ params, searchParams }: Props) {
 
   const advice = buyAdvice(p.prices, p.price);
   const viewers = (await recentViewers([p.id])).get(p.id) ?? 0;
+  // Nhắc khi sale bắt đầu: vừa đăng nhập từ nút "Nhắc tôi" (?nhacsale=1) thì bật luôn
+  const sale = targetSale();
+  if (user && sale && !sale.live && sp.nhacsale) {
+    await setSaleAlert(user.id, p.id, true);
+    redirect(productPath(p)); // bỏ ?nhacsale khỏi địa chỉ để tải lại trang không tự bật lại
+  }
+  const [alertOn, hasPush] = user && sale && !sale.live
+    ? await Promise.all([hasSaleAlert(user.id, p.id), db.select({ e: pushSubscriptions.endpoint }).from(pushSubscriptions).where(eq(pushSubscriptions.userId, user.id)).limit(1).then((r) => r.length > 0)])
+    : [false, false];
   const platformLabel = PLATFORMS[p.platform]?.label ?? p.platform;
 
   const jsonLd = {
@@ -136,6 +150,18 @@ export default async function ProductPage({ params, searchParams }: Props) {
             buyLabel={`Mua trên ${platformLabel}`}
             cheaperElsewhere={offers.length >= 2 && offers[0].id !== p.id ? { label: PLATFORMS[offers[0].platform]?.label ?? offers[0].platform, save: p.price - offers[0].price, href: productPath(offers[0]) } : null}
           />
+
+          {sale && !sale.live && sale.days <= 45 && (
+            <SaleAlertButton
+              productId={p.id}
+              saleName={sale.name.replace(/ – .*/, "")}
+              days={sale.days}
+              initialOn={alertOn}
+              loggedIn={!!user}
+              loginHref={`/login?next=${encodeURIComponent(`${productPath(p)}?nhacsale=1`)}`}
+              pushHint={hasPush}
+            />
+          )}
 
           {viewers >= VIEWERS_MIN_PAGE && (
             <p className="view-line page"><Icon name="eye" size={16} /> <b>{viewers} người</b> đã xem món này trong 1 giờ qua</p>

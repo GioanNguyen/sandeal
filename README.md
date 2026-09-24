@@ -71,3 +71,7 @@ src/app/                Trang & API
 - Đường dẫn sản phẩm dạng `/product/ten-san-pham-12`. Link cũ `/product/12` tự chuyển 301 sang link mới (middleware → `/api/p/12`).
 - Trang tổng hợp tự động `/top` và `/top/<slug>` (theo loại sản phẩm, danh mục, tầm giá) – chỉ gồm món đang giảm thật, có dữ liệu có cấu trúc ItemList + FAQ, nằm trong `sitemap.xml`.
 - Nhớ đặt `SITE_URL` là tên miền thật khi triển khai để thẻ canonical và sitemap đúng.
+
+### Nhắc khi sale bắt đầu & tóm tắt cuối tuần
+- Trang sản phẩm có nút **"Nhắc tôi khi <đợt sale> bắt đầu"** (cần đăng nhập). Khi đợt sale bắt đầu được 15 phút (sau lần đồng bộ giá lúc 0h), mỗi người nhận **1 email + 1 thông báo** gộp các món đã hẹn, kèm giá mới và mức rẻ hơn so với lúc hẹn.
+- **Mail tóm tắt cuối tuần** cho người có món đã lưu: mặc định tối Chủ nhật từ 19h (`WEEKLY_DAY`=0..6, `WEEKLY_HOUR`), chỉ gửi khi có món giảm ≥ 1.000đ so với 7 ngày trước; tắt được bằng link trong mail hoặc trang Sở thích.

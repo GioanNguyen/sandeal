@@ -180,6 +180,9 @@ export const subscriptions = pgTable("subscriptions", {
   telegramDigest: boolean("telegram_digest").notNull().default(false),
   pushDigest: boolean("push_digest").notNull().default(false),
   saleReminder: boolean("sale_reminder").notNull().default(false),
+  /** Mail tóm tắt cuối tuần các món đã lưu vừa giảm (mặc định bật) */
+  weeklySummary: boolean("weekly_summary").notNull().default(true),
+  lastWeeklyAt: ts("last_weekly_at"),
   telegramChatId: text("telegram_chat_id"),
   telegramLinkCode: text("telegram_link_code"),
   lastDigestAt: ts("last_digest_at"),
@@ -295,6 +298,24 @@ export const sharedLists = pgTable(
     createdAt: ts("created_at").notNull().defaultNow(),
   },
   (t) => [index("shared_lists_created_idx").on(t.createdAt)],
+);
+
+/** "Nhắc tôi khi sale … bắt đầu" cho từng sản phẩm */
+export const saleAlerts = pgTable(
+  "sale_alerts",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    productId: integer("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    /** Ngày sale (YYYY-MM-DD giờ VN), vd 2026-10-10 */
+    saleKey: text("sale_key").notNull(),
+    saleName: text("sale_name").notNull(),
+    /** Giá lúc bấm nhắc (để báo "đã giảm thêm bao nhiêu") */
+    priceAtCreate: doublePrecision("price_at_create").notNull(),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    sentAt: ts("sent_at"),
+  },
+  (t) => [uniqueIndex("sale_alerts_uq").on(t.userId, t.productId, t.saleKey), index("sale_alerts_pending_idx").on(t.saleKey, t.sentAt)],
 );
 
 export type Product = typeof products.$inferSelect;

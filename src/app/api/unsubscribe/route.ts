@@ -7,13 +7,17 @@ import { db, ensureMigrated } from "@/lib/db";
 export async function POST(req: Request) {
   const form = await req.formData();
   const t = String(form.get("t") ?? "");
-  if (t === "digest" || t === "sale") {
+  if (t === "digest" || t === "sale" || t === "weekly") {
     const u = Number(form.get("u"));
     if (!Number.isInteger(u) || !verifySignedFor(t, u, String(form.get("s") ?? ""))) {
       return NextResponse.json({ error: "Link không hợp lệ" }, { status: 400 });
     }
     await ensureMigrated();
-    await db.update(subscriptions).set(t === "digest" ? { emailDigest: false } : { saleReminder: false }).where(eq(subscriptions.userId, u));
+    if (t === "weekly") {
+      await db.insert(subscriptions).values({ userId: u, weeklySummary: false }).onConflictDoUpdate({ target: subscriptions.userId, set: { weeklySummary: false } });
+    } else {
+      await db.update(subscriptions).set(t === "digest" ? { emailDigest: false } : { saleReminder: false }).where(eq(subscriptions.userId, u));
+    }
     return NextResponse.redirect(new URL(`/unsubscribe?done=${t}`, req.url), 303);
   }
   const w = Number(form.get("w"));

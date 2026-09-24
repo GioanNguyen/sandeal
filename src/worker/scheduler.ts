@@ -2,6 +2,7 @@ import cron from "node-cron";
 import { pollTelegram, runDigests, runSaleReminders } from "./digest";
 import { postGoldenHour } from "./social";
 import { runSync } from "./sync";
+import { runSaleStartAlerts, runWeeklySummary } from "./alerts";
 
 const g = globalThis as unknown as { __sanDealCron?: boolean };
 
@@ -33,6 +34,21 @@ export function startScheduler({ runNow = false } = {}) {
         if (d || r) console.log(`[notify] bản tin: ${d}, nhắc sale: ${r}`);
       } catch (err) {
         console.error("[notify] lỗi:", err);
+      }
+    },
+    { timezone: "Asia/Ho_Chi_Minh" },
+  );
+
+  // Nhắc từng món khi sale bắt đầu (0h15 trở đi, sau lần đồng bộ giá lúc 0h) + mail tóm tắt cuối tuần: kiểm tra mỗi 15 phút
+  cron.schedule(
+    "*/15 * * * *",
+    async () => {
+      try {
+        const a = await runSaleStartAlerts();
+        const w = await runWeeklySummary();
+        if (a || w) console.log(`[notify] nhắc sale từng món: ${a} người, tóm tắt tuần: ${w} người`);
+      } catch (err) {
+        console.error("[notify] lỗi nhắc sale/tóm tắt tuần:", err);
       }
     },
     { timezone: "Asia/Ho_Chi_Minh" },
