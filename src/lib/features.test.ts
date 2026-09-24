@@ -172,3 +172,25 @@ test("khám phá: từ khoá hot, gợi ý, người xem cũng xem, rẻ hơn, c
   assert.equal(total, 1);
   assert.equal(await q.countDeals({ category: "Quạt", mall: true }), 1);
 });
+
+test("giữ khách: báo món đã lưu vừa giảm, deal bí ẩn theo ngày", async () => {
+  const { savedDrops } = await import("./local");
+  const saved = { 1: { p: 500_000, at: 0 }, 2: { p: 300_000, at: 0 }, 3: { p: 200_000, at: 0 } };
+  // món 1 giảm so với lúc lưu; món 2 giảm nhưng đã xem mức 250K rồi -> chỉ tính khi giảm tiếp; món 3 tăng
+  assert.deepEqual(savedDrops([1, 2, 3], { 1: 450_000, 2: 250_000, 3: 210_000 }, saved, { 2: 250_000 }), [{ id: 1, from: 500_000, to: 450_000 }]);
+  assert.deepEqual(savedDrops([2], { 2: 240_000 }, saved, { 2: 250_000 }), [{ id: 2, from: 250_000, to: 240_000 }]);
+  assert.deepEqual(savedDrops([1], { 1: 499_500 }, saved, {}), []); // giảm < 1.000đ bỏ qua
+
+  const d = await import("./discovery");
+  assert.equal(d.nextVnMidnight(new Date("2026-09-24T16:59:00Z")).toISOString(), "2026-09-24T17:00:00.000Z"); // 23:59 VN
+  assert.equal(d.nextVnMidnight(new Date("2026-09-24T17:00:00Z")).toISOString(), "2026-09-25T17:00:00.000Z");
+  const day1 = new Date("2026-09-24T03:00:00Z"), day1b = new Date("2026-09-24T15:00:00Z");
+  const a = await d.mysteryDeal([], day1);
+  const b = await d.mysteryDeal([], day1b);
+  if (a) {
+    assert.equal(a.deal.id, b!.deal.id); // cả ngày cùng 1 deal
+    assert.ok(a.deal.realDropPct >= 15);
+    const c = await d.mysteryDeal([a.deal.id], day1);
+    assert.notEqual(c?.deal.id, a.deal.id); // bỏ món đã có ở "Deal nổi bật"
+  }
+});

@@ -8,7 +8,8 @@ import { nextSale } from "@/lib/sales";
 import { PLATFORMS } from "@/lib/format";
 import { countDeals, homeStats, justDropped, listActiveVouchers, listCategories, listDeals, type DealFilter } from "@/lib/queries";
 import { filterFromParams } from "@/lib/dealParams";
-import { logSearch, spotlightDeals } from "@/lib/discovery";
+import { logSearch, mysteryDeal, spotlightDeals } from "@/lib/discovery";
+import { MysteryDeal } from "@/components/MysteryDeal";
 import { QuickChips, type QuickChip } from "@/components/QuickChips";
 import { Spotlight } from "@/components/Spotlight";
 import { UrgencyTimer } from "@/components/UrgencyTimer";
@@ -53,6 +54,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
     Promise.all(QUICK.map((c) => (sp[c.param] === c.value ? Promise.resolve(0) : countDeals({ ...filter, ...c.patch })))),
   ]);
   if (sp.q && page === 1) logSearch(sp.q, total).catch(() => {});
+  const mystery = isLanding ? await mysteryDeal(spotlight.map((d) => d.id), now) : null;
   const pages = Math.ceil(total / PAGE_SIZE);
   // Query cho "tải thêm" (giữ bộ lọc hiện tại, bỏ page)
   const moreQuery = new URLSearchParams(Object.entries({ q: sp.q, platform: sp.platform, category: sp.category, min: sp.min, max: sp.max, shop: sp.shop, fresh: sp.fresh, vc: sp.vc, sort: sp.sort }).filter(([, v]) => v) as [string, string][]).toString();
@@ -152,8 +154,11 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
           <Link href="/tinh-gia" className="tool"><Icon name="calculator" size={22} /><b>Tính giá cuối cùng</b><span>Ghép mã giảm, freeship, hoàn xu tốt nhất</span></Link>
           <Link href="/so-sanh" className="tool"><Icon name="scale" size={22} /><b>So sánh giữa các sàn</b><span>Cùng món, sàn nào rẻ hơn</span></Link>
           <Link href="/tien-ich" className="tool"><Icon name="puzzle" size={22} /><b>Tiện ích Chrome</b><span>Xem lịch sử giá ngay trên Shopee</span></Link>
+          <Link href="/luot-deal" className="tool"><Icon name="heart" size={22} /><b>Lướt deal</b><span>Vuốt phải để lưu, vuốt trái bỏ qua</span></Link>
         </nav>
       )}
+
+      {mystery && <MysteryDeal deal={mystery.deal} day={mystery.day} nextAt={mystery.nextAt} />}
 
       {isLanding && <RecentlyViewed />}
       {isLanding && <ForYou />}

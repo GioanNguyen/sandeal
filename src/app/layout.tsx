@@ -5,7 +5,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
 import { PwaInstall } from "@/components/Pwa";
-import { SavedProvider } from "@/components/Saved";
+import { SavedProvider, SavedNavLink } from "@/components/Saved";
 import { NavProgress } from "@/components/NavProgress";
 import { Suspense } from "react";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
@@ -54,7 +54,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <div className="container">
             <Link href="/" className="logo" aria-label="Săn Deal – trang chủ">
               <span className="logo-mark"><Icon name="flame" size={18} /></span>
-              Săn Deal
+              <span className="logo-text">Săn Deal</span>
             </Link>
             <Form action="/" className="header-search" role="search">
               <SearchBox />
@@ -65,6 +65,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <Link href="/vouchers" aria-label="Mã giảm giá"><Icon name="ticket" /><span>Mã giảm giá</span></Link>
               <Link href="/lich-sale" aria-label="Lịch sale"><Icon name="calendar" /><span>Lịch sale</span></Link>
               <Link href="/cong-dong" aria-label="Cộng đồng"><Icon name="users" /><span>Cộng đồng</span></Link>
+              <SavedNavLink />
 
               {user && isAdmin(user.email) && (
                 <Link href="/admin" aria-label="Thống kê"><Icon name="chart" /><span>Thống kê</span></Link>

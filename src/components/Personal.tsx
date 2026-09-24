@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { DealRow } from "@/lib/queries";
-import { readLocal, reviveDeal, VIEWED_KEY, writeLocal, type ViewedItem } from "@/lib/local";
+import { LIKES_KEY, readLocal, reviveDeal, VIEWED_KEY, writeLocal, type ViewedItem } from "@/lib/local";
 import { vnd } from "@/lib/format";
 import { DealCard } from "./DealCard";
 import { Icon } from "./Icon";
@@ -79,8 +79,12 @@ export function ForYou() {
     const v = readLocal<ViewedItem[]>(VIEWED_KEY, []);
     const count = new Map<string, number>();
     for (const x of v) if (x.category) count.set(x.category, (count.get(x.category) ?? 0) + 1);
+    // Món đã lưu ở chế độ "Lướt deal" nói rõ gu hơn 1 lượt xem -> tính gấp đôi
+    const likes = readLocal<Record<string, number>>(LIKES_KEY, {});
+    for (const [c, n] of Object.entries(likes)) count.set(c, (count.get(c) ?? 0) + n * 2);
     const cats = [...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([c]) => c);
-    if (v.length < 2 || !cats.length) return;
+    const signal = [...count.values()].reduce((a, b) => a + b, 0);
+    if (signal < 2 || !cats.length) return;
     const q = new URLSearchParams({ cats: cats.join(","), exclude: v.map((x) => x.id).join(","), size: "5", min: "5" });
     fetch(`/api/deals?${q}`)
       .then((r) => r.json())

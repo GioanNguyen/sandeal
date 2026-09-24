@@ -370,7 +370,7 @@ export async function soonestVoucher(platform: string, withinHours = 24) {
 
 /** Sản phẩm theo danh sách id (giữ nguyên thứ tự) – dùng cho "Bạn vừa xem" */
 export async function dealsByIds(ids: number[]): Promise<DealRow[]> {
-  const clean = [...new Set(ids.filter((n) => Number.isInteger(n) && n > 0))].slice(0, 30);
+  const clean = [...new Set(ids.filter((n) => Number.isInteger(n) && n > 0))].slice(0, 60);
   if (!clean.length) return [];
   await ensureMigrated();
   const rows = await db.select().from(products).where(inArray(products.id, clean));

@@ -122,3 +122,25 @@ export async function alsoViewed(productId: number, limit = 6): Promise<(DealRow
   const viewers = new Map(list.map((r) => [Number(r.product_id), Number(r.viewers)]));
   return enriched.map((d) => ({ ...d, viewers: viewers.get(d.id) ?? 0 }));
 }
+
+/** Nửa đêm kế tiếp theo giờ VN (UTC+7) */
+export function nextVnMidnight(now = new Date()) {
+  const vn = new Date(now.getTime() + 7 * 3_600_000);
+  return new Date(Date.UTC(vn.getUTCFullYear(), vn.getUTCMonth(), vn.getUTCDate() + 1) - 7 * 3_600_000);
+}
+
+/**
+ * Deal bí ẩn mỗi ngày: chọn cố định theo ngày (mọi người thấy cùng 1 deal) trong nhóm deal giảm thật ≥15% điểm cao,
+ * bỏ các món đã có ở dải "Deal nổi bật" để luôn là bất ngờ.
+ */
+export async function mysteryDeal(excludeIds: number[] = [], now = new Date()): Promise<{ deal: DealRow; day: string; nextAt: string } | null> {
+  await ensureMigrated();
+  const rows = await db.select().from(products).where(gte(products.realDropPct, 15)).orderBy(desc(products.dealScore), products.id).limit(20);
+  const pool = rows.filter((r) => !excludeIds.includes(r.id)).slice(0, 12);
+  if (!pool.length) return null;
+  const day = vnDay(now);
+  let h = 0;
+  for (const ch of day) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const [deal] = await enrichDeals([pool[h % pool.length]]);
+  return { deal, day, nextAt: nextVnMidnight(now).toISOString() };
+}

@@ -120,7 +120,7 @@ export function DealCard({ p }: { p: DealRow; isLowest?: boolean }) {
           </div>
         </div>
       </Link>
-      <SaveButton id={p.id} name={p.name} />
+      <SaveButton id={p.id} name={p.name} price={p.price} />
       <QuickView id={p.id} name={p.name} />
     </article>
   );

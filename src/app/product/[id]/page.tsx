@@ -182,7 +182,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
             <a className="btn btn-primary" href={`/go/${p.id}`} target="_blank" rel="nofollow sponsored noopener">
               Mua trên {platformLabel} <Icon name="external" size={16} />
             </a>
-            <span className="save-inline"><SaveButton id={p.id} name={p.name} /></span>
+            <span className="save-inline"><SaveButton id={p.id} name={p.name} price={p.price} /></span>
             <VoteBox productId={p.id} initial={votes} loggedIn={!!user} />
             <Freshness at={p.lastSeenAt} long />
           </div>
