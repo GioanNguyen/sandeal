@@ -1,4 +1,5 @@
 "use client";
+import { thumbUrl } from "@/lib/images";
 import { productPath } from "@/lib/slug";
 import { useState } from "react";
 import Link from "next/link";
@@ -46,7 +47,7 @@ export function WatchList({ initial }: { initial: WatchItem[] }) {
           return (
             <li key={w.id} className="watch-item">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={w.product.imageUrl ?? ""} alt="" width={64} height={64} />
+              <img src={thumbUrl(w.product.imageUrl) ?? ""} alt="" width={64} height={64} />
               <div className="watch-main">
                 <Link href={productPath(w.product)} className="watch-name">{w.product.name}</Link>
                 <div className="watch-prices">

@@ -1,3 +1,4 @@
+import { thumbUrl } from "@/lib/images";
 import Link from "next/link";
 import { activeCollections } from "@/lib/collections";
 import { listDeals } from "@/lib/queries";
@@ -21,7 +22,7 @@ export async function CollectionCards({ limit = 6 }: { limit?: number }) {
             <span className="col-thumbs" aria-hidden="true">
               {items.map((p) => (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img key={p.id} src={p.imageUrl ?? ""} alt="" width={80} height={80} loading="lazy" />
+                <img key={p.id} src={thumbUrl(p.imageUrl) ?? ""} alt="" width={80} height={80} loading="lazy" />
               ))}
             </span>
             <span className="col-text">

@@ -2,6 +2,8 @@ import { productPath } from "@/lib/slug";
 import Link from "next/link";
 import type { DealRow } from "@/lib/queries";
 import { PLATFORMS, vnd } from "@/lib/format";
+import { VIEWERS_MIN_CARD } from "@/lib/viewers";
+import { AnimatedPrice } from "./AnimatedPrice";
 import { CardImage } from "./CardImage";
 import { Icon, type IconName } from "./Icon";
 import { PlatformBadge } from "./PlatformBadge";
@@ -29,7 +31,7 @@ export function dealLabel(p: DealRow): { text: string; tone: "save" | "hot" | "n
   return null;
 }
 
-export function DealCard({ p }: { p: DealRow; isLowest?: boolean }) {
+export function DealCard({ p, priority = false }: { p: DealRow; isLowest?: boolean; priority?: boolean }) {
   const score = Math.round(p.dealScore);
   const fresh = p.droppedAt && Date.now() - p.droppedAt.getTime() < 24 * 3_600_000 ? p.droppedAt : null;
   const veryFresh = fresh && Date.now() - fresh.getTime() < 3 * 3_600_000;
@@ -42,7 +44,7 @@ export function DealCard({ p }: { p: DealRow; isLowest?: boolean }) {
     <article className={`deal${veryFresh ? " deal-fresh" : ""}${p.recordLow ? " deal-record" : ""}`}>
       <Link href={productPath(p)} className="deal-link">
         <div className={`deal-media${p.recordLow ? " has-record" : ""}`}>
-          <CardImage src={p.imageUrl} hover={p.images?.[0]} />
+          <CardImage src={p.imageUrl} hover={p.images?.[0]} priority={priority} />
           <PlatformBadge platform={p.platform} />
           {p.recordLow && (
             <span className="record-ribbon" title={`Thấp nhất từ trước tới nay: giá thấp nhất trong ${Math.floor(p.trackedDays ?? 0)} ngày Săn Deal theo dõi sản phẩm này`}>
@@ -63,7 +65,7 @@ export function DealCard({ p }: { p: DealRow; isLowest?: boolean }) {
             <Freshness at={p.lastSeenAt} compact />
           </span>
           <div className="price-row">
-            <span className="price">{vnd(p.price)}</span>
+            <span className="price">{p.realDropPct >= 5 ? <AnimatedPrice value={p.price} from={Math.round(usual / 1000) * 1000} /> : vnd(p.price)}</span>
             {p.discountPct >= 5 && <span className="pct">-{Math.round(p.discountPct)}%</span>}
             {p.originalPrice && p.originalPrice > p.price ? <span className="strike">{vnd(p.originalPrice)}</span> : null}
           </div>
@@ -92,6 +94,9 @@ export function DealCard({ p }: { p: DealRow; isLowest?: boolean }) {
 
           {p.cheaperElsewhere && (
             <span className="elsewhere"><Icon name="scale" size={13} /> {PLATFORMS[p.cheaperElsewhere.platform]?.label} rẻ hơn {vnd(p.price - p.cheaperElsewhere.price)}</span>
+          )}
+          {(p.viewers1h ?? 0) >= VIEWERS_MIN_CARD && (
+            <span className="view-line"><Icon name="eye" size={13} /> {p.viewers1h} người xem · 1 giờ qua</span>
           )}
           {(p.clicks24 ?? 0) >= 3 && (
             <span className="hot-line"><Icon name="flame" size={13} /> {p.clicks24} lượt bấm mua · 24h</span>

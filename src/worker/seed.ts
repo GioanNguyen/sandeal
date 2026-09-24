@@ -70,8 +70,17 @@ export async function seed() {
     const pool = all.filter((p) => p.category === cat);
     const extra = all[(v * 13) % all.length];
     const picks = [...pool.filter((_, i) => (i + v) % 3 !== 0).slice(0, 4), extra];
-    const at = new Date(now - (v % 20) * 86_400_000);
+    const at = new Date(now - (v % 20) * 86_400_000 - 2 * 3_600_000);
     for (const p of picks) await db.insert(productViews).values({ visitor: `demo-${v}`, productId: p.id, day: vnDay(at), createdAt: at }).onConflictDoNothing();
+  }
+
+  // Dữ liệu mẫu cho "người xem trong 1 giờ qua": vài khách xem mấy món điểm cao trong giờ vừa rồi
+  const hot = await db.select({ id: products.id }).from(products).orderBy(desc(products.dealScore)).limit(6);
+  for (let i = 0; i < hot.length; i++) {
+    for (let v = 0; v < 14 - i * 2; v++) {
+      const t = new Date(now - ((v * 7 + i * 3) % 55) * 60_000);
+      await db.insert(productViews).values({ visitor: `live-${i}-${v}`, productId: hot[i].id, day: vnDay(t), createdAt: t, lastSeenAt: t }).onConflictDoNothing();
+    }
   }
 
   const [{ n }] = (await db.execute(sql`select count(*)::int as n from products`)).rows as { n: number }[];

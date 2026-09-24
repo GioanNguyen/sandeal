@@ -25,7 +25,7 @@
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  html:not([data-theme="light"]) {
     --bg: #111215;
     --surface: #1b1d22;
     --surface-2: #23262d;
@@ -47,6 +47,27 @@
     color-scheme: dark;
   }
 }
+html[data-theme="dark"] {
+    --bg: #111215;
+    --surface: #1b1d22;
+    --surface-2: #23262d;
+    --text: #f2f3f5;
+    --muted: #a1a7b3;
+    --border: #2d3139;
+    --primary: #ff7a50;
+    --primary-hover: #ff916c;
+    --on-primary: #15171c;
+    --primary-soft: #3a211a;
+    --save: #34d399;
+    --save-soft: #12301f;
+    --warn: #fbbf24;
+    --warn-soft: #3a2c0c;
+    --ring: #ff916c;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+    --shadow-md: 0 10px 28px -10px rgb(0 0 0 / 70%);
+    --hero-grad: linear-gradient(120deg, #9a2d10 0%, #b8430f 55%, #c46d0c 100%);
+    color-scheme: dark;
+  }
 
 /* ===== Base ===== */
 * { box-sizing: border-box; }
@@ -138,7 +159,10 @@ main.container { flex: 1; width: 100%; }
 .platform { position: absolute; top: 10px; left: 10px; display: inline-flex; align-items: center; gap: 6px; background: rgb(255 255 255 / 94%); color: #1c1a19; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; }
 .platform-inline { position: static; border: 1px solid var(--border); }
 .lowest-tag { position: absolute; left: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 4px; background: var(--save); color: #fff; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; }
-@media (prefers-color-scheme: dark) { .lowest-tag { color: #0b1f16; } }
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .lowest-tag { color: #0b1f16; }
+}
+html[data-theme="dark"] .lowest-tag { color: #0b1f16; }
 .deal-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
 .deal-name { font-size: 14px; line-height: 1.4; min-height: 2.8em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .price-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -502,7 +526,10 @@ main.container { flex: 1; width: 100%; }
 
 /* ===== Hiệu ứng gấp rút (dựa trên thời gian & dữ liệu thật) ===== */
 :root { --hot: #dc2626; --hot-soft: #fee2e2; }
-@media (prefers-color-scheme: dark) { :root { --hot: #f87171; --hot-soft: #3b1414; } }
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) { --hot: #f87171; --hot-soft: #3b1414; }
+}
+html[data-theme="dark"] { --hot: #f87171; --hot-soft: #3b1414; }
 
 @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--hot) 55%, transparent); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
 @keyframes blink { 50% { opacity: .35; } }
@@ -616,7 +643,10 @@ main.container { flex: 1; width: 100%; }
 .deal-label { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
 .deal-label.save { background: var(--save); color: #fff; }
 .deal-label.hot { background: var(--primary); color: var(--on-primary); }
-@media (prefers-color-scheme: dark) { .deal-label.save { color: #0b1f16; } }
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .deal-label.save { color: #0b1f16; }
+}
+html[data-theme="dark"] .deal-label.save { color: #0b1f16; }
 
 /* Nút Xem nhanh: hiện khi rê chuột/tab (máy tính), luôn hiện dạng icon (cảm ứng) */
 .qv-btn { position: absolute; top: 10px; right: 10px; z-index: 2; display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 0 12px; border: 0; border-radius: 999px; background: rgb(28 26 25 / 80%); color: #fff; font-size: 12px; font-weight: 700; backdrop-filter: blur(4px); opacity: 0; transform: translateY(-4px); transition: opacity .2s, transform .2s, background .2s; }
@@ -1066,9 +1096,11 @@ html[data-view="list"] .deal-grid .skeleton-card { min-height: 150px; }
   .mys-meta { justify-content: space-between; }
 }
 @media (prefers-color-scheme: dark) {
-  .mys-tag { color: #f9a8d4; background: rgb(219 39 119 / 18%); }
-  .mys-tag.closed { color: #c4b5fd; background: rgb(124 58 237 / 20%); }
+  html:not([data-theme="light"]) .mys-tag { color: #f9a8d4; background: rgb(219 39 119 / 18%); }
+  html:not([data-theme="light"]) .mys-tag.closed { color: #c4b5fd; background: rgb(124 58 237 / 20%); }
 }
+html[data-theme="dark"] .mys-tag { color: #f9a8d4; background: rgb(219 39 119 / 18%); }
+html[data-theme="dark"] .mys-tag.closed { color: #c4b5fd; background: rgb(124 58 237 / 20%); }
 @media (prefers-reduced-motion: reduce) {
   .mys-stage { animation: none; }
   .mys-inner { transition: none; }
@@ -1248,7 +1280,12 @@ html[data-view="list"] .deal-grid .fresh-tag .pulse-dot { margin-top: 3px; flex:
 .advice.consider { --a: #b45309; --a-soft: var(--warn-soft); }
 .advice.wait { --a: #be123c; --a-soft: #fff1f2; }
 .advice.new { --a: var(--muted); --a-soft: var(--surface-2); }
-@media (prefers-color-scheme: dark) { .advice.consider { --a: #fbbf24; } .advice.wait { --a: #fb7185; --a-soft: #3b1418; } }
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .advice.consider { --a: #fbbf24; }
+  html:not([data-theme="light"]) .advice.wait { --a: #fb7185; --a-soft: #3b1418; }
+}
+html[data-theme="dark"] .advice.consider { --a: #fbbf24; }
+html[data-theme="dark"] .advice.wait { --a: #fb7185; --a-soft: #3b1418; }
 .advice-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .advice-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: #fff; background: var(--a); }
 .advice.new .advice-icon { background: var(--muted); }
@@ -1271,7 +1308,10 @@ html[data-view="list"] .deal-grid .fresh-tag .pulse-dot { margin-top: 3px; flex:
 /* Ghi chú trên biểu đồ giá */
 .pc-sale rect { fill: color-mix(in srgb, #7c3aed 12%, transparent); }
 .pc-sale text { fill: #7c3aed; }
-@media (prefers-color-scheme: dark) { .pc-sale text { fill: #c4b5fd; } }
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .pc-sale text { fill: #c4b5fd; }
+}
+html[data-theme="dark"] .pc-sale text { fill: #c4b5fd; }
 .pc-usual line { stroke: var(--muted); stroke-width: 1.5; }
 .pc-usual text { fill: var(--muted); }
 .pc-low-label { paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
@@ -1336,3 +1376,27 @@ html[data-view="list"] .deal-grid .fresh-tag .pulse-dot { margin-top: 3px; flex:
 }
 /* Chip trong danh sách xuống dòng: chữ dài thì tự xuống dòng, không đẩy tràn trang */
 .chips.wrap .chip { white-space: normal; max-width: 100%; min-height: 40px; height: auto; padding-top: 6px; padding-bottom: 6px; line-height: 1.3; }
+
+/* Chọn giao diện thủ công (nút Sáng/Tối trên menu); mặc định theo máy */
+html[data-theme="dark"] { color-scheme: dark; }
+html[data-theme="light"] { color-scheme: light; }
+.theme-toggle { flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 40px; height: 40px; margin-left: -8px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; position: relative; }
+.theme-toggle:hover { background: var(--surface-2); color: var(--text); }
+.theme-toggle span { display: none; }
+.theme-toggle:hover span, .theme-toggle:focus-visible span { display: block; position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; padding: 6px 10px; border-radius: 8px; background: var(--text); color: var(--bg); font-size: 12px; font-weight: 600; white-space: nowrap; box-shadow: 0 6px 16px -6px rgb(0 0 0 / 35%); animation: tip-in .15s ease .08s both; }
+@media (hover: none) { .theme-toggle:hover span { display: none; } }
+/* Điện thoại: đầu trang chật -> nút đổi giao diện nằm ở chân trang (có chữ) */
+@media (max-width: 640px) { .site-header .theme-toggle { display: none; } }
+.footer-theme .theme-toggle { width: auto; height: 36px; margin: 0; padding: 0 12px; border: 1px solid var(--border); background: var(--surface); }
+.footer-theme .theme-toggle span, .footer-theme .theme-toggle:hover span { display: inline; position: static; padding: 0; background: none; color: inherit; box-shadow: none; animation: none; font-size: 13px; }
+.deal .price { font-variant-numeric: tabular-nums; }
+.view-line { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: #6d28d9; }
+.view-line.page { display: flex; margin: 8px 0; font-size: 14px; font-weight: 500; }
+html[data-theme="dark"] .view-line { color: #c4b5fd; }
+@media (prefers-color-scheme: dark) { html:not([data-theme="light"]) .view-line { color: #c4b5fd; } }
+/* Chừa chỗ cho nút Sáng/Tối mà vẫn giữ chữ menu khi đủ rộng */
+@media (min-width: 761px) {
+  .site-header .container { gap: 14px; }
+  .main-nav a { padding: 0 8px; }
+  .theme-toggle { margin-left: -6px; width: 36px; height: 36px; }
+}

@@ -1,6 +1,8 @@
+import { IMAGE_ORIGINS } from "@/lib/images";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { BOOT_SCRIPT } from "@/lib/boot";
 import { HeaderFit } from "@/components/HeaderFit";
 import { SearchBox } from "@/components/SearchBox";
-import { VIEW_BOOT } from "@/components/ViewToggle";
 import Form from "next/form";
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
@@ -37,7 +39,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="vi" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: VIEW_BOOT }} />
+        <script dangerouslySetInnerHTML={{ __html: BOOT_SCRIPT }} />
+        {IMAGE_ORIGINS.map((o) => <link key={o} rel="preconnect" href={o} />)}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
@@ -77,6 +80,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <Link href="/login" aria-label="Đăng nhập"><Icon name="user" /><span>Đăng nhập</span></Link>
               )}
             </nav>
+            <ThemeToggle />
             <HeaderFit />
           </div>
         </header>
@@ -95,6 +99,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <div className="container">
             <span>© {new Date().getFullYear()} Săn Deal. Giá cập nhật định kỳ, vui lòng kiểm tra giá cuối cùng trên sàn.</span>
             <span>Trang có sử dụng link tiếp thị liên kết.</span>
+            <span className="footer-theme"><ThemeToggle /></span>
           </div>
         </footer>
         </SavedProvider>

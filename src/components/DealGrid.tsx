@@ -6,8 +6,8 @@ export function DealGrid({ items }: { items: DealRow[] }) {
   if (items.length === 0) return <div className="empty">Không có deal nào khớp bộ lọc. Thử bỏ bớt điều kiện nhé.</div>;
   return (
     <div className="grid deal-grid">
-      {items.map((p) => (
-        <DealCard key={p.id} p={p} />
+      {items.map((p, i) => (
+        <DealCard key={p.id} p={p} priority={i < 4} />
       ))}
     </div>
   );

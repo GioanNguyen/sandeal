@@ -1,4 +1,5 @@
 "use client";
+import { thumbUrl } from "@/lib/images";
 import { productPath } from "@/lib/slug";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -57,7 +58,7 @@ export function RecentlyViewed() {
           return (
             <Link key={p.id} href={productPath(p)} className={`drop-item${diff < 0 ? " went-down" : ""}`}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.imageUrl ?? ""} alt="" width={64} height={64} loading="lazy" />
+              <img src={thumbUrl(p.imageUrl) ?? ""} alt="" width={64} height={64} loading="lazy" />
               <span className="drop-info">
                 <span className="drop-name">{p.name}</span>
                 <b className="price" style={{ fontSize: 16 }}>{vnd(p.price)}</b>
@@ -153,7 +154,7 @@ export function LoadMore({ initial, query, startPage, hasMore: initialMore, next
         <div className="empty">Không có deal nào khớp bộ lọc. Thử bỏ bớt điều kiện nhé.</div>
       ) : (
         <div className="grid deal-grid">
-          {items.map((p) => <DealCard key={p.id} p={p} />)}
+          {items.map((p, i) => <DealCard key={p.id} p={p} priority={i < 4} />)}
           {loading && Array.from({ length: 5 }, (_, i) => <div key={`sk${i}`} className="deal skeleton-card" aria-hidden="true" />)}
         </div>
       )}

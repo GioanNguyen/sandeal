@@ -100,7 +100,10 @@ export const vnDay = (d = new Date()) => new Date(d.getTime() + 7 * 3_600_000).t
 
 export async function recordView(visitor: string, productId: number, now = new Date()) {
   await ensureMigrated();
-  await db.insert(productViews).values({ visitor, productId, day: vnDay(now), createdAt: now }).onConflictDoNothing();
+  await db
+    .insert(productViews)
+    .values({ visitor, productId, day: vnDay(now), createdAt: now, lastSeenAt: now })
+    .onConflictDoUpdate({ target: [productViews.visitor, productViews.productId, productViews.day], set: { lastSeenAt: now } });
 }
 
 /** "Người xem món này cũng xem": món khác được chính những khách đó xem trong 30 ngày (ít nhất 2 khách) */
@@ -165,4 +168,18 @@ export async function alternativesFor(p: Product, limit = 2): Promise<DealRow[]>
   const seen = new Set<string>();
   const pick = rows.filter((r) => (seen.has(r.name.toLowerCase()) ? false : (seen.add(r.name.toLowerCase()), true))).slice(0, limit);
   return enrichDeals(pick);
+}
+
+export { VIEWERS_MIN_CARD, VIEWERS_MIN_PAGE } from "./viewers";
+
+/** Số khách khác nhau đã xem từng sản phẩm trong 1 giờ qua */
+export async function recentViewers(ids: number[], now = new Date()): Promise<Map<number, number>> {
+  if (!ids.length) return new Map();
+  await ensureMigrated();
+  const rows = await db
+    .select({ id: productViews.productId, n: sql<number>`count(distinct ${productViews.visitor})::int` })
+    .from(productViews)
+    .where(and(sql`${productViews.productId} in (${sql.join(ids.map((i) => sql`${i}`), sql`, `)})`, gte(productViews.lastSeenAt, new Date(now.getTime() - 3_600_000))))
+    .groupBy(productViews.productId);
+  return new Map(rows.map((r) => [r.id, Number(r.n)]));
 }

@@ -57,6 +57,13 @@
       "when": 1790243346345,
       "tag": "0007_shared_lists",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790264273532,
+      "tag": "0008_view_last_seen",
+      "breakpoints": true
     }
   ]
 }

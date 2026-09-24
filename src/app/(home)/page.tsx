@@ -1,3 +1,4 @@
+import { thumbUrl } from "@/lib/images";
 import { roundupDefs } from "@/lib/roundups";
 import { productPath } from "@/lib/slug";
 import { ViewToggle } from "@/components/ViewToggle";
@@ -141,7 +142,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
             {dropped.map((p) => (
               <Link key={p.id} href={productPath(p)} className="drop-item">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.imageUrl ?? ""} alt="" width={64} height={64} loading="lazy" />
+                <img src={thumbUrl(p.imageUrl) ?? ""} alt="" width={64} height={64} loading="lazy" />
                 <span className="drop-info">
                   <span className="drop-name">{p.name}</span>
                   <b className="price" style={{ fontSize: 16 }}>{vnd(p.price)}</b>

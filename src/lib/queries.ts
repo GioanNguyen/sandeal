@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, gte, ilike, inArray, isNotNull, isNull, lte, notInArray, or, sql, type SQL } from "drizzle-orm";
-import { clicks, posts, pricePoints, products, votes, vouchers, type Product } from "@/db/schema";
+import { clicks, posts, pricePoints, products, productViews, votes, vouchers, type Product } from "@/db/schema";
 import { db, ensureMigrated } from "./db";
 import { slugify } from "./slug";
 import { voucherGain, type CalcVoucher } from "./voucher";
@@ -73,6 +73,8 @@ export type DealRow = Product & {
   cheaperElsewhere?: { platform: string; price: number; id: number } | null;
   /** Rẻ nhất trong nhóm cùng sản phẩm ở nhiều sàn */
   cheapestAcross?: number; // số sàn so sánh
+  /** Số khách khác nhau xem món này trong 1 giờ qua */
+  viewers1h?: number;
   /** Giá thấp nhất trong toàn bộ lịch sử đã theo dõi */
   allTimeLow?: number | null;
   /** Giá hiện tại là đáy lịch sử (đã theo dõi đủ lâu và giảm thật) */
@@ -105,7 +107,7 @@ export async function enrichDeals(rows: Product[]): Promise<DealRow[]> {
   const ids = rows.map((r) => r.id);
   const since = new Date(Date.now() - 31 * DAY);
   const groupKeys = [...new Set(rows.map((r) => r.groupKey).filter((k): k is string => !!k))];
-  const [points, firstSeen, clickRows, voteRows, groupRows, noteRows, voucherList] = await Promise.all([
+  const [points, firstSeen, clickRows, voteRows, groupRows, noteRows, voucherList, viewerRows] = await Promise.all([
     db
       .select({ productId: pricePoints.productId, price: pricePoints.price, at: pricePoints.capturedAt })
       .from(pricePoints)
@@ -138,7 +140,13 @@ export async function enrichDeals(rows: Product[]): Promise<DealRow[]> {
       .from(posts)
       .where(and(inArray(posts.productId, ids), eq(posts.hidden, false), sql`${posts.note} <> ''`)),
     calcVouchers(),
+    db
+      .select({ id: productViews.productId, n: sql<number>`count(distinct ${productViews.visitor})::int` })
+      .from(productViews)
+      .where(and(inArray(productViews.productId, ids), gte(productViews.lastSeenAt, new Date(Date.now() - 3_600_000))))
+      .groupBy(productViews.productId),
   ]);
+  const viewerMap = new Map(viewerRows.map((v) => [v.id, Number(v.n)]));
 
   const byProduct = new Map<number, { price: number; at: Date }[]>();
   for (const pt of points) (byProduct.get(pt.productId) ?? byProduct.set(pt.productId, []).get(pt.productId)!).push(pt);
@@ -174,6 +182,7 @@ export async function enrichDeals(rows: Product[]): Promise<DealRow[]> {
       ...p,
       low30,
       allTimeLow,
+      viewers1h: viewerMap.get(p.id) ?? 0,
       recordLow: trackedDays >= RECORD_MIN_DAYS && !!f?.newLow && allTimeLow != null && p.price <= allTimeLow && p.realDropPct >= 5,
       withVoucher: bestVoucherFor(p, voucherList),
       spark: series,

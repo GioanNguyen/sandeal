@@ -1,3 +1,4 @@
+import { thumbUrl } from "@/lib/images";
 import { productPath } from "@/lib/slug";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -80,7 +81,7 @@ export default async function Community({ searchParams }: { searchParams: SP }) 
               {list.map((r) => (
                 <li key={r.post.id} className={`post${r.post.hidden ? " hidden-post" : ""}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={r.product.imageUrl ?? ""} alt="" width={88} height={88} />
+                  <img src={thumbUrl(r.product.imageUrl) ?? ""} alt="" width={88} height={88} />
                   <div className="post-main">
                     <div className="row" style={{ gap: 8 }}>
                       <PlatformBadge platform={r.product.platform} inline />

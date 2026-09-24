@@ -273,11 +273,14 @@ export const productViews = pgTable(
     productId: integer("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
     day: text("day").notNull(), // YYYY-MM-DD giờ VN: mỗi khách chỉ tính 1 lượt/món/ngày
     createdAt: ts("created_at").notNull().defaultNow(),
+    /** Lần xem gần nhất trong ngày (để đếm "người xem trong 1 giờ qua") */
+    lastSeenAt: ts("last_seen_at").notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex("product_views_uq").on(t.visitor, t.productId, t.day),
     index("product_views_product_idx").on(t.productId, t.createdAt),
     index("product_views_visitor_idx").on(t.visitor),
+    index("product_views_recent_idx").on(t.productId, t.lastSeenAt),
   ],
 );
 

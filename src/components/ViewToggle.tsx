@@ -1,10 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
+import { VIEW_KEY } from "@/lib/boot";
 import { Icon } from "./Icon";
 
-export const VIEW_KEY = "sd-view";
-/** Chạy trong <head> trước khi vẽ trang để không nháy giao diện */
-export const VIEW_BOOT = `try{if(localStorage.getItem("${VIEW_KEY}")==="list")document.documentElement.dataset.view="list"}catch(e){}`;
 
 /** Chuyển giữa dạng lưới (ảnh to) và dạng danh sách (gọn, lướt nhanh) – nhớ lựa chọn trên trình duyệt này */
 export function ViewToggle() {

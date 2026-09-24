@@ -1,4 +1,5 @@
 "use client";
+import { thumbUrl } from "@/lib/images";
 import { productPath } from "@/lib/slug";
 import { useEffect, useRef, useState } from "react";
 import type { Summary } from "@/lib/summary";
@@ -62,7 +63,7 @@ export function QuickView({ id, name }: { id: number; name: string }) {
           <div className="qv-body">
             <div className="qv-head">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.imageUrl ?? ""} alt="" width={96} height={96} />
+              <img src={thumbUrl(p.imageUrl) ?? ""} alt="" width={96} height={96} />
               <div>
                 <span className="muted" style={{ fontSize: 13 }}>{PLATFORMS[p.platform]?.label}{p.shopName ? ` · ${p.shopName}` : ""}</span>
                 <h2>{p.name}</h2>

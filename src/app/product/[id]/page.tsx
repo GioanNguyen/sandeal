@@ -4,7 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { siteUrl } from "@/lib/mail";
 import { calcVouchers, compareOffers, dealsByIds, getProduct, similarDeals, soonestVoucher } from "@/lib/queries";
-import { alsoViewed, alternativesFor, cheaperSimilar } from "@/lib/discovery";
+import { alsoViewed, alternativesFor, cheaperSimilar, recentViewers, VIEWERS_MIN_PAGE } from "@/lib/discovery";
 import { buyAdvice } from "@/lib/advice";
 import { AdviceBox } from "@/components/AdviceBox";
 import { CompareAlternatives } from "@/components/CompareAlternatives";
@@ -74,6 +74,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const afterCodes = p.price - plan.discount - plan.cashback;
 
   const advice = buyAdvice(p.prices, p.price);
+  const viewers = (await recentViewers([p.id])).get(p.id) ?? 0;
   const platformLabel = PLATFORMS[p.platform]?.label ?? p.platform;
 
   const jsonLd = {
@@ -136,6 +137,9 @@ export default async function ProductPage({ params, searchParams }: Props) {
             cheaperElsewhere={offers.length >= 2 && offers[0].id !== p.id ? { label: PLATFORMS[offers[0].platform]?.label ?? offers[0].platform, save: p.price - offers[0].price, href: productPath(offers[0]) } : null}
           />
 
+          {viewers >= VIEWERS_MIN_PAGE && (
+            <p className="view-line page"><Icon name="eye" size={16} /> <b>{viewers} người</b> đã xem món này trong 1 giờ qua</p>
+          )}
           {freshDrop && (
             <p className="fresh-line"><span className="pulse-dot" aria-hidden="true" /> Giá vừa giảm lúc {freshDrop.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Ho_Chi_Minh" })} hôm nay. Giá sàn có thể đổi bất cứ lúc nào.</p>
           )}

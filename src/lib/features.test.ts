@@ -242,3 +242,22 @@ test("SEO: đường dẫn có tên & trang tổng hợp tuần", async () => {
   assert.equal(rd.weekLabel(new Date("2026-12-31T20:00:00Z")), "tuần 53/2026"); // 1/1/2027 giờ VN là thứ Sáu, thuộc tuần ISO 53 của 2026
   assert.equal(rd.weekLabel(new Date("2027-01-04T02:00:00Z")), "tuần 1/2027");
 });
+
+test("tốc độ & hiển thị: ảnh thu nhỏ, người xem 1 giờ qua", async () => {
+  const { thumbUrl } = await import("./images");
+  assert.equal(thumbUrl("https://down-vn.img.susercontent.com/file/vn-11134207-abc123"), "https://down-vn.img.susercontent.com/file/vn-11134207-abc123_tn");
+  assert.equal(thumbUrl("https://down-vn.img.susercontent.com/file/vn-11134207-abc123", 600), "https://down-vn.img.susercontent.com/file/vn-11134207-abc123");
+  assert.equal(thumbUrl("https://img.lazcdn.com/g/p/abc.jpg"), "https://img.lazcdn.com/g/p/abc.jpg_300x300q80.jpg_.webp");
+  assert.equal(thumbUrl("https://p16-oec-va.ibyteimg.com/tos-maliva/x~tplv-o3syd03w52-origin-jpeg.jpeg"), "https://p16-oec-va.ibyteimg.com/tos-maliva/x~tplv-o3syd03w52-origin-jpeg.jpeg");
+  assert.equal(thumbUrl(null), null);
+  assert.equal(thumbUrl("không phải link"), "không phải link");
+
+  const d = await import("./discovery");
+  const [p] = (await q.listDeals({ pageSize: 1 })).items;
+  const now = new Date();
+  await d.recordView("v1", p.id, new Date(now.getTime() - 3 * 3_600_000)); // xem sáng nay
+  assert.equal((await d.recentViewers([p.id], now)).get(p.id) ?? 0, 0);
+  await d.recordView("v1", p.id, now); // cùng ngày xem lại -> tính là đang xem
+  await d.recordView("v2", p.id, now);
+  assert.equal((await d.recentViewers([p.id], now)).get(p.id), 2);
+});
