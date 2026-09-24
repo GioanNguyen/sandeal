@@ -47,7 +47,7 @@ export function WatchForm({
   }
 
   return (
-    <form className={`watch-form${userEmail ? " logged-in" : ""}`} onSubmit={submit} method="post" action="/api/watch">
+    <form data-no-progress className={`watch-form${userEmail ? " logged-in" : ""}`} onSubmit={submit} method="post" action="/api/watch">
       <input type="hidden" name="productId" value={productId} />
       {userEmail ? (
         <p className="muted" style={{ gridColumn: "1 / -1", margin: 0, fontSize: 14 }}>

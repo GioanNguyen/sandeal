@@ -1,3 +1,4 @@
+import Form from "next/form";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LinkCheckForm } from "@/components/LinkCheckForm";
@@ -179,7 +180,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
             <h2 id="d-head"><Icon name="flame" size={22} /> Deal hot hôm nay</h2>
           </div>
         )}
-        <form className="toolbar" action="/">
+        <Form className="toolbar" action="/">
           {sp.q && <input type="hidden" name="q" value={sp.q} />}
           <nav className="chips" aria-label="Lọc theo sàn">
             <Link className="chip" href={href({ platform: undefined })} aria-current={!sp.platform}>Tất cả sàn</Link>
@@ -227,7 +228,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
               <button className="btn btn-primary" type="submit"><Icon name="sliders" size={16} /> Áp dụng</button>
             </div>
           </div>
-        </form>
+        </Form>
 
         <p className="result-count">{total.toLocaleString("vi-VN")} sản phẩm</p>
         <LoadMore key={`${moreQuery}|${page}`} initial={items} query={moreQuery} startPage={page + 1} hasMore={page < pages} nextHref={href({ page: String(page + 1) })} />

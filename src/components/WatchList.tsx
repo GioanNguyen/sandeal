@@ -53,6 +53,7 @@ export function WatchList({ initial }: { initial: WatchItem[] }) {
                   {editing === w.id ? (
                     <form
                       className="inline-edit"
+                      data-no-progress
                       onSubmit={(e) => {
                         e.preventDefault();
                         save(w.id, Number(new FormData(e.currentTarget).get("p")));

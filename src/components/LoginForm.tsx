@@ -33,7 +33,7 @@ export function LoginForm({ sent = false, error = "", next }: { sent?: boolean; 
     );
   }
   return (
-    <form onSubmit={submit} className="stack" method="post" action="/api/login">
+    <form onSubmit={submit} className="stack" method="post" action="/api/login" data-no-progress>
       <div className="field">
         <label htmlFor="l-email">Email</label>
         <input id="l-email" className="input" name="email" type="email" required autoComplete="email" placeholder="ban@email.com" />

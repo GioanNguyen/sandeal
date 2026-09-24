@@ -1,8 +1,11 @@
+import Form from "next/form";
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Icon } from "@/components/Icon";
 import { PwaInstall } from "@/components/Pwa";
 import { SavedProvider } from "@/components/Saved";
+import { NavProgress } from "@/components/NavProgress";
+import { Suspense } from "react";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { siteUrl } from "@/lib/mail";
 import "./globals.css";
@@ -40,6 +43,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body>
+        <Suspense fallback={null}>
+          <NavProgress />
+        </Suspense>
         <SavedProvider>
         <header className="site-header">
           <div className="container">
@@ -47,11 +53,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <span className="logo-mark"><Icon name="flame" size={18} /></span>
               Săn Deal
             </Link>
-            <form action="/" className="header-search" role="search">
+            <Form action="/" className="header-search" role="search">
               <Icon name="search" />
               <label htmlFor="q" className="sr-only">Tìm sản phẩm</label>
               <input id="q" name="q" type="search" placeholder="Tìm tai nghe, kem chống nắng, nồi chiên…" />
-            </form>
+            </Form>
             <PwaInstall />
             <nav className="main-nav" aria-label="Điều hướng chính">
               <Link href="/" aria-label="Deal hot"><Icon name="flame" /><span>Deal hot</span></Link>
