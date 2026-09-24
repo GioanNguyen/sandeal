@@ -42,7 +42,7 @@ export function DealCard({ p }: { p: DealRow; isLowest?: boolean }) {
           <CardImage src={p.imageUrl} />
           <PlatformBadge platform={p.platform} />
           {fresh && (
-            <span className={`fresh-tag${veryFresh ? " live" : ""}`}>
+            <span className={`fresh-tag${veryFresh ? " live" : ""}`} suppressHydrationWarning>
               <span className="pulse-dot" aria-hidden="true" /> Vừa giảm · {agoShort(fresh)}
             </span>
           )}

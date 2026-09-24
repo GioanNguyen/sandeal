@@ -21,6 +21,7 @@ export function Freshness({ at, long = false, compact = false }: { at: Date | nu
   return (
     <span
       className={`freshness${f.stale ? " stale" : ""}${compact ? " compact" : ""}`}
+      suppressHydrationWarning
       title={at ? `Giá cập nhật từ sàn lúc ${at.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}` : undefined}
     >
       <Icon name={f.stale ? "alert" : "refresh"} size={12} /> {text}

@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PLATFORMS } from "@/lib/format";
 import { listCategories, listDeals } from "@/lib/queries";
-import { DealGrid } from "@/components/DealGrid";
 import { LoadMore } from "@/components/Personal";
 
 export const dynamic = "force-dynamic";
@@ -56,8 +55,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
           </Link>
         ))}
       </nav>
-      <DealGrid items={items} />
       <LoadMore
+        initial={items}
         query={new URLSearchParams(Object.entries({ category: cat.name, platform: sp.platform ?? "" }).filter(([, v]) => v)).toString()}
         startPage={page + 1}
         hasMore={page < Math.ceil(total / PAGE_SIZE)}

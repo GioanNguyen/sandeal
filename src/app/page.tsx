@@ -8,7 +8,6 @@ import { homeStats, justDropped, listActiveVouchers, listCategories, listDeals }
 import { UrgencyTimer } from "@/components/UrgencyTimer";
 import { agoShort } from "@/components/DealCard";
 import { vnd } from "@/lib/format";
-import { DealGrid } from "@/components/DealGrid";
 import { ForYou, LoadMore, RecentlyViewed } from "@/components/Personal";
 import { CollectionCards } from "@/components/CollectionCards";
 import { PRICE_BANDS } from "@/lib/collections";
@@ -231,8 +230,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
         </form>
 
         <p className="result-count">{total.toLocaleString("vi-VN")} sản phẩm</p>
-        <DealGrid items={items} />
-        <LoadMore key={moreQuery} query={moreQuery} startPage={page + 1} hasMore={page < pages} nextHref={href({ page: String(page + 1) })} />
+        <LoadMore key={`${moreQuery}|${page}`} initial={items} query={moreQuery} startPage={page + 1} hasMore={page < pages} nextHref={href({ page: String(page + 1) })} />
       </section>
     </>
   );

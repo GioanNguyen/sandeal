@@ -97,9 +97,12 @@ export function ForYou() {
   );
 }
 
-/** Cuộn vô hạn: tự tải trang tiếp theo khi cuộn gần cuối; nút "Xem thêm" là link thật khi chưa có JS */
-export function LoadMore({ query, startPage, hasMore: initialMore, nextHref }: { query: string; startPage: number; hasMore: boolean; nextHref: string }) {
-  const [items, setItems] = useState<DealRow[]>([]);
+/**
+ * Danh sách deal + cuộn vô hạn trong CÙNG một lưới (trang đầu do máy chủ gửi sẵn trong `initial`),
+ * nên hàng cuối của trang đầu không bị hụt ô khi tải thêm. Nút "Xem thêm" là link thật khi chưa có JS.
+ */
+export function LoadMore({ initial, query, startPage, hasMore: initialMore, nextHref }: { initial: DealRow[]; query: string; startPage: number; hasMore: boolean; nextHref: string }) {
+  const [items, setItems] = useState<DealRow[]>(initial);
   const [page, setPage] = useState(startPage);
   const [more, setMore] = useState(initialMore);
   const [loading, setLoading] = useState(false);
@@ -115,7 +118,10 @@ export function LoadMore({ query, startPage, hasMore: initialMore, nextHref }: {
     try {
       const r = await fetch(`/api/deals?${query}${query ? "&" : ""}page=${page}`);
       const d = await r.json();
-      setItems((xs) => [...xs, ...d.items.map(reviveDeal)]);
+      setItems((xs) => {
+        const seen = new Set(xs.map((x) => x.id)); // bỏ trùng nếu thứ tự thay đổi giữa hai lần tải
+        return [...xs, ...d.items.map(reviveDeal).filter((x: DealRow) => !seen.has(x.id))];
+      });
       setMore(d.hasMore);
       setPage((p) => p + 1);
     } catch {
@@ -136,15 +142,21 @@ export function LoadMore({ query, startPage, hasMore: initialMore, nextHref }: {
 
   return (
     <>
-      {items.length > 0 && <div className="grid more-grid">{items.map((p) => <DealCard key={p.id} p={p} />)}</div>}
+      {items.length === 0 ? (
+        <div className="empty">Không có deal nào khớp bộ lọc. Thử bỏ bớt điều kiện nhé.</div>
+      ) : (
+        <div className="grid">
+          {items.map((p) => <DealCard key={p.id} p={p} />)}
+          {loading && Array.from({ length: 5 }, (_, i) => <div key={`sk${i}`} className="deal skeleton-card" aria-hidden="true" />)}
+        </div>
+      )}
       <div ref={sentinel} className="loadmore">
-        {loading && <div className="grid more-grid" aria-hidden="true">{Array.from({ length: 5 }, (_, i) => <div key={i} className="deal skeleton-card" />)}</div>}
         {more && !loading && (
           <a href={nextHref} className="btn btn-ghost" onClick={(e) => { e.preventDefault(); load(); }}>
             {failed ? "Lỗi tải, thử lại" : "Xem thêm deal"}
           </a>
         )}
-        {!more && items.length > 0 && <p className="muted">Bạn đã xem hết deal phù hợp.</p>}
+        {!more && items.length > initial.length && <p className="muted">Bạn đã xem hết deal phù hợp.</p>}
       </div>
     </>
   );

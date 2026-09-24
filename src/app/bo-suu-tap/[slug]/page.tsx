@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { collectionBySlug, isInSeason } from "@/lib/collections";
 import { listDeals } from "@/lib/queries";
-import { DealGrid } from "@/components/DealGrid";
 import { Icon } from "@/components/Icon";
 import { LoadMore } from "@/components/Personal";
 
@@ -38,8 +37,7 @@ export default async function CollectionPage({ params, searchParams }: Props) {
         </div>
       </section>
       <p className="result-count">{total} deal</p>
-      <DealGrid items={items} />
-      <LoadMore query={`collection=${c.slug}`} startPage={page + 1} hasMore={page < pages} nextHref={`/bo-suu-tap/${c.slug}?page=${page + 1}`} />
+      <LoadMore initial={items} query={`collection=${c.slug}`} startPage={page + 1} hasMore={page < pages} nextHref={`/bo-suu-tap/${c.slug}?page=${page + 1}`} />
     </>
   );
 }
