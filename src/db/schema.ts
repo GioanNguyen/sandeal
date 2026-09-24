@@ -252,6 +252,35 @@ export const socialPosts = pgTable(
   (t) => [index("social_posts_idx").on(t.channel, t.productId, t.postedAt)],
 );
 
+/** Từ khoá khách đã tìm (để gợi ý "đang được tìm nhiều") – không lưu thông tin người tìm */
+export const searchLog = pgTable(
+  "search_log",
+  {
+    id: serial("id").primaryKey(),
+    q: text("q").notNull(), // đã chuẩn hoá: chữ thường, gọn khoảng trắng
+    results: integer("results").notNull().default(0),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("search_log_idx").on(t.createdAt)],
+);
+
+/** Lượt xem sản phẩm theo khách ẩn danh (mã ngẫu nhiên trong cookie) – dùng cho "Người xem món này cũng xem" */
+export const productViews = pgTable(
+  "product_views",
+  {
+    id: serial("id").primaryKey(),
+    visitor: text("visitor").notNull(),
+    productId: integer("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    day: text("day").notNull(), // YYYY-MM-DD giờ VN: mỗi khách chỉ tính 1 lượt/món/ngày
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("product_views_uq").on(t.visitor, t.productId, t.day),
+    index("product_views_product_idx").on(t.productId, t.createdAt),
+    index("product_views_visitor_idx").on(t.visitor),
+  ],
+);
+
 export type Product = typeof products.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type Voucher = typeof vouchers.$inferSelect;

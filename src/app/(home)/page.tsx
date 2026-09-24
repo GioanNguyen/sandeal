@@ -6,7 +6,11 @@ import { LinkCheckForm } from "@/components/LinkCheckForm";
 import { Countdown } from "@/components/Countdown";
 import { nextSale } from "@/lib/sales";
 import { PLATFORMS } from "@/lib/format";
-import { homeStats, justDropped, listActiveVouchers, listCategories, listDeals } from "@/lib/queries";
+import { countDeals, homeStats, justDropped, listActiveVouchers, listCategories, listDeals, type DealFilter } from "@/lib/queries";
+import { filterFromParams } from "@/lib/dealParams";
+import { logSearch, spotlightDeals } from "@/lib/discovery";
+import { QuickChips, type QuickChip } from "@/components/QuickChips";
+import { Spotlight } from "@/components/Spotlight";
 import { UrgencyTimer } from "@/components/UrgencyTimer";
 import { agoShort } from "@/components/DealCard";
 import { vnd } from "@/lib/format";
@@ -27,24 +31,41 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
   if (sp.q && /(shopee|shope\.ee|shp\.ee|lazada|tiktok)\./i.test(sp.q)) redirect(`/kiem-tra-gia?url=${encodeURIComponent(sp.q)}`);
   const page = Math.max(1, Number(sp.page) || 1);
   const now = new Date();
-  const isLanding = !sp.q && !sp.platform && !sp.category && !sp.min && !sp.max && page === 1;
+  const isLanding = !sp.q && !sp.platform && !sp.category && !sp.min && !sp.max && !sp.shop && !sp.fresh && !sp.vc && page === 1;
+  const filter: DealFilter = { ...filterFromParams((k) => sp[k]), page, pageSize: PAGE_SIZE };
 
-  const [{ items, total }, categories, stats, vouchers, dropped] = await Promise.all([
-    listDeals({ q: sp.q, platform: sp.platform, category: sp.category, minDrop: Number(sp.min) || undefined, maxPrice: Number(sp.max) || undefined, sort: sp.sort, page, pageSize: PAGE_SIZE }),
+  // Chip lọc nhanh: bật/tắt 1 tham số, giữ nguyên các bộ lọc khác; số đếm = kết quả nếu bấm chip
+  const QUICK: { key: string; label: string; icon: QuickChip["icon"]; param: string; value: string; patch: Partial<DealFilter> }[] = [
+    { key: "fresh", label: "Vừa giảm hôm nay", icon: "flame", param: "fresh", value: "1", patch: { fresh: true } },
+    { key: "u199", label: "Dưới 199K", icon: "tag", param: "max", value: "199000", patch: { maxPrice: 199_000 } },
+    { key: "d50", label: "Giảm thật từ 50%", icon: "trendingDown", param: "min", value: "50", patch: { minDrop: 50 } },
+    { key: "mall", label: "Shop Mall", icon: "shield", param: "shop", value: "mall", patch: { mall: true } },
+    { key: "vc", label: "Có mã giảm thêm", icon: "ticket", param: "vc", value: "1", patch: { withVoucher: true } },
+  ];
+
+  const [{ items, total }, categories, stats, vouchers, dropped, spotlight, chipCounts] = await Promise.all([
+    listDeals(filter),
     listCategories(),
     homeStats(),
     isLanding ? listActiveVouchers({ limit: 8 }) : Promise.resolve([]),
     isLanding ? justDropped(24, 12) : Promise.resolve([]),
+    isLanding ? spotlightDeals(5) : Promise.resolve([]),
+    Promise.all(QUICK.map((c) => (sp[c.param] === c.value ? Promise.resolve(0) : countDeals({ ...filter, ...c.patch })))),
   ]);
+  if (sp.q && page === 1) logSearch(sp.q, total).catch(() => {});
   const pages = Math.ceil(total / PAGE_SIZE);
   // Query cho "tải thêm" (giữ bộ lọc hiện tại, bỏ page)
-  const moreQuery = new URLSearchParams(Object.entries({ q: sp.q, platform: sp.platform, category: sp.category, min: sp.min, max: sp.max, sort: sp.sort }).filter(([, v]) => v) as [string, string][]).toString();
+  const moreQuery = new URLSearchParams(Object.entries({ q: sp.q, platform: sp.platform, category: sp.category, min: sp.min, max: sp.max, shop: sp.shop, fresh: sp.fresh, vc: sp.vc, sort: sp.sort }).filter(([, v]) => v) as [string, string][]).toString();
   const href = (patch: Record<string, string | undefined>) => {
     const q = new URLSearchParams();
     for (const [k, v] of Object.entries({ ...sp, page: undefined, ...patch })) if (v) q.set(k, v);
     const s = q.toString();
     return s ? `/?${s}` : "/";
   };
+  const chips: QuickChip[] = QUICK.map((c, i) => {
+    const on = sp[c.param] === c.value;
+    return { key: c.key, label: c.label, icon: c.icon, on, count: chipCounts[i], href: `${href({ [c.param]: on ? undefined : c.value })}#deals` };
+  });
 
   return (
     <>
@@ -100,6 +121,8 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
           </Link>
         );
       })()}
+
+      {isLanding && <Spotlight items={spotlight} />}
 
       {isLanding && dropped.length > 0 && (
         <section className="section" aria-labelledby="drop-head">
@@ -192,6 +215,9 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
             ))}
           </nav>
           {sp.platform && <input type="hidden" name="platform" value={sp.platform} />}
+          {sp.shop && <input type="hidden" name="shop" value={sp.shop} />}
+          {sp.fresh && <input type="hidden" name="fresh" value={sp.fresh} />}
+          {sp.vc && <input type="hidden" name="vc" value={sp.vc} />}
           <div className="toolbar-fields">
             <div className="field">
               <label htmlFor="category">Danh mục</label>
@@ -207,6 +233,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
                 <option value="10">Từ 10%</option>
                 <option value="20">Từ 20%</option>
                 <option value="30">Từ 30%</option>
+                <option value="50">Từ 50%</option>
               </select>
             </div>
             <div className="field">
@@ -231,6 +258,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
           </div>
         </Form>
 
+        <QuickChips chips={chips} />
         <div className="results-bar">
           <p className="result-count">{total.toLocaleString("vi-VN")} sản phẩm</p>
           <ViewToggle />

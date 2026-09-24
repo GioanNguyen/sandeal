@@ -16,6 +16,9 @@ export function filterFromParams(get: (k: string) => string | null | undefined):
     minDrop: Number(get("min")) || base.minDrop,
     maxPrice: Number(get("max")) || base.maxPrice,
     sort: get("sort") || base.sort,
+    mall: get("shop") === "mall" || base.mall,
+    fresh: get("fresh") === "1" || base.fresh,
+    withVoucher: get("vc") === "1" || base.withVoucher,
     page: Math.max(1, Number(get("page")) || 1),
   };
   const cats = strs(get("cats"));

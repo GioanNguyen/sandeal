@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { siteUrl } from "@/lib/mail";
 import { calcVouchers, compareOffers, getProduct, similarDeals, soonestVoucher } from "@/lib/queries";
+import { alsoViewed, cheaperSimilar } from "@/lib/discovery";
 import { UrgencyTimer } from "@/components/UrgencyTimer";
 import { bestPlan } from "@/lib/voucher";
 import { VoteBox } from "@/components/VoteBox";
@@ -45,7 +46,14 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const sp = (await searchParams) ?? {};
   const [p, user] = await Promise.all([getProduct(Number(id)), getCurrentUser()]);
   if (!p) notFound();
-  const [similar, offers, pv, votes] = await Promise.all([similarDeals(p, 5), compareOffers(p), calcVouchers(p.platform), voteSummary(p.id, user?.id)]);
+  const [similarAll, offers, pv, votes, cheaper, alsoRaw] = await Promise.all([
+    similarDeals(p, 10), compareOffers(p), calcVouchers(p.platform), voteSummary(p.id, user?.id), cheaperSimilar(p, 5), alsoViewed(p.id, 6),
+  ]);
+  // Không lặp lại món đã có ở mục trên, bỏ bản sao cùng sản phẩm ở sàn khác (đã có ở "So sánh giữa các sàn")
+  const offerIds = new Set(offers.map((o) => o.id));
+  const also = alsoRaw.filter((d) => !offerIds.has(d.id));
+  const shown = new Set([...cheaper.map((d) => d.id), ...also.map((d) => d.id)]);
+  const similar = similarAll.filter((d) => !shown.has(d.id)).slice(0, 5);
   const expiring = await soonestVoucher(p.platform, 24);
   // Lần giảm giá gần nhất (≥5%) trong lịch sử
   let droppedAt: Date | null = null;
@@ -210,6 +218,26 @@ export default async function ProductPage({ params, searchParams }: Props) {
         </div>
         <a className="btn btn-primary" href={`/go/${p.id}`} target="_blank" rel="nofollow sponsored noopener">Mua ngay <Icon name="external" size={14} /></a>
       </div>
+
+      {cheaper.length > 0 && (
+        <section className="section" aria-labelledby="cheap-head">
+          <div className="section-head">
+            <h2 id="cheap-head"><Icon name="trendingDown" size={22} /> Món tương tự rẻ hơn</h2>
+            <span className="muted" style={{ fontSize: 13 }}>Cùng danh mục {p.category}, giá thấp hơn {vnd(p.price)}</span>
+          </div>
+          <DealGrid items={cheaper} />
+        </section>
+      )}
+
+      {also.length >= 3 && (
+        <section className="section" aria-labelledby="also-head">
+          <div className="section-head">
+            <h2 id="also-head"><Icon name="users" size={22} /> Người xem món này cũng xem</h2>
+            <span className="muted" style={{ fontSize: 13 }}>Tính từ lượt xem ẩn danh 30 ngày qua</span>
+          </div>
+          <DealGrid items={also} />
+        </section>
+      )}
 
       {similar.length > 0 && (
         <section className="section" aria-labelledby="sim-head">

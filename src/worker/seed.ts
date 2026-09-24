@@ -1,6 +1,7 @@
 /** Tạo 30 ngày lịch sử giá giả + đơn hàng mẫu. Chỉ dùng khi chạy thử (hãy tắt `npm run dev` trước nếu dùng PGlite). */
 import { desc, sql } from "drizzle-orm";
-import { clicks, posts, products, users, votes } from "@/db/schema";
+import { clicks, posts, products, productViews, searchLog, users, votes } from "@/db/schema";
+import { vnDay } from "@/lib/discovery";
 import { mockAdapter, mockProducts } from "@/adapters/mock";
 import { closeDb, db, ensureMigrated } from "@/lib/db";
 import { syncConversions } from "./conversions";
@@ -9,7 +10,7 @@ import { upsertProduct, upsertVoucher } from "./sync";
 
 export async function seed() {
   await ensureMigrated();
-  await db.execute(sql`truncate clicks, conversions, watches, sent_deals, posts, votes, product_requests, price_points, products, vouchers restart identity cascade`);
+  await db.execute(sql`truncate search_log, product_views, clicks, conversions, watches, sent_deals, posts, votes, product_requests, price_points, products, vouchers restart identity cascade`);
   const now = Date.now();
   for (let day = 30; day >= 0; day -= 2) {
     const list = mockProducts();
@@ -55,6 +56,24 @@ export async function seed() {
       if (v) await db.insert(votes).values({ userId: u.id, productId: top[i].id, value: v });
     }
   }
+  // Từ khoá mẫu cho "Đang được tìm nhiều"
+  const searches: [string, number][] = [["tai nghe", 9], ["nồi chiên", 7], ["kem chống nắng", 6], ["sạc dự phòng", 5], ["serum", 4], ["bàn phím", 3], ["giày chạy bộ", 2]];
+  for (const [q, times] of searches) {
+    for (let k = 0; k < times; k++) await db.insert(searchLog).values({ q, results: 3, createdAt: new Date(now - ((k * 7) % 72) * 3_600_000) });
+  }
+
+  // Lượt xem ẩn danh mẫu: mỗi khách xem vài món, thường cùng danh mục (để có "Người xem món này cũng xem")
+  const all = await db.select({ id: products.id, category: products.category }).from(products);
+  const cats = [...new Set(all.map((p) => p.category))];
+  for (let v = 0; v < 60; v++) {
+    const cat = cats[v % cats.length];
+    const pool = all.filter((p) => p.category === cat);
+    const extra = all[(v * 13) % all.length];
+    const picks = [...pool.filter((_, i) => (i + v) % 3 !== 0).slice(0, 4), extra];
+    const at = new Date(now - (v % 20) * 86_400_000);
+    for (const p of picks) await db.insert(productViews).values({ visitor: `demo-${v}`, productId: p.id, day: vnDay(at), createdAt: at }).onConflictDoNothing();
+  }
+
   const [{ n }] = (await db.execute(sql`select count(*)::int as n from products`)).rows as { n: number }[];
   console.log(`[seed] xong: ${n} sản phẩm`);
 }

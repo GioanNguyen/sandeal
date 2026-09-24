@@ -13,6 +13,8 @@ export function RecordView({ id, price, category }: { id: number; price: number;
     const list = readLocal<ViewedItem[]>(VIEWED_KEY, []).filter((v) => v.id !== id);
     list.unshift({ id, price, category, at: Date.now() });
     writeLocal(VIEWED_KEY, list.slice(0, 20));
+    // Đếm lượt xem ẩn danh cho "Người xem món này cũng xem"
+    fetch("/api/view", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }), keepalive: true }).catch(() => {});
   }, [id, price, category]);
   return null;
 }

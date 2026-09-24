@@ -18,6 +18,12 @@ export interface DealFilter {
   /** Tên chứa một trong các từ khoá (OR) */
   keywords?: string[];
   excludeIds?: number[];
+  /** Chỉ shop chính hãng (mall) */
+  mall?: boolean;
+  /** Vừa giảm giá (≥5%) trong 24 giờ qua */
+  fresh?: boolean;
+  /** Có mã giảm toàn sàn áp được thêm */
+  withVoucher?: boolean;
   sort?: string;
   page?: number;
   pageSize?: number;
@@ -40,6 +46,12 @@ function dealWhere(f: DealFilter) {
   if (f.categories?.length) conds.push(inArray(products.category, f.categories));
   if (f.keywords?.length) conds.push(or(...f.keywords.map((k) => ilike(products.name, `%${k.replace(/[%_]/g, "")}%`)))!);
   if (f.excludeIds?.length) conds.push(notInArray(products.id, f.excludeIds));
+  if (f.mall) conds.push(eq(products.shopType, "mall"));
+  if (f.fresh) conds.push(sql`${droppedAtSql} > now() - interval '24 hours'`);
+  if (f.withVoucher)
+    conds.push(sql`exists (select 1 from vouchers v where v.platform = "products"."platform"
+      and (v.end_at is null or v.end_at >= now()) and v.discount_type in ('percent', 'fixed')
+      and coalesce(v.min_spend, 0) <= "products"."price")`);
   return conds.length ? and(...conds) : undefined;
 }
 
@@ -183,6 +195,13 @@ const droppedAtSql = sql<string | null>`(select max(t.captured_at) from (
   from price_points pp where pp.product_id = "products"."id") t where t.price <= t.prev * 0.95)`;
 /** Số lượt bấm mua thật trong 24 giờ qua */
 const clicks24Sql = sql<number>`(select count(*) from clicks c where c.product_id = "products"."id" and c.created_at > now() - interval '24 hours')`;
+
+/** Đếm số deal khớp bộ lọc (cho số đếm trên chip lọc nhanh) */
+export async function countDeals(f: DealFilter): Promise<number> {
+  await ensureMigrated();
+  const [{ total }] = await db.select({ total: count() }).from(products).where(dealWhere(f));
+  return Number(total);
+}
 
 export async function listDeals(f: DealFilter): Promise<{ items: DealRow[]; total: number }> {
   await ensureMigrated();

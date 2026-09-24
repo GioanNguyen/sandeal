@@ -1,3 +1,4 @@
+import { SearchBox } from "@/components/SearchBox";
 import { VIEW_BOOT } from "@/components/ViewToggle";
 import Form from "next/form";
 import type { Metadata, Viewport } from "next";
@@ -56,9 +57,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               Săn Deal
             </Link>
             <Form action="/" className="header-search" role="search">
-              <Icon name="search" />
-              <label htmlFor="q" className="sr-only">Tìm sản phẩm</label>
-              <input id="q" name="q" type="search" placeholder="Tìm tai nghe, kem chống nắng, nồi chiên…" />
+              <SearchBox />
             </Form>
             <PwaInstall />
             <nav className="main-nav" aria-label="Điều hướng chính">

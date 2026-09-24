@@ -43,6 +43,13 @@
       "when": 1790236244211,
       "tag": "0005_gallery",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790240218090,
+      "tag": "0006_discovery",
+      "breakpoints": true
     }
   ]
 }

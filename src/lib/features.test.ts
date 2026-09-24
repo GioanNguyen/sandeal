@@ -133,3 +133,42 @@ test("thẻ deal: giá sau mã giảm & nhãn giá thấp kỷ lục", async () 
   assert.equal(by(r2).recordLow, false);
   assert.equal(by(r3).recordLow, false);
 });
+
+test("khám phá: từ khoá hot, gợi ý, người xem cũng xem, rẻ hơn, chip lọc", async () => {
+  const d = await import("./discovery");
+  assert.equal(d.normalizeQuery("  Tai   NGHE "), "tai nghe");
+  assert.equal(d.normalizeQuery("https://shopee.vn/abc"), null);
+  assert.equal(d.normalizeQuery("a"), null);
+  assert.equal(d.normalizeQuery("<script>"), null);
+
+  for (let i = 0; i < 3; i++) await d.logSearch("Quạt mini", 4);
+  await d.logSearch("quạt mini", 0); // không có kết quả -> không tính
+  await d.logSearch("một lần", 5); // chỉ 1 lượt -> chưa hot
+  const hot = await d.trendingSearches();
+  assert.deepEqual(hot.find((h) => h.q === "quạt mini"), { q: "quạt mini", n: 3 });
+  assert.ok(!hot.some((h) => h.q === "một lần"));
+
+  const mk = (id: string, name: string, price: number, extra = {}) =>
+    ingest.upsertProduct({ platform: "shopee", externalId: id, name, category: "Quạt", price, discountPct: 10, affiliateUrl: "#", ...extra });
+  const big = await mk("q1", "Quạt đứng thông minh", 900_000);
+  const cheap1 = await mk("q2", "Quạt đứng mini", 400_000, { shopType: "mall" });
+  const cheap2 = await mk("q3", "Máy sưởi", 300_000);
+  await mk("q4", "Quạt trần cao cấp", 1_200_000);
+  const s = await d.suggest("quạt đứng");
+  assert.deepEqual(s.products.map((p) => p.id).sort(), [big, cheap1].sort());
+
+  const p = (await q.getProduct(big))!;
+  const cheaper = await d.cheaperSimilar(p);
+  assert.deepEqual(cheaper.map((x) => x.id), [cheap1, cheap2]); // trùng từ "quạt đứng" lên trước, không có món đắt hơn
+
+  // 3 khách xem big + cheap1, 1 khách xem big + cheap2 -> chỉ cheap1 đủ 2 khách
+  for (const v of ["a", "b", "c"]) { await d.recordView(v, big); await d.recordView(v, cheap1); }
+  await d.recordView("a", big); // xem lại trong ngày không tính thêm
+  await d.recordView("z", big); await d.recordView("z", cheap2);
+  const also = await d.alsoViewed(big);
+  assert.deepEqual(also.map((x) => [x.id, x.viewers]), [[cheap1, 3]]);
+
+  const { total } = await q.listDeals({ category: "Quạt", mall: true });
+  assert.equal(total, 1);
+  assert.equal(await q.countDeals({ category: "Quạt", mall: true }), 1);
+});
