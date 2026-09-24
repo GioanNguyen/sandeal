@@ -6,6 +6,26 @@ import { usePathname, useSearchParams } from "next/navigation";
  * Thanh tiến trình trên cùng màn hình khi chuyển trang (bấm link nội bộ hoặc gửi form lọc/tìm kiếm).
  * Hiện ngay khi bấm, chạy chậm dần tới ~90%, hoàn tất khi trang mới đã hiển thị.
  */
+/**
+ * Cuộn tới phần tử theo #hash (vd. /#deals). Trang dùng khung chờ (loading.tsx) nên lúc trình duyệt tự cuộn
+ * phần tử có thể chưa tồn tại -> đợi nó xuất hiện rồi mới cuộn. scroll-padding-top trong CSS chừa chỗ cho header dính.
+ */
+function scrollToHash() {
+  const id = decodeURIComponent(location.hash.slice(1));
+  if (!id) return () => {};
+  const go = () => {
+    const el = document.getElementById(id);
+    if (!el || document.querySelector(".page-loading")) return false;
+    requestAnimationFrame(() => el.scrollIntoView({ block: "start" }));
+    return true;
+  };
+  if (go()) return () => {};
+  const mo = new MutationObserver(() => go() && mo.disconnect());
+  mo.observe(document.body, { childList: true, subtree: true });
+  const t = setTimeout(() => mo.disconnect(), 8000);
+  return () => { mo.disconnect(); clearTimeout(t); };
+}
+
 export function NavProgress() {
   const pathname = usePathname();
   const search = useSearchParams();
@@ -29,6 +49,7 @@ export function NavProgress() {
     clearTimeout(safety.current);
     document.documentElement.classList.remove("is-navigating");
     document.querySelectorAll(".is-opening").forEach((el) => el.classList.remove("is-opening"));
+    if (location.hash) scrollToHash();
     setWidth(100);
     setState("done");
     setTimeout(() => { setState("idle"); setWidth(0); }, 300);
@@ -47,6 +68,9 @@ export function NavProgress() {
     mo.observe(document.body, { childList: true, subtree: true });
     return () => mo.disconnect();
   }, [pathname, search]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Mở thẳng một địa chỉ có #hash (vd. gõ localhost:3000/#deals hoặc F5)
+  useEffect(() => scrollToHash(), []);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
