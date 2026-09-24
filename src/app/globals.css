@@ -1216,32 +1216,31 @@ html[data-view="list"] .deal-grid .fresh-tag .pulse-dot { margin-top: 3px; flex:
 /* Tài khoản quản trị có 7 mục: trên điện thoại ẩn chữ logo để menu vừa 1 hàng */
 @media (max-width: 640px) { .site-header .container:has(.main-nav > a:nth-of-type(7)) .logo-text { display: none; } }
 
-/* Menu chỉ có biểu tượng: rê chuột / focus hiện tên mục (dùng chính nhãn chữ làm bong bóng chú thích) */
+/* Menu chỉ có biểu tượng: rê chuột / focus hiện tên mục (dùng chính nhãn chữ làm bong bóng chú thích).
+   Ẩn bằng display:none khi không rê chuột để bong bóng không làm trang bị cuộn ngang. */
 .main-nav a { position: relative; }
 @media (max-width: 1180px) {
-  .main-nav a > span { display: block; }
+  .main-nav a > span { display: none; }
+  .main-nav a:hover > span, .main-nav a:focus-visible > span { display: block; }
 }
+.main-nav.is-compact a > span { display: none; }
+.main-nav.is-compact a:hover > span, .main-nav.is-compact a:focus-visible > span { display: block; }
 @media (max-width: 1180px) {
-  .main-nav a > span, .main-nav.is-compact a > span {
-    position: absolute; top: calc(100% + 6px); left: 50%; z-index: 40; transform: translate(-50%, -4px);
+  .main-nav a > span {
+    position: absolute; top: calc(100% + 6px); left: 50%; z-index: 40; transform: translateX(-50%);
     padding: 6px 10px; border-radius: 8px; background: var(--text); color: var(--bg); font-size: 12px; font-weight: 600; line-height: 1.2; white-space: nowrap;
-    box-shadow: 0 6px 16px -6px rgb(0 0 0 / 35%); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .15s, transform .15s, visibility 0s .15s;
+    box-shadow: 0 6px 16px -6px rgb(0 0 0 / 35%); pointer-events: none; animation: tip-in .15s ease .08s both;
   }
+  .main-nav a:nth-last-child(-n+2) > span { left: auto; right: 0; transform: none; }
 }
 .main-nav.is-compact a > span {
-  display: block; position: absolute; top: calc(100% + 6px); left: 50%; z-index: 40; transform: translate(-50%, -4px);
+  position: absolute; top: calc(100% + 6px); left: 50%; z-index: 40; transform: translateX(-50%);
   padding: 6px 10px; border-radius: 8px; background: var(--text); color: var(--bg); font-size: 12px; font-weight: 600; line-height: 1.2; white-space: nowrap;
-  box-shadow: 0 6px 16px -6px rgb(0 0 0 / 35%); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .15s, transform .15s, visibility 0s .15s;
+  box-shadow: 0 6px 16px -6px rgb(0 0 0 / 35%); pointer-events: none; animation: tip-in .15s ease .08s both;
 }
-@media (max-width: 1180px) {
-  .main-nav a:hover > span, .main-nav a:focus-visible > span { opacity: 1; visibility: visible; transform: translate(-50%, 0); transition: opacity .15s .1s, transform .15s .1s; }
-  .main-nav a:last-child > span { left: auto; right: 0; transform: translateY(-4px); }
-  .main-nav a:last-child:hover > span, .main-nav a:last-child:focus-visible > span { transform: none; }
-}
-.main-nav.is-compact a:hover > span, .main-nav.is-compact a:focus-visible > span { opacity: 1; visibility: visible; transform: translate(-50%, 0); transition: opacity .15s .1s, transform .15s .1s; }
-.main-nav.is-compact a:last-child > span { left: auto; right: 0; transform: translateY(-4px); }
-.main-nav.is-compact a:last-child:hover > span, .main-nav.is-compact a:last-child:focus-visible > span { transform: none; }
-@media (hover: none) { .main-nav a:hover > span { opacity: 0 !important; visibility: hidden !important; } }
+.main-nav.is-compact a:nth-last-child(-n+2) > span { left: auto; right: 0; transform: none; }
+@keyframes tip-in { from { opacity: 0; margin-top: -4px; } }
+@media (hover: none) { .main-nav a:hover > span { display: none !important; } }
 
 /* ===== Nhóm 9: giúp khách quyết định ===== */
 /* Ô "Nên mua ngay hay chờ?" */
@@ -1300,3 +1299,40 @@ html[data-view="list"] .deal-grid .fresh-tag .pulse-dot { margin-top: 3px; flex:
   .advice-chip { margin-left: 0; }
   .advice-head h2 { font-size: 18px; }
 }
+
+/* ===== Nhóm 10: trang tổng hợp "Top … tuần này" ===== */
+.roundup-head { margin-bottom: 8px; }
+.roundup-week { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 13px; font-weight: 700; color: var(--primary); background: var(--primary-soft); padding: 4px 10px; border-radius: 999px; }
+.roundup-list { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 14px; counter-reset: none; }
+.roundup-item { position: relative; display: grid; grid-template-columns: 56px 180px 1fr; gap: 18px; align-items: start; padding: 16px 60px 16px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; transition: border-color .2s, box-shadow .2s; }
+.roundup-item:hover { border-color: var(--primary-soft); box-shadow: var(--shadow-md); }
+.roundup-item.is-top { border: 2px solid color-mix(in srgb, var(--gold) 70%, var(--border)); background: linear-gradient(135deg, color-mix(in srgb, var(--gold) 10%, var(--surface)), var(--surface) 45%); }
+.roundup-rank { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; font-size: 24px; font-weight: 800; color: var(--primary); background: var(--primary-soft); }
+.roundup-item.is-top .roundup-rank { color: #3b2300; background: linear-gradient(135deg, #ffd66b, var(--gold)); }
+.roundup-media { position: relative; aspect-ratio: 1; border-radius: 14px; overflow: hidden; background: var(--surface-2); }
+.roundup-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.roundup-body h2 { margin: 0; font-size: 18px; line-height: 1.35; }
+.roundup-body h2 a:hover { color: var(--primary); }
+.roundup-badge { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 800; color: #3b2300; background: var(--gold); padding: 3px 10px; border-radius: 999px; }
+.roundup-reasons { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.roundup-reasons li { display: flex; align-items: flex-start; gap: 6px; }
+.roundup-reasons svg { flex: none; margin-top: 3px; color: var(--save); }
+.roundup-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.roundup-item .save-btn { top: 16px; right: 16px; }
+.roundup-faq details { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 8px; }
+.roundup-faq summary { font-weight: 700; cursor: pointer; }
+.roundup-faq details p { margin: 8px 0 0; color: var(--muted); }
+.top-index { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.top-card { display: flex; flex-direction: column; gap: 4px; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); transition: border-color .2s, transform .2s; }
+.top-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+.top-card span { font-size: 13px; color: var(--muted); }
+@media (max-width: 640px) {
+  .roundup-item { grid-template-columns: 96px 1fr; gap: 12px; padding: 12px 12px 12px 12px; }
+  .roundup-rank { position: absolute; top: 6px; left: 6px; z-index: 2; width: 30px; height: 30px; font-size: 16px; border-radius: 10px; }
+  .roundup-body h2 { font-size: 15px; padding-right: 36px; }
+  .roundup-reasons { font-size: 13px; }
+  .roundup-item .save-btn { top: 10px; right: 10px; width: 32px; height: 32px; }
+  .roundup-media .platform { top: auto; bottom: 6px; left: 6px; font-size: 10px; padding: 2px 6px; }
+}
+/* Chip trong danh sách xuống dòng: chữ dài thì tự xuống dòng, không đẩy tràn trang */
+.chips.wrap .chip { white-space: normal; max-width: 100%; min-height: 40px; height: auto; padding-top: 6px; padding-bottom: 6px; line-height: 1.3; }

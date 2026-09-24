@@ -1,3 +1,4 @@
+import { productPath } from "@/lib/slug";
 import type { Product } from "@/db/schema";
 import { siteUrl } from "./mail";
 import { calcVouchers, compareOffers, getProduct } from "./queries";
@@ -39,10 +40,10 @@ export async function productSummary(id: number) {
       afterCodes: p.price - plan.discount - plan.cashback,
       codes: plan.vouchers.map((v) => v.code ?? v.title),
     },
-    offers: offers.map((o) => ({ id: o.id, platform: o.platform, price: o.price, detail: `${site}/product/${o.id}` })),
+    offers: offers.map((o) => ({ id: o.id, platform: o.platform, price: o.price, detail: `${site}${productPath(o)}` })),
     links: {
-      detail: `${site}/product/${p.id}`,
-      watch: `${site}/product/${p.id}#theo-doi`,
+      detail: `${site}${productPath(p)}`,
+      watch: `${site}${productPath(p)}#theo-doi`,
       calc: `${site}/tinh-gia?p=${p.id}`,
       buy: `${site}/go/${p.id}`,
     },

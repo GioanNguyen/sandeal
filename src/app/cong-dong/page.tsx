@@ -1,3 +1,4 @@
+import { productPath } from "@/lib/slug";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
@@ -86,7 +87,7 @@ export default async function Community({ searchParams }: { searchParams: SP }) 
                       <span className="muted" style={{ fontSize: 13 }}>{r.author} · {ago(r.post.createdAt)}</span>
                       {r.post.hidden && <span className="status">Đã ẩn</span>}
                     </div>
-                    <Link href={`/product/${r.product.id}`} className="watch-name">{r.product.name}</Link>
+                    <Link href={productPath(r.product)} className="watch-name">{r.product.name}</Link>
                     {r.post.note && <p className="post-note">“{r.post.note}”</p>}
                     <div className="row" style={{ gap: 10 }}>
                       <span className="price" style={{ fontSize: 18 }}>{vnd(r.product.price)}</span>

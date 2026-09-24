@@ -226,3 +226,19 @@ test("mini game đoán giá & danh sách chia sẻ", async () => {
   assert.deepEqual(await play.createList("x", [999999]), { error: "Sản phẩm không còn tồn tại" });
   assert.equal(await play.getList("../etc"), null);
 });
+
+test("SEO: đường dẫn có tên & trang tổng hợp tuần", async () => {
+  const slug = await import("./slug");
+  assert.equal(slug.productPath({ id: 12, name: "Tai nghe Bluetooth chống ồn ANC" }), "/product/tai-nghe-bluetooth-chong-on-anc-12");
+  assert.equal(slug.productPath({ id: 7, name: "Đồ chơi 100%!!" }), "/product/do-choi-100-7");
+  assert.equal(slug.productPath({ id: 5 }), "/product/5");
+  assert.equal(slug.productIdFromParam("tai-nghe-bluetooth-chong-on-anc-12"), 12);
+  assert.equal(slug.productIdFromParam("sac-20000mah-99"), 99);
+  assert.equal(slug.productIdFromParam("12"), 12);
+  assert.ok(Number.isNaN(slug.productIdFromParam("khong-co-so")));
+
+  const rd = await import("./roundups");
+  assert.equal(rd.weekLabel(new Date("2026-09-24T05:00:00Z")), "tuần 39/2026");
+  assert.equal(rd.weekLabel(new Date("2026-12-31T20:00:00Z")), "tuần 53/2026"); // 1/1/2027 giờ VN là thứ Sáu, thuộc tuần ISO 53 của 2026
+  assert.equal(rd.weekLabel(new Date("2027-01-04T02:00:00Z")), "tuần 1/2027");
+});

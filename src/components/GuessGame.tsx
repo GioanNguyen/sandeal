@@ -1,4 +1,5 @@
 "use client";
+import { productPath } from "@/lib/slug";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { GuessRound } from "@/lib/play";
@@ -73,7 +74,7 @@ export function GuessGame({ day, rounds, siteUrl }: { day: string; rounds: Guess
         )}
         <div className="guess-review">
           {rounds.map((q, k) => (
-            <Link key={q.id} href={`/product/${q.id}`} className={`guess-row${picks[k] == null ? "" : picks[k] === q.answer ? " ok" : " bad"}`}>
+            <Link key={q.id} href={productPath(q)} className={`guess-row${picks[k] == null ? "" : picks[k] === q.answer ? " ok" : " bad"}`}>
               <span className="guess-thumb"><CardImage src={q.imageUrl} /></span>
               <span className="guess-row-name">{q.name}</span>
               <span className="guess-row-price"><b>{vnd(q.answer)}</b><small>−{Math.round(q.realDropPct)}% thật</small></span>
@@ -125,7 +126,7 @@ export function GuessGame({ day, rounds, siteUrl }: { day: string; rounds: Guess
               <b>{correct ? "Chính xác!" : `Chưa đúng – giá thật là ${vnd(r.answer)}`}</b>
               <span>Đang rẻ hơn giá thường ngày {vnd(r.usual - r.answer)} (−{Math.round(r.realDropPct)}% thật).</span>
               <div className="guess-next-row">
-                <Link href={`/product/${r.id}`} className="btn btn-ghost btn-sm">Xem deal này</Link>
+                <Link href={productPath(r)} className="btn btn-ghost btn-sm">Xem deal này</Link>
                 <button type="button" className="btn btn-primary" onClick={() => setI(i + 1)} autoFocus>
                   {i === rounds.length - 1 ? "Xem kết quả" : "Câu tiếp"} <Icon name="arrowRight" size={16} />
                 </button>

@@ -1,3 +1,4 @@
+import { productPath } from "@/lib/slug";
 import type { Product } from "@/db/schema";
 import { vnd } from "@/lib/format";
 import { Icon } from "./Icon";
@@ -19,7 +20,7 @@ export function CompareTable({ offers, currentId }: { offers: Product[]; current
               {i === 0 && <span className="real-drop" style={{ marginLeft: 6 }}><Icon name="check" size={13} /> Rẻ nhất</span>}
             </td>
             <td className="muted col-shop">
-              {o.id === currentId ? <b>Đang xem</b> : <a href={`/product/${o.id}`}>{o.shopName ?? "Xem chi tiết"}</a>}
+              {o.id === currentId ? <b>Đang xem</b> : <a href={productPath(o)}>{o.shopName ?? "Xem chi tiết"}</a>}
               {o.rating ? <span> · <Icon name="star" size={12} /> {o.rating.toFixed(1)}</span> : null}
             </td>
             <td className="num">

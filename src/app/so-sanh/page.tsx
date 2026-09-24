@@ -1,3 +1,4 @@
+import { productPath } from "@/lib/slug";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PLATFORMS, vnd } from "@/lib/format";
@@ -28,10 +29,10 @@ export default async function ComparePage() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={g.image ?? ""} alt="" width={72} height={72} />
                 <div className="gap-main">
-                  <Link href={`/product/${cheapest.id}`} className="watch-name">{g.name}</Link>
+                  <Link href={productPath(cheapest)} className="watch-name">{g.name}</Link>
                   <div className="gap-offers">
                     {g.offers.map((o, i) => (
-                      <a key={o.id} href={`/product/${o.id}`} className={`gap-offer${i === 0 ? " best" : ""}`}>
+                      <a key={o.id} href={productPath(o)} className={`gap-offer${i === 0 ? " best" : ""}`}>
                         <span className="dot" style={{ background: PLATFORMS[o.platform]?.color }} aria-hidden="true" />
                         {PLATFORMS[o.platform]?.label} <b>{vnd(o.price)}</b>
                       </a>

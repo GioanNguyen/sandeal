@@ -1,3 +1,4 @@
+import { productPath } from "@/lib/slug";
 import { and, desc, eq, gte, ilike, inArray, isNull, lte, notExists, or, sql, type SQL } from "drizzle-orm";
 import { products, sentDeals, subscriptions, users, vouchers, type Product, type Subscription } from "@/db/schema";
 import { signedFor } from "@/lib/auth";
@@ -37,7 +38,7 @@ function digestEmail(deals: Product[], userId: number) {
     .map(
       (p) => `<tr>
   <td style="padding:10px 0;border-bottom:1px solid #f1e3da">
-    <a href="${site}/product/${p.id}" style="color:#1c1a19;text-decoration:none;font-weight:600">${escapeHtml(p.name)}</a><br>
+    <a href="${site}${productPath(p)}" style="color:#1c1a19;text-decoration:none;font-weight:600">${escapeHtml(p.name)}</a><br>
     <span style="color:#5b6170;font-size:13px">${PLATFORMS[p.platform]?.label ?? p.platform} · giảm thật ${Math.round(p.realDropPct)}% so với 30 ngày</span>
   </td>
   <td style="padding:10px 0 10px 12px;border-bottom:1px solid #f1e3da;text-align:right;white-space:nowrap">

@@ -66,3 +66,8 @@ src/adapters/           Nguồn dữ liệu
 src/worker/             sync, notify (email), telegram, conversions, scheduler
 src/app/                Trang & API
 ```
+
+### SEO (nhóm 10)
+- Đường dẫn sản phẩm dạng `/product/ten-san-pham-12`. Link cũ `/product/12` tự chuyển 301 sang link mới (middleware → `/api/p/12`).
+- Trang tổng hợp tự động `/top` và `/top/<slug>` (theo loại sản phẩm, danh mục, tầm giá) – chỉ gồm món đang giảm thật, có dữ liệu có cấu trúc ItemList + FAQ, nằm trong `sitemap.xml`.
+- Nhớ đặt `SITE_URL` là tên miền thật khi triển khai để thẻ canonical và sitemap đúng.

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { siteUrl } from "@/lib/mail";
 import { calcVouchers, compareOffers, dealsByIds, getProduct, similarDeals, soonestVoucher } from "@/lib/queries";
@@ -17,7 +17,7 @@ import { RecordView } from "@/components/Personal";
 import { SaveButton } from "@/components/Saved";
 import { ShareButtons } from "@/components/ShareButtons";
 import { Freshness, ShopBadge } from "@/components/Trust";
-import { slugify } from "@/lib/slug";
+import { productIdFromParam, productPath, slugify } from "@/lib/slug";
 import { DealGrid } from "@/components/DealGrid";
 import { PLATFORMS, vnd } from "@/lib/format";
 import { Icon } from "@/components/Icon";
@@ -30,14 +30,14 @@ export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ id: string }>; searchParams?: Promise<{ watch?: string; msg?: string; moi?: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const p = await getProduct(Number((await params).id));
+  const p = await getProduct(productIdFromParam((await params).id));
   if (!p) return {};
-  const title = `${p.name} giá ${vnd(p.price)} – lịch sử giá ${PLATFORMS[p.platform]?.label ?? p.platform}`;
+  const title = `Lịch sử giá ${p.name} – có đang rẻ thật? (${vnd(p.price)}, ${PLATFORMS[p.platform]?.label ?? p.platform})`;
   const description = `Giá hiện tại ${vnd(p.price)}${p.realDropPct >= 1 ? `, rẻ hơn ${Math.round(p.realDropPct)}% so với giá 30 ngày` : ""}. Xem biểu đồ giá 90 ngày và nhận báo khi giá giảm.`;
   return {
     title,
     description,
-    alternates: { canonical: `/product/${p.id}` },
+    alternates: { canonical: productPath(p) },
     openGraph: { title, description, type: "website" },
     twitter: { card: "summary_large_image", title, description },
   };
@@ -46,8 +46,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ProductPage({ params, searchParams }: Props) {
   const { id } = await params;
   const sp = (await searchParams) ?? {};
-  const [p, user] = await Promise.all([getProduct(Number(id)), getCurrentUser()]);
+  const [p, user] = await Promise.all([getProduct(productIdFromParam(id)), getCurrentUser()]);
   if (!p) notFound();
+  // Đường dẫn cũ /product/12 hoặc tên đã đổi -> chuyển hẳn (301) sang đường dẫn có tên, giữ nguyên tham số
+  const canonical = productPath(p);
+  if (`/product/${decodeURIComponent(id)}` !== canonical) {
+    const q = new URLSearchParams(Object.entries(sp).filter(([, v]) => typeof v === "string") as [string, string][]).toString();
+    permanentRedirect(q ? `${canonical}?${q}` : canonical);
+  }
   const [similarAll, offers, pv, votes, cheaper, alsoRaw] = await Promise.all([
     similarDeals(p, 10), compareOffers(p), calcVouchers(p.platform), voteSummary(p.id, user?.id), cheaperSimilar(p, 5), alsoViewed(p.id, 6),
   ]);
@@ -81,7 +87,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
       price: p.price,
       priceCurrency: "VND",
       availability: "https://schema.org/InStock",
-      url: `${siteUrl()}/product/${p.id}`,
+      url: `${siteUrl()}${productPath(p)}`,
       seller: { "@type": "Organization", name: platformLabel },
     },
   };
@@ -127,7 +133,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
             price={p.price}
             buyHref={`/go/${p.id}`}
             buyLabel={`Mua trên ${platformLabel}`}
-            cheaperElsewhere={offers.length >= 2 && offers[0].id !== p.id ? { label: PLATFORMS[offers[0].platform]?.label ?? offers[0].platform, save: p.price - offers[0].price, href: `/product/${offers[0].id}` } : null}
+            cheaperElsewhere={offers.length >= 2 && offers[0].id !== p.id ? { label: PLATFORMS[offers[0].platform]?.label ?? offers[0].platform, save: p.price - offers[0].price, href: productPath(offers[0]) } : null}
           />
 
           {freshDrop && (
@@ -156,7 +162,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
             <Freshness at={p.lastSeenAt} long />
           </div>
 
-          <ShareButtons url={`${siteUrl()}/product/${p.id}`} title={`${p.name} – ${vnd(p.price)} trên Săn Deal`} />
+          <ShareButtons url={`${siteUrl()}${productPath(p)}`} title={`${p.name} – ${vnd(p.price)} trên Săn Deal`} />
 
           {offers.length >= 2 && (
             <section className="panel" style={{ marginTop: 20 }}>

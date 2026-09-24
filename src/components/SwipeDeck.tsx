@@ -1,4 +1,5 @@
 "use client";
+import { productPath } from "@/lib/slug";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DealRow } from "@/lib/queries";
@@ -187,7 +188,7 @@ export function SwipeDeck() {
                 </div>
                 {saving >= 1000 && <span className="swipe-save"><Icon name="shield" size={14} /> Rẻ hơn thường ngày {vnd(saving)}</span>}
                 {top.withVoucher && <span className="swipe-voucher"><Icon name="ticket" size={14} /> Chỉ còn <b>{vnd(top.withVoucher.price)}</b>{top.withVoucher.code ? <> với mã <code>{top.withVoucher.code}</code></> : null}</span>}
-                <Link href={`/product/${top.id}`} className="swipe-more" draggable={false}>Xem chi tiết & lịch sử giá <Icon name="arrowRight" size={14} /></Link>
+                <Link href={productPath(top)} className="swipe-more" draggable={false}>Xem chi tiết & lịch sử giá <Icon name="arrowRight" size={14} /></Link>
               </div>
             </div>
           );

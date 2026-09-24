@@ -1,4 +1,5 @@
 "use client";
+import { productPath } from "@/lib/slug";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { DealRow } from "@/lib/queries";
@@ -96,7 +97,7 @@ export function MysteryDeal({ deal: p, day, nextAt }: { deal: DealRow; day: stri
               <span className="mys-q" aria-hidden="true">?</span>
               <span className="mys-tap">Chạm để lật</span>
             </button>
-            <Link href={`/product/${p.id}`} className="mys-face mys-front" aria-hidden={!open} tabIndex={-1}>
+            <Link href={productPath(p)} className="mys-face mys-front" aria-hidden={!open} tabIndex={-1}>
               <CardImage src={p.imageUrl} />
               <span className="mys-drop">−{Math.round(p.realDropPct)}%<small>giảm thật</small></span>
             </Link>
@@ -113,7 +114,7 @@ export function MysteryDeal({ deal: p, day, nextAt }: { deal: DealRow; day: stri
           {open ? (
             <div className="mys-info" key="open">
               <span className="mys-tag"><Icon name="check" size={13} /> Đã mở · {platform}</span>
-              <Link href={`/product/${p.id}`} className="mys-name">{p.name}</Link>
+              <Link href={productPath(p)} className="mys-name">{p.name}</Link>
               <div className="mys-price">
                 <b className="price">{vnd(p.price)}</b>
                 {p.originalPrice && p.originalPrice > p.price ? <s>{vnd(p.originalPrice)}</s> : null}
@@ -124,7 +125,7 @@ export function MysteryDeal({ deal: p, day, nextAt }: { deal: DealRow; day: stri
                   <span className="mys-perk voucher"><Icon name="ticket" size={14} /> Còn <b>{vnd(p.withVoucher.price)}</b>{p.withVoucher.code ? <> với mã <code>{p.withVoucher.code}</code></> : null}</span>
                 )}
               </div>
-              <Link href={`/product/${p.id}`} className="btn btn-primary mys-go">Xem deal ngay <Icon name="arrowRight" size={16} /></Link>
+              <Link href={productPath(p)} className="btn btn-primary mys-go">Xem deal ngay <Icon name="arrowRight" size={16} /></Link>
             </div>
           ) : (
             <div className="mys-info" key="closed">

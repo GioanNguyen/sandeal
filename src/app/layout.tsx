@@ -86,6 +86,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <Link href="/kiem-tra-gia">Kiểm tra giá thật</Link>
             <Link href="/tinh-gia">Máy tính giá cuối cùng</Link>
             <Link href="/so-sanh">So sánh giá giữa các sàn</Link>
+            <Link href="/top">Top deal tuần này</Link>
             <Link href="/bo-suu-tap">Bộ sưu tập deal</Link>
             <Link href="/cach-hoat-dong">Săn Deal hoạt động thế nào</Link>
             <Link href="/tien-ich">Tiện ích trình duyệt</Link>

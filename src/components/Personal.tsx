@@ -1,4 +1,5 @@
 "use client";
+import { productPath } from "@/lib/slug";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { DealRow } from "@/lib/queries";
@@ -54,7 +55,7 @@ export function RecentlyViewed() {
           const v = byId.get(p.id);
           const diff = v ? p.price - v.price : 0;
           return (
-            <Link key={p.id} href={`/product/${p.id}`} className={`drop-item${diff < 0 ? " went-down" : ""}`}>
+            <Link key={p.id} href={productPath(p)} className={`drop-item${diff < 0 ? " went-down" : ""}`}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={p.imageUrl ?? ""} alt="" width={64} height={64} loading="lazy" />
               <span className="drop-info">

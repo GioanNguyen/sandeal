@@ -1,3 +1,4 @@
+import { productPath } from "@/lib/slug";
 import { and, eq, isNull, lt, lte, or } from "drizzle-orm";
 import { products, users, watches } from "@/db/schema";
 import { unsubscribeUrl } from "@/lib/auth";
@@ -29,14 +30,14 @@ export async function notifyWatchers(now = new Date()): Promise<number> {
       `Giảm giá: ${product.name} còn ${vnd(product.price)}`,
       layout(`<p><b>${escapeHtml(product.name)}</b> đang có giá <b style="color:#d0390f">${vnd(product.price)}</b>
         (mục tiêu của bạn: ${vnd(watch.targetPrice)}).</p>
-        <p>${button(`${site}/go/${product.id}`, "Mua ngay")} &nbsp; <a href="${site}/product/${product.id}">Xem lịch sử giá</a></p>
+        <p>${button(`${site}/go/${product.id}`, "Mua ngay")} &nbsp; <a href="${site}${productPath(product)}">Xem lịch sử giá</a></p>
         <p style="font-size:13px"><a href="${unsubscribeUrl(watch.id)}" style="color:#5b6170">Huỷ theo dõi sản phẩm này</a> ·
         <a href="${site}/account" style="color:#5b6170">Quản lý theo dõi</a></p>`),
     );
     await sendPush(watch.userId, {
       title: `Giảm giá: còn ${vnd(product.price)}`,
       body: `${product.name} đã chạm mức bạn muốn (${vnd(watch.targetPrice)}).`,
-      url: `/product/${product.id}`,
+      url: productPath(product),
       image: product.imageUrl?.startsWith("http") ? product.imageUrl : undefined,
       tag: `watch-${watch.id}`,
     });

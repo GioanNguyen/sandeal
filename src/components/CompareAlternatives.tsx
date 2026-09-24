@@ -1,3 +1,4 @@
+import { productPath } from "@/lib/slug";
 import Link from "next/link";
 import type { DealRow } from "@/lib/queries";
 import { PLATFORMS, vnd } from "@/lib/format";
@@ -32,7 +33,7 @@ export function CompareAlternatives({ current, others }: { current: DealRow; oth
               <th scope="col"><span className="sr-only">Tiêu chí</span></th>
               {cols.map((p, i) => (
                 <th key={p.id} scope="col" className={i === 0 ? "is-current" : undefined}>
-                  <Link href={`/product/${p.id}`} className="alt-head" aria-current={i === 0 ? "page" : undefined}>
+                  <Link href={productPath(p)} className="alt-head" aria-current={i === 0 ? "page" : undefined}>
                     <span className="alt-img"><CardImage src={p.imageUrl} /></span>
                     <span className="alt-name">{p.name}</span>
                     <span className="alt-meta">{PLATFORMS[p.platform]?.label}{p.shopType === "mall" ? " · Mall" : ""}{i === 0 ? " · đang xem" : ""}</span>
@@ -66,7 +67,7 @@ export function CompareAlternatives({ current, others }: { current: DealRow; oth
                   {i === 0 ? (
                     <a className="btn btn-primary btn-sm" href={`/go/${p.id}`} target="_blank" rel="nofollow sponsored noopener">Mua <Icon name="external" size={13} /></a>
                   ) : (
-                    <Link className="btn btn-ghost btn-sm" href={`/product/${p.id}`}>Xem món này</Link>
+                    <Link className="btn btn-ghost btn-sm" href={productPath(p)}>Xem món này</Link>
                   )}
                 </td>
               ))}

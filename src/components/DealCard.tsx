@@ -1,3 +1,4 @@
+import { productPath } from "@/lib/slug";
 import Link from "next/link";
 import type { DealRow } from "@/lib/queries";
 import { PLATFORMS, vnd } from "@/lib/format";
@@ -39,7 +40,7 @@ export function DealCard({ p }: { p: DealRow; isLowest?: boolean }) {
 
   return (
     <article className={`deal${veryFresh ? " deal-fresh" : ""}${p.recordLow ? " deal-record" : ""}`}>
-      <Link href={`/product/${p.id}`} className="deal-link">
+      <Link href={productPath(p)} className="deal-link">
         <div className={`deal-media${p.recordLow ? " has-record" : ""}`}>
           <CardImage src={p.imageUrl} hover={p.images?.[0]} />
           <PlatformBadge platform={p.platform} />

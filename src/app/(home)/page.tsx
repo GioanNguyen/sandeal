@@ -1,3 +1,5 @@
+import { roundupDefs } from "@/lib/roundups";
+import { productPath } from "@/lib/slug";
 import { ViewToggle } from "@/components/ViewToggle";
 import Form from "next/form";
 import Link from "next/link";
@@ -54,7 +56,10 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
     Promise.all(QUICK.map((c) => (sp[c.param] === c.value ? Promise.resolve(0) : countDeals({ ...filter, ...c.patch })))),
   ]);
   if (sp.q && page === 1) logSearch(sp.q, total).catch(() => {});
-  const mystery = isLanding ? await mysteryDeal(spotlight.map((d) => d.id), now) : null;
+  const [mystery, tops] = await Promise.all([
+    isLanding ? mysteryDeal(spotlight.map((d) => d.id), now) : Promise.resolve(null),
+    isLanding ? roundupDefs().then((d) => [...d.filter((x) => x.kind === "type"), ...d.filter((x) => x.kind !== "type")]) : Promise.resolve([]),
+  ]);
   const pages = Math.ceil(total / PAGE_SIZE);
   // Query cho "tải thêm" (giữ bộ lọc hiện tại, bỏ page)
   const moreQuery = new URLSearchParams(Object.entries({ q: sp.q, platform: sp.platform, category: sp.category, min: sp.min, max: sp.max, shop: sp.shop, fresh: sp.fresh, vc: sp.vc, sort: sp.sort }).filter(([, v]) => v) as [string, string][]).toString();
@@ -134,7 +139,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
           </div>
           <div className="drop-strip">
             {dropped.map((p) => (
-              <Link key={p.id} href={`/product/${p.id}`} className="drop-item">
+              <Link key={p.id} href={productPath(p)} className="drop-item">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.imageUrl ?? ""} alt="" width={64} height={64} loading="lazy" />
                 <span className="drop-info">
@@ -174,6 +179,20 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
                 <b>{b.label}</b>
                 <span>giảm thật, xếp theo mức giảm</span>
               </Link>
+            ))}
+          </nav>
+        </section>
+      )}
+
+      {isLanding && tops.length > 0 && (
+        <section className="section" aria-labelledby="top-head">
+          <div className="section-head">
+            <h2 id="top-head"><Icon name="trophy" size={22} /> Bảng xếp hạng tuần này</h2>
+            <Link href="/top">Xem tất cả <Icon name="arrowRight" size={16} /></Link>
+          </div>
+          <nav className="chips wrap" aria-label="Bảng xếp hạng deal">
+            {tops.slice(0, 8).map((t) => (
+              <Link key={t.slug} className="chip" href={`/top/${t.slug}`}>{t.title.replace(" tuần này", "")} <span className="muted">{t.count}</span></Link>
             ))}
           </nav>
         </section>

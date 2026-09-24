@@ -1,4 +1,5 @@
 "use client";
+import { productPath } from "@/lib/slug";
 import { useState } from "react";
 import Link from "next/link";
 import { vnd } from "@/lib/format";
@@ -47,7 +48,7 @@ export function WatchList({ initial }: { initial: WatchItem[] }) {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={w.product.imageUrl ?? ""} alt="" width={64} height={64} />
               <div className="watch-main">
-                <Link href={`/product/${w.product.id}`} className="watch-name">{w.product.name}</Link>
+                <Link href={productPath(w.product)} className="watch-name">{w.product.name}</Link>
                 <div className="watch-prices">
                   <span>Hiện tại <b>{vnd(w.product.price)}</b></span>
                   {editing === w.id ? (

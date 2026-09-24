@@ -1,4 +1,5 @@
 "use client";
+import { productPath } from "@/lib/slug";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DealRow } from "@/lib/queries";
@@ -69,7 +70,7 @@ export function Spotlight({ items }: { items: DealRow[] }) {
           return (
             <Link
               key={p.id}
-              href={`/product/${p.id}`}
+              href={productPath(p)}
               className="spot-slide"
               aria-roledescription="slide"
               aria-label={`${i + 1}/${items.length}: ${p.name}`}

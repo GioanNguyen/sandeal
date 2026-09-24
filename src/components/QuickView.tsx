@@ -1,4 +1,5 @@
 "use client";
+import { productPath } from "@/lib/slug";
 import { useEffect, useRef, useState } from "react";
 import type { Summary } from "@/lib/summary";
 import { PLATFORMS, vnd } from "@/lib/format";
@@ -101,8 +102,8 @@ export function QuickView({ id, name }: { id: number; name: string }) {
               </div>
             )}
             <div className="qv-actions">
-              <a className="btn btn-ghost" href={`/product/${p.id}`}>Xem chi tiết</a>
-              <a className="btn btn-ghost" href={`/product/${p.id}#theo-doi`}><Icon name="bell" size={15} /> Báo khi giảm</a>
+              <a className="btn btn-ghost" href={productPath(p)}>Xem chi tiết</a>
+              <a className="btn btn-ghost" href={`${productPath(p)}#theo-doi`}><Icon name="bell" size={15} /> Báo khi giảm</a>
               <a className="btn btn-primary" href={`/go/${p.id}`} target="_blank" rel="nofollow sponsored noopener">Mua trên {PLATFORMS[p.platform]?.label} <Icon name="external" size={14} /></a>
             </div>
           </div>

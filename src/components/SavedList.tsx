@@ -1,4 +1,5 @@
 "use client";
+import { productPath } from "@/lib/slug";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { DealRow } from "@/lib/queries";
@@ -59,7 +60,7 @@ export function SavedList() {
               const p = items.find((x) => x.id === d.id);
               return p ? (
                 <li key={d.id}>
-                  <Link href={`/product/${d.id}`}>{p.name}</Link>
+                  <Link href={productPath(p)}>{p.name}</Link>
                   <span><s>{vnd(d.from)}</s> → <b>{vnd(d.to)}</b> <em>−{vnd(d.from - d.to)}</em></span>
                 </li>
               ) : null;

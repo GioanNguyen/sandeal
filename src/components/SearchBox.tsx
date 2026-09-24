@@ -1,4 +1,5 @@
 "use client";
+import { productPath } from "@/lib/slug";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { PLATFORMS, vnd } from "@/lib/format";
@@ -108,7 +109,7 @@ export function SearchBox() {
             <div className="sg-group">
               <p className="sg-title">Sản phẩm</p>
               {data.products.map((p) => (
-                <Link key={p.id} id={opt()} role="option" aria-selected="false" className="sg-product" href={`/product/${p.id}`}>
+                <Link key={p.id} id={opt()} role="option" aria-selected="false" className="sg-product" href={productPath(p)}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={p.imageUrl ?? ""} alt="" width={44} height={44} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
                   <span className="sg-name"><span className="sg-n"><Mark text={p.name} term={term} /></span><small>{PLATFORMS[p.platform]?.label}</small></span>
