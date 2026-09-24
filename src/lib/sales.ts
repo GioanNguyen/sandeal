@@ -78,3 +78,13 @@ export function saleTomorrow(now = new Date()): SaleEvent | undefined {
 
 /** Khung giờ flash sale thường gặp (có thể thay đổi theo sàn và từng đợt) */
 export const FLASH_SLOTS = ["00:00", "09:00", "12:00", "15:00", "18:00", "21:00"];
+
+/** Các đợt sale có ngày nằm trong khoảng [from, to] (dùng để ghi chú lên biểu đồ giá) */
+export function salesBetween(from: Date, to: Date, majorOnly = true): SaleEvent[] {
+  const a = vnParts(from), b = vnParts(to);
+  const out: SaleEvent[] = [];
+  for (let y = a.y, m = a.m; y < b.y || (y === b.y && m <= b.m); m === 12 ? (y++, (m = 1)) : m++) {
+    out.push(...eventsOfMonth(y, m).filter((e) => e.end >= from && e.start <= to && (!majorOnly || e.kind !== "payday")));
+  }
+  return out.sort((x, y) => x.start.getTime() - y.start.getTime());
+}

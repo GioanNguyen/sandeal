@@ -3,8 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { siteUrl } from "@/lib/mail";
-import { calcVouchers, compareOffers, getProduct, similarDeals, soonestVoucher } from "@/lib/queries";
-import { alsoViewed, cheaperSimilar } from "@/lib/discovery";
+import { calcVouchers, compareOffers, dealsByIds, getProduct, similarDeals, soonestVoucher } from "@/lib/queries";
+import { alsoViewed, alternativesFor, cheaperSimilar } from "@/lib/discovery";
+import { buyAdvice } from "@/lib/advice";
+import { AdviceBox } from "@/components/AdviceBox";
+import { CompareAlternatives } from "@/components/CompareAlternatives";
 import { UrgencyTimer } from "@/components/UrgencyTimer";
 import { bestPlan } from "@/lib/voucher";
 import { VoteBox } from "@/components/VoteBox";
@@ -14,7 +17,6 @@ import { RecordView } from "@/components/Personal";
 import { SaveButton } from "@/components/Saved";
 import { ShareButtons } from "@/components/ShareButtons";
 import { Freshness, ShopBadge } from "@/components/Trust";
-import { timeWeightedMedian } from "@/lib/score";
 import { slugify } from "@/lib/slug";
 import { DealGrid } from "@/components/DealGrid";
 import { PLATFORMS, vnd } from "@/lib/format";
@@ -49,6 +51,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const [similarAll, offers, pv, votes, cheaper, alsoRaw] = await Promise.all([
     similarDeals(p, 10), compareOffers(p), calcVouchers(p.platform), voteSummary(p.id, user?.id), cheaperSimilar(p, 5), alsoViewed(p.id, 6),
   ]);
+  const [alts, [currentRow]] = await Promise.all([alternativesFor(p, 2), dealsByIds([p.id])]);
   // Không lặp lại món đã có ở mục trên, bỏ bản sao cùng sản phẩm ở sàn khác (đã có ở "So sánh giữa các sàn")
   const offerIds = new Set(offers.map((o) => o.id));
   const also = alsoRaw.filter((d) => !offerIds.has(d.id));
@@ -64,12 +67,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const plan = bestPlan({ platform: p.platform, subtotal: p.price, shipping: 30_000 }, pv);
   const afterCodes = p.price - plan.discount - plan.cashback;
 
-  const prices = p.prices.map((x) => x.price);
-  const low = prices.length ? Math.min(...prices) : p.price;
-  const med = p.prices.length ? timeWeightedMedian(p.prices, new Date()) : p.price;
-  const trackedDays = p.prices.length ? (Date.now() - p.prices[0].capturedAt.getTime()) / 86_400_000 : 0;
-  const isNewTrack = trackedDays < 7;
-  const good = !isNewTrack && (p.price <= low || p.realDropPct >= 10);
+  const advice = buyAdvice(p.prices, p.price);
   const platformLabel = PLATFORMS[p.platform]?.label ?? p.platform;
 
   const jsonLd = {
@@ -124,42 +122,13 @@ export default async function ProductPage({ params, searchParams }: Props) {
           {sp.moi && (
             <p className="form-msg save" role="status"><Icon name="check" size={16} /> Đã thêm sản phẩm vào danh sách theo dõi giá.</p>
           )}
-          {isNewTrack ? (
-            <div className="verdict wait" role="status">
-              <Icon name="clock" size={22} />
-              <div>
-                <b>Mới bắt đầu theo dõi giá</b>
-                <p>
-                  Chúng tôi theo dõi sản phẩm này từ {p.prices[0]?.capturedAt.toLocaleDateString("vi-VN") ?? "hôm nay"}, cần khoảng 7 ngày để
-                  biết giá hiện tại có thật sự rẻ. Đặt cảnh báo bên dưới để được báo khi giá giảm.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className={`verdict ${good ? "good" : "wait"}`} role="status">
-              <Icon name={good ? "shield" : "alert"} size={22} />
-              <div>
-                <b>{good ? "Giá tốt, có thể mua ngay" : "Chưa phải giá tốt nhất"}</b>
-                <p>
-                  {good
-                    ? `Rẻ hơn ${Math.max(0, Math.round(((med - p.price) / med) * 100))}% so với giá thường ngày (90 ngày qua).`
-                    : `Từng có giá ${vnd(low)}. Đặt cảnh báo bên dưới để được báo khi giá giảm.`}
-                </p>
-                {offers.length >= 2 && offers[0].id !== p.id && (
-                  <p>
-                    <b>{PLATFORMS[offers[0].platform]?.label}</b> đang bán rẻ hơn {vnd(p.price - offers[0].price)},{" "}
-                    <a href={`/product/${offers[0].id}`} style={{ color: "inherit", textDecoration: "underline" }}>xem ngay</a>.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="kpis">
-            <div className="kpi"><span>Giá hiện tại</span><b>{vnd(p.price)}</b></div>
-            <div className="kpi"><span>Thấp nhất 90 ngày</span><b className="save">{vnd(low)}</b></div>
-            <div className="kpi"><span>Giá thường ngày</span><b>{vnd(med)}</b></div>
-          </div>
+          <AdviceBox
+            a={advice}
+            price={p.price}
+            buyHref={`/go/${p.id}`}
+            buyLabel={`Mua trên ${platformLabel}`}
+            cheaperElsewhere={offers.length >= 2 && offers[0].id !== p.id ? { label: PLATFORMS[offers[0].platform]?.label ?? offers[0].platform, save: p.price - offers[0].price, href: `/product/${offers[0].id}` } : null}
+          />
 
           {freshDrop && (
             <p className="fresh-line"><span className="pulse-dot" aria-hidden="true" /> Giá vừa giảm lúc {freshDrop.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Ho_Chi_Minh" })} hôm nay. Giá sàn có thể đổi bất cứ lúc nào.</p>
@@ -198,12 +167,12 @@ export default async function ProductPage({ params, searchParams }: Props) {
           )}
           <section className="panel" style={{ marginTop: 20 }}>
             <h2><Icon name="trendingDown" /> Lịch sử giá 90 ngày</h2>
-            <PriceChart points={p.prices} current={p.price} />
+            <PriceChart points={p.prices} current={p.price} usual={advice.verdict === "new" ? undefined : advice.usual} sales={advice.sales} />
           </section>
           <section className="panel" id="theo-doi">
             <h2><Icon name="bell" /> Báo tôi khi giá giảm</h2>
             <p className="muted" style={{ margin: 0 }}>Nhận email khi giá xuống bằng hoặc thấp hơn mức bạn đặt. Tối đa 1 email mỗi ngày.</p>
-            <WatchForm productId={p.id} suggested={Math.round((low * 0.98) / 1000) * 1000} userEmail={user?.email} initial={{ status: sp.watch, msg: sp.msg }} />
+            <WatchForm productId={p.id} suggested={Math.round((advice.low * 0.98) / 1000) * 1000} userEmail={user?.email} initial={{ status: sp.watch, msg: sp.msg }} />
           </section>
         </div>
       </div>
@@ -218,6 +187,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
         </div>
         <a className="btn btn-primary" href={`/go/${p.id}`} target="_blank" rel="nofollow sponsored noopener">Mua ngay <Icon name="external" size={14} /></a>
       </div>
+
+      {alts.length > 0 && currentRow && <CompareAlternatives current={currentRow} others={alts} />}
 
       {cheaper.length > 0 && (
         <section className="section" aria-labelledby="cheap-head">

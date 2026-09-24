@@ -1242,3 +1242,61 @@ html[data-view="list"] .deal-grid .fresh-tag .pulse-dot { margin-top: 3px; flex:
 .main-nav.is-compact a:last-child > span { left: auto; right: 0; transform: translateY(-4px); }
 .main-nav.is-compact a:last-child:hover > span, .main-nav.is-compact a:last-child:focus-visible > span { transform: none; }
 @media (hover: none) { .main-nav a:hover > span { opacity: 0 !important; visibility: hidden !important; } }
+
+/* ===== Nhóm 9: giúp khách quyết định ===== */
+/* Ô "Nên mua ngay hay chờ?" */
+.advice { --a: var(--save); --a-soft: var(--save-soft); margin: 16px 0; padding: 16px 18px; border-radius: 16px; border: 1.5px solid color-mix(in srgb, var(--a) 40%, var(--border)); background: linear-gradient(180deg, var(--a-soft), var(--surface) 70%); }
+.advice.consider { --a: #b45309; --a-soft: var(--warn-soft); }
+.advice.wait { --a: #be123c; --a-soft: #fff1f2; }
+.advice.new { --a: var(--muted); --a-soft: var(--surface-2); }
+@media (prefers-color-scheme: dark) { .advice.consider { --a: #fbbf24; } .advice.wait { --a: #fb7185; --a-soft: #3b1418; } }
+.advice-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.advice-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: #fff; background: var(--a); }
+.advice.new .advice-icon { background: var(--muted); }
+.advice-head small { display: block; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.advice-head h2 { margin: 0; font-size: 20px; line-height: 1.25; color: var(--a); }
+.advice-chip { margin-left: auto; font-size: 12px; font-weight: 800; color: var(--a); background: var(--surface); border: 1px solid color-mix(in srgb, var(--a) 35%, var(--border)); padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+.gauge { margin: 30px 4px 6px; }
+.gauge-track { position: relative; height: 10px; border-radius: 999px; background: linear-gradient(90deg, #10b981, #facc15 50%, #f43f5e); }
+.gauge-now { position: absolute; top: 50%; width: 20px; height: 20px; border-radius: 50%; transform: translate(-50%, -50%); background: var(--surface); border: 4px solid var(--text); box-shadow: 0 2px 6px rgb(0 0 0 / 25%); }
+.gauge-now b { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); padding: 2px 8px; border-radius: 6px; background: var(--text); color: var(--bg); font-size: 12px; white-space: nowrap; }
+.gauge-usual { position: absolute; top: -4px; width: 2px; height: 18px; background: var(--text); opacity: .55; transform: translateX(-50%); }
+.gauge-usual i { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); font-style: normal; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.gauge-ends { display: flex; justify-content: space-between; gap: 12px; margin-top: 22px; font-size: 12px; color: var(--muted); }
+.gauge-ends b { color: var(--text); }
+.gauge-ends b.save { color: var(--save); }
+.advice-reasons { margin: 12px 0 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; }
+.advice-reasons .warn-line a { color: var(--primary); font-weight: 600; }
+.advice-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+
+/* Ghi chú trên biểu đồ giá */
+.pc-sale rect { fill: color-mix(in srgb, #7c3aed 12%, transparent); }
+.pc-sale text { fill: #7c3aed; }
+@media (prefers-color-scheme: dark) { .pc-sale text { fill: #c4b5fd; } }
+.pc-usual line { stroke: var(--muted); stroke-width: 1.5; }
+.pc-usual text { fill: var(--muted); }
+.pc-low-label { paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+
+/* Món này hay món kia? */
+.alt-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.alt-table { width: 100%; min-width: 620px; border-collapse: collapse; font-size: 14px; }
+.alt-table th, .alt-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+.alt-table tbody th, .alt-table tfoot th { position: sticky; left: 0; z-index: 1; background: var(--surface); color: var(--muted); font-weight: 600; font-size: 13px; width: 170px; }
+.alt-table thead th { vertical-align: top; width: calc((100% - 170px) / 3); }
+.alt-table .is-current { background: color-mix(in srgb, var(--primary) 5%, var(--surface)); }
+.alt-head { display: grid; gap: 6px; color: inherit; }
+.alt-img { position: relative; display: block; width: 72px; height: 72px; border-radius: 12px; overflow: hidden; background: var(--surface-2); }
+.alt-name { font-weight: 700; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.alt-head:hover .alt-name { color: var(--primary); }
+.alt-meta { font-size: 12px; color: var(--muted); font-weight: 500; }
+.alt-table td svg { vertical-align: -2px; }
+.alt-table td.best { color: var(--save); font-weight: 800; background: var(--save-soft); }
+.alt-table td.best svg { margin-left: 4px; }
+.alt-table tfoot td, .alt-table tfoot th { border-bottom: 0; }
+@media (max-width: 640px) {
+  .alt-table { min-width: 560px; font-size: 13px; }
+  .alt-table tbody th, .alt-table tfoot th { width: 110px; }
+  .alt-img { width: 56px; height: 56px; }
+  .advice-chip { margin-left: 0; }
+  .advice-head h2 { font-size: 18px; }
+}

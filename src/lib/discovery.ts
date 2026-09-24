@@ -144,3 +144,25 @@ export async function mysteryDeal(excludeIds: number[] = [], now = new Date()): 
   const [deal] = await enrichDeals([pool[h % pool.length]]);
   return { deal, day, nextAt: nextVnMidnight(now).toISOString() };
 }
+
+/** Món cùng loại để so sánh "Món này hay món kia?": cùng danh mục, khác nhóm sản phẩm (không phải cùng món ở sàn khác), trùng từ trong tên trước */
+export async function alternativesFor(p: Product, limit = 2): Promise<DealRow[]> {
+  await ensureMigrated();
+  if (!p.category) return [];
+  const words = p.name.toLowerCase().split(/\s+/).filter((w) => w.length >= 3).slice(0, 3);
+  const overlap = words.length
+    ? sql.join(words.map((w) => sql`(case when ${products.name} ilike ${"%" + w.replace(/[%_]/g, "") + "%"} then 1 else 0 end)`), sql` + `)
+    : sql`0`;
+  // Loại sản phẩm thường là 2 từ đầu ("Tai nghe", "Nồi chiên", "Kem chống"): bắt buộc trùng để không so nồi chiên với bình nước
+  const kind = p.name.split(/\s+/).slice(0, 2).join(" ").replace(/[%_]/g, "");
+  const rows = await db
+    .select()
+    .from(products)
+    .where(and(eq(products.category, p.category), ilike(products.name, `${kind}%`), sql`${products.id} <> ${p.id}`, p.groupKey ? sql`coalesce(${products.groupKey}, '') <> ${p.groupKey}` : undefined, sql`lower(${products.name}) <> ${p.name.toLowerCase()}`))
+    .orderBy(desc(overlap), desc(products.dealScore))
+    .limit(limit * 3);
+  // Mỗi tên chỉ lấy 1 (tránh 2 cột cùng một món ở 2 sàn)
+  const seen = new Set<string>();
+  const pick = rows.filter((r) => (seen.has(r.name.toLowerCase()) ? false : (seen.add(r.name.toLowerCase()), true))).slice(0, limit);
+  return enrichDeals(pick);
+}

@@ -18,6 +18,11 @@ const CATALOG: [string, string, number][] = [
   ["Máy hút bụi cầm tay", "Gia dụng", 1_790_000],
   ["Dầu gội thảo dược 500ml", "Làm đẹp", 159_000],
   ["Đồng hồ thông minh", "Điện tử", 1_490_000],
+  // Vài món cùng loại khác mẫu (để có "Món này hay món kia?" khi chạy thử)
+  ["Tai nghe nhét tai True Wireless", "Điện tử", 690_000],
+  ["Nồi chiên không dầu cỡ lớn 8L", "Gia dụng", 2_290_000],
+  ["Kem chống nắng dạng xịt", "Làm đẹp", 245_000],
+  ["Sạc dự phòng mini 10000mAh", "Điện tử", 320_000],
 ];
 const PLATFORMS: Platform[] = ["shopee", "lazada", "tiktok"];
 
