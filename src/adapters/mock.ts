@@ -68,6 +68,9 @@ export const mockAdapter: SourceAdapter = {
   name: "mock",
   /** Dữ liệu mẫu: tạo sản phẩm giả cho mọi link hợp lệ để thử tính năng dán link */
   async lookup(ref) {
+    // Trên server thật không bịa sản phẩm cho link Shopee/Lazada thật (tiện ích sẽ hiện giá giả).
+    // Muốn thử tính năng dán link bằng dữ liệu mẫu trên production thì đặt MOCK_LOOKUP=1.
+    if (process.env.NODE_ENV === "production" && process.env.MOCK_LOOKUP !== "1") return null;
     const r = rng([...ref.externalId].reduce((a, c) => a * 31 + c.charCodeAt(0), 7) % 100000);
     const [name, category, base] = CATALOG[Math.floor(r() * CATALOG.length)];
     const discountPct = Math.round(r() * 40);

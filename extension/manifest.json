@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Săn Deal – Lịch sử giá & giảm giá thật",
   "short_name": "Săn Deal",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Xem lịch sử giá, biết giảm giá thật hay ảo và sàn nào rẻ hơn ngay trên Shopee, Lazada, TikTok Shop.",
   "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" },
   "action": { "default_popup": "popup.html", "default_icon": { "16": "icons/16.png", "48": "icons/48.png" } },

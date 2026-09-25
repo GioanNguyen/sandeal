@@ -36,7 +36,7 @@
     .head button { margin-left: auto; background: rgb(255 255 255 / 20%); border: 0; color: #fff; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; font-size: 16px; }
     .body { padding: 12px; display: grid; gap: 10px; }
     .verdict { padding: 8px 10px; border-radius: 10px; font-weight: 700; }
-    .good { background: #dcfce7; color: #047857; } .wait { background: #fef3c7; color: #b45309; } .new { background: #eef2ff; color: #3730a3; }
+    .good { background: #dcfce7; color: #047857; } .wait { background: #fef3c7; color: #b45309; } .new { background: #eef2ff; color: #3730a3; } .warn { background: #fee2e2; color: #b91c1c; }
     .verdict small { display: block; font-weight: 400; color: #1c1a19; }
     .kpis { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; }
     .kpi { background: #fff7f2; border-radius: 8px; padding: 6px 8px; }
@@ -54,7 +54,7 @@
       .card { background: #1b1d22; color: #f2f3f5; border-color: #2d3139; }
       .kpi { background: #23262d; } .kpi span, .muted { color: #a1a7b3; }
       .btn { color: #f2f3f5; border-color: #2d3139; } .offer:hover { background: #23262d; }
-      .verdict small { color: #f2f3f5; } .good { background: #12301f; color: #34d399; } .wait { background: #3a2c0c; color: #fbbf24; } .new { background: #1e1b4b; color: #a5b4fc; }
+      .verdict small { color: #f2f3f5; } .good { background: #12301f; color: #34d399; } .wait { background: #3a2c0c; color: #fbbf24; } .new { background: #1e1b4b; color: #a5b4fc; } .warn { background: #3b1414; color: #fca5a5; }
       .offer.best { background: #12301f; }
     }`;
 
@@ -76,7 +76,7 @@
     const style = `<style>${CSS}</style>`;
     if (collapsed && state.kind === "found") {
       const p = state.data.product;
-      root.innerHTML = `${style}<button class="pill" id="open">Săn Deal · ${p.verdict === "good" ? "Giá tốt" : p.verdict === "new" ? "Đang theo dõi" : "Chưa tốt nhất"} · ${p.realDropPct >= 1 ? "giảm thật " + Math.round(p.realDropPct) + "%" : vnd(p.price)}</button>`;
+      root.innerHTML = `${style}<button class="pill" id="open">Săn Deal · ${p.sample ? "Dữ liệu mẫu · " : ""}${p.verdict === "good" ? "Giá tốt" : p.verdict === "new" ? "Đang theo dõi" : "Chưa tốt nhất"} · ${p.realDropPct >= 1 ? "giảm thật " + Math.round(p.realDropPct) + "%" : vnd(p.price)}</button>`;
       root.getElementById("open").onclick = () => { collapsed = false; chrome.storage.local.set({ collapsed }); render(state); };
       return;
     }
@@ -92,8 +92,14 @@
         ? `<div class="verdict new">Mới bắt đầu theo dõi<small>Cần khoảng 7 ngày dữ liệu để đánh giá.</small></div>`
         : `<div class="verdict wait">Chưa phải giá tốt nhất<small>Từng có giá ${vnd(p.low90)} trong 90 ngày.</small></div>`;
       const cheaper = offers.length > 1 && offers[0].id !== p.id ? offers[0] : null;
-      body = `${v}
+      const ago = (() => {
+        const m = Math.round((Date.now() - (p.priceAt || Date.now())) / 60000);
+        return m < 1 ? "vừa xong" : m < 60 ? `${m} phút trước` : m < 1440 ? `${Math.round(m / 60)} giờ trước` : `${Math.round(m / 1440)} ngày trước`;
+      })();
+      const sample = p.sample ? `<div class="verdict warn">Dữ liệu mẫu – không phải giá thật<small>Máy chủ Săn Deal đang chạy thử bằng dữ liệu mẫu, các con số bên dưới là giả.</small></div>` : "";
+      body = `${sample}${v}
         <div class="kpis"><div class="kpi"><span>Hiện tại</span><b>${vnd(p.price)}</b></div><div class="kpi"><span>Thấp nhất</span><b>${vnd(p.low90)}</b></div><div class="kpi"><span>Thường ngày</span><b>${vnd(p.usual)}</b></div></div>
+        <div class="muted">Giá Săn Deal cập nhật ${ago}. Giá trên trang có thể khác theo phân loại bạn chọn hoặc voucher của shop.</div>
         ${spark(p.history, p.price)}
         ${p.afterCodes < p.price ? `<div class="muted">Sau mã giảm tốt nhất: <b>${vnd(p.afterCodes)}</b> · <a target="_blank" href="${esc(links.calc)}">cách áp mã</a></div>` : ""}
         ${offers.length > 1 ? `<div class="offers">${offers.map((o, i) => `<a class="offer${i === 0 ? " best" : ""}" target="_blank" href="${esc(o.detail)}"><span>${LABEL[o.platform] || o.platform}${o.id === p.id ? " (đang xem)" : ""}</span><b>${vnd(o.price)}</b></a>`).join("")}</div>` : ""}

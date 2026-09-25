@@ -217,6 +217,19 @@ Sau đó chạy `sudo systemctl restart sandeal`. Để mở site cho mọi ngư
 - Trong lúc khoá, Google không vào được site nên sẽ không index trang nào.
 - Nên đặt mật khẩu mạnh. Chỉ bật khoá khi site đã có HTTPS, vì qua HTTP thường, mật khẩu được gửi đi không mã hoá.
 
+## Chuyển từ dữ liệu mẫu sang dữ liệu thật
+
+Khi `SOURCES=mock`, site chỉ hiện sản phẩm và giá **mẫu**. Để có giá thật:
+
+1. Điền khoá API affiliate vào `/opt/sandeal/.env`, rồi đổi `SOURCES` sang nguồn thật, ví dụ `SOURCES=shopee,accesstrade`.
+2. Xoá dữ liệu mẫu còn lại trong database:
+   ```bash
+   sudo -u postgres psql sandeal -c "DELETE FROM products WHERE external_id LIKE 'mock-%' OR name LIKE '%(dữ liệu mẫu #%'; DELETE FROM vouchers WHERE source = 'mock';"
+   ```
+3. Chạy `sudo systemctl restart sandeal`. Lần khởi động này sẽ đồng bộ giá thật từ sàn.
+
+Trên server thật, nguồn mẫu không tự tạo sản phẩm giả khi có người dán link hay dùng tiện ích. Nếu muốn thử tính năng này bằng dữ liệu mẫu, đặt `MOCK_LOOKUP=1`.
+
 ## Tiện ích trình duyệt (extension)
 
 File `san-deal-extension.zip` ở trang `/tien-ich` được đóng gói lúc build. Địa chỉ `SITE_URL` được ghi sẵn vào file này, nên sau khi đổi tên miền hoặc sửa `SITE_URL` trong `.env`, bạn cần chạy lại lệnh cập nhật để đóng gói lại:

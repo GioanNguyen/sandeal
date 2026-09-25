@@ -1,6 +1,7 @@
 import { productPath } from "@/lib/slug";
 import type { Product } from "@/db/schema";
 import { siteUrl } from "./mail";
+import { isSampleProduct } from "./sample";
 import { calcVouchers, compareOffers, getProduct } from "./queries";
 import { timeWeightedMedian } from "./score";
 import { bestPlan } from "./voucher";
@@ -39,6 +40,10 @@ export async function productSummary(id: number) {
       history: p.prices.map((x) => [x.capturedAt.getTime(), x.price] as [number, number]),
       afterCodes: p.price - plan.discount - plan.cashback,
       codes: plan.vouchers.map((v) => v.code ?? v.title),
+      /** Lần cuối Săn Deal cập nhật giá sản phẩm này (ms) */
+      priceAt: p.lastSeenAt.getTime(),
+      /** Dữ liệu mẫu (SOURCES=mock) – không phải giá thật trên sàn */
+      sample: isSampleProduct(p),
     },
     offers: offers.map((o) => ({ id: o.id, platform: o.platform, price: o.price, detail: `${site}${productPath(o)}` })),
     links: {
