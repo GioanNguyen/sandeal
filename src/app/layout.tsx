@@ -56,7 +56,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </Suspense>
         <SavedProvider>
         <a href="#main" className="skip-link">Bỏ qua, tới nội dung chính</a>
-        <header className="site-header" id="top">
+        <header className="site-header">
           <div className="container">
             <Link href="/" className="logo" aria-label="Săn Deal – trang chủ">
               <span className="logo-mark"><Icon name="flame" size={18} /></span>

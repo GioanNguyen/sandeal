@@ -1432,9 +1432,10 @@ main:focus { outline: none; }
 .foot-bottom .container { display: flex; align-items: center; justify-content: space-between; gap: 16px 32px; padding-top: 18px; padding-bottom: 18px; }
 .foot-legal { margin: 0; flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.65; }
 .foot-actions { display: flex; align-items: center; gap: 10px; flex: none; }
-.foot-top { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.foot-top { font: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text); font-size: 13px; font-weight: 600; white-space: nowrap; }
 .foot-top svg { transform: rotate(-90deg); }
 .foot-top:hover { border-color: var(--primary); color: var(--primary); }
+.foot-top:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 @media (max-width: 960px) {
   .foot-main { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px 24px; }
   .foot-brand { grid-column: 1 / -1; }

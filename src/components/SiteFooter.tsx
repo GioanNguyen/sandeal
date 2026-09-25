@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PLATFORMS } from "@/lib/format";
 import { Icon } from "./Icon";
 import { ThemeToggle } from "./ThemeToggle";
+import { BackToTop } from "./BackToTop";
 
 type Col = { title: string; links: { href: string; label: string }[] };
 
@@ -86,7 +87,7 @@ export function SiteFooter({ loggedIn }: { loggedIn: boolean }) {
           </p>
           <div className="foot-actions">
             <span className="footer-theme"><ThemeToggle /></span>
-            <a href="#top" className="foot-top"><Icon name="arrowRight" size={14} /> Lên đầu trang</a>
+            <BackToTop />
           </div>
         </div>
       </div>
