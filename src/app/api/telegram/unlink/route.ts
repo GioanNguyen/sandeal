@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { redirectTo } from "@/lib/redirect";
 import { eq } from "drizzle-orm";
 import { subscriptions } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
@@ -9,5 +9,5 @@ export async function POST(req: Request) {
   if (user) {
     await db.update(subscriptions).set({ telegramChatId: null, telegramDigest: false }).where(eq(subscriptions.userId, user.id));
   }
-  return NextResponse.redirect(new URL("/account/so-thich", req.url), 303);
+  return redirectTo("/account/so-thich", 303);
 }

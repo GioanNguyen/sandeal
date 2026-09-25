@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { subscriptions, watches } from "@/db/schema";
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
     } else {
       await db.update(subscriptions).set(t === "digest" ? { emailDigest: false } : { saleReminder: false }).where(eq(subscriptions.userId, u));
     }
-    return NextResponse.redirect(new URL(`/unsubscribe?done=${t}`, req.url), 303);
+    return redirectTo(`/unsubscribe?done=${t}`, 303);
   }
   const w = Number(form.get("w"));
   const s = String(form.get("s") ?? "");
@@ -27,5 +28,5 @@ export async function POST(req: Request) {
   }
   await ensureMigrated();
   await db.delete(watches).where(eq(watches.id, w));
-  return NextResponse.redirect(new URL("/unsubscribe?done=1", req.url), 303);
+  return redirectTo("/unsubscribe?done=1", 303);
 }

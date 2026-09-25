@@ -57,6 +57,9 @@ export function middleware(req: NextRequest) {
   if (!m) return NextResponse.next();
   const url = req.nextUrl.clone();
   url.pathname = `/api/p/${m[1]}`;
+  // Sau nginx/Apache, nextUrl mang giao thức https (từ X-Forwarded-Proto) trong khi Node chạy http:
+  // giữ nguyên thì Next coi là địa chỉ ngoài và tự proxy ra -> lỗi. Ép về http để rewrite nội bộ.
+  url.protocol = "http:";
   return NextResponse.rewrite(url);
 }
 

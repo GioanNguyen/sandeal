@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { NextResponse } from "next/server";
 import { EMAIL_RE, normalizeEmail, safeNext, sendLoginLink } from "@/lib/auth";
 import { allow, clientIp } from "@/lib/ratelimit";
@@ -10,7 +11,7 @@ export async function POST(req: Request) {
     : await req.json().catch(() => null);
   const reply = (status: number, error?: string) =>
     isForm
-      ? NextResponse.redirect(new URL(error ? `/login?error=${encodeURIComponent(error)}` : "/login?sent=1", req.url), 303)
+      ? redirectTo(error ? `/login?error=${encodeURIComponent(error)}` : "/login?sent=1", 303)
       : NextResponse.json(error ? { error } : { ok: true }, { status });
 
   if (body?.website) return reply(200);

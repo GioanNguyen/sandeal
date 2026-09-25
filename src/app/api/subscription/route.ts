@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { redirectTo } from "@/lib/redirect";
 import { eq } from "drizzle-orm";
 import { subscriptions } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
@@ -9,7 +9,7 @@ import { getSubscription } from "@/lib/subscription";
 /** Lưu sở thích (form thường, chạy được cả khi chưa tải JS) */
 export async function POST(req: Request) {
   const user = await getCurrentUser();
-  if (!user) return NextResponse.redirect(new URL("/login?next=/account/so-thich", req.url), 303);
+  if (!user) return redirectTo("/login?next=/account/so-thich", 303);
   await getSubscription(user.id);
   const f = await req.formData();
   const keywords = String(f.get("keywords") ?? "")
@@ -35,5 +35,5 @@ export async function POST(req: Request) {
       updatedAt: new Date(),
     })
     .where(eq(subscriptions.userId, user.id));
-  return NextResponse.redirect(new URL("/account/so-thich?saved=1", req.url), 303);
+  return redirectTo("/account/so-thich?saved=1", 303);
 }

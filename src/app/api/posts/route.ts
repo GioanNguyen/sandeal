@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
+import { redirectTo } from "@/lib/redirect";
 import { getCurrentUser } from "@/lib/auth";
 import { shareDeal } from "@/lib/community";
 import { allow } from "@/lib/ratelimit";
 
 /** Chia sẻ deal (form thường) */
 export async function POST(req: Request) {
-  const back = (q: string) => NextResponse.redirect(new URL(`/cong-dong?${q}`, req.url), 303);
+  const back = (q: string) => redirectTo(`/cong-dong?${q}`, 303);
   const user = await getCurrentUser();
-  if (!user) return NextResponse.redirect(new URL("/login?next=/cong-dong", req.url), 303);
+  if (!user) return redirectTo("/login?next=/cong-dong", 303);
   const f = await req.formData();
   if (f.get("website")) return back("tab=new");
   if (!(await allow(`post:${user.id}`, 10, 86400))) return back(`error=${encodeURIComponent("Mỗi ngày chia sẻ tối đa 10 deal.")}`);

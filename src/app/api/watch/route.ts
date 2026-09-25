@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { products } from "@/db/schema";
@@ -13,10 +14,10 @@ export async function POST(req: Request) {
     : await req.json().catch(() => null);
   const pid = Number(body?.productId);
   const done = (mode: "saved" | "verify") =>
-    isForm ? NextResponse.redirect(new URL(`/product/${pid}?watch=${mode}`, req.url), 303) : NextResponse.json({ ok: true, mode });
+    isForm ? redirectTo(`/product/${pid}?watch=${mode}`, 303) : NextResponse.json({ ok: true, mode });
   const fail = (status: number, error: string) =>
     isForm
-      ? NextResponse.redirect(new URL(`/product/${pid}?watch=error&msg=${encodeURIComponent(error)}`, req.url), 303)
+      ? redirectTo(`/product/${pid}?watch=error&msg=${encodeURIComponent(error)}`, 303)
       : NextResponse.json({ error }, { status });
 
   if (body?.website) return done("verify"); // bot điền ô ẩn
