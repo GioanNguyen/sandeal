@@ -108,7 +108,7 @@ VPS giữ một bản clone của repo tại `/opt/sandeal/repo`. Mỗi lần c�
 **1. Đẩy code lên GitHub** (repo private). Chạy trên máy dev:
 
 ```bash
-cd ~/Workspace/san-deal
+cd ~/Workspace/sandeal
 git remote add origin git@github.com:<tai-khoan>/san-deal.git
 git push -u origin main
 ```
