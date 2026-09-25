@@ -6,6 +6,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 rm -rf dist
+# Địa chỉ site được ghi vào tiện ích trình duyệt (public/downloads/san-deal-extension.zip) lúc build
+export SITE_URL="${SITE_URL:-https://sandealgiare.com}"
 if [ "${SKIP_BUILD:-}" != 1 ]; then
   rm -rf .next
   NEXT_OUTPUT=standalone npm run build
@@ -18,6 +20,9 @@ cp -a .next/standalone "$OUT/app"
 rm -rf "$OUT/app/.next/static"
 cp -a .next/static "$OUT/app/.next/static"
 cp -a public/. "$OUT/app/public/"
+# Luôn đóng gói lại tiện ích với đúng SITE_URL (kể cả khi SKIP_BUILD)
+node scripts/build-extension.mjs
+cp public/downloads/san-deal-extension.zip "$OUT/app/public/downloads/"
 # Không mang file bí mật / dữ liệu máy dev lên server
 rm -f "$OUT/app/.env" "$OUT/app/.env."*
 rm -rf "$OUT/app/.data"

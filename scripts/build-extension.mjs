@@ -30,7 +30,10 @@ const entries = files.map((full) => {
   if (name === "manifest.json") {
     const m = JSON.parse(data.toString());
     const origin = new URL(site);
-    m.host_permissions = [...new Set([`${origin.protocol}//${origin.host}/*`, ...m.host_permissions])];
+    const own = `${origin.protocol}//${origin.host}/*`;
+    // Bản cho site thật chỉ xin quyền đúng tên miền của site (bỏ localhost dùng khi phát triển)
+    const isLocal = ["localhost", "127.0.0.1"].includes(origin.hostname);
+    m.host_permissions = isLocal ? [...new Set([own, ...m.host_permissions])] : [own];
     data = Buffer.from(JSON.stringify(m, null, 2));
   }
   return { name, data };

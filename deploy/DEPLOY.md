@@ -202,6 +202,13 @@ sudo ln -sfn /opt/sandeal/releases/<bản-cũ> /opt/sandeal/current
 sudo systemctl restart sandeal
 ```
 
+## Tiện ích trình duyệt (extension)
+
+File `san-deal-extension.zip` ở trang `/tien-ich` được đóng gói lúc build. Địa chỉ `SITE_URL` được ghi sẵn vào file này, nên sau khi đổi tên miền hoặc sửa `SITE_URL` trong `.env`, bạn cần chạy lại lệnh cập nhật để đóng gói lại:
+
+- Cập nhật bằng git: `sudo FORCE=1 bash deploy/vps-update.sh`
+- Cập nhật bằng gói: dùng lệnh `SITE_URL=https://ten-mien-moi bash deploy/make-release.sh` để build gói mới
+
 ## Lệnh hay dùng
 
 ```bash

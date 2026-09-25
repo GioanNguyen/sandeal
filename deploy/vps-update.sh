@@ -85,6 +85,11 @@ fi
 # ----------------------------------------------------------------------------
 step "Build bản $HEAD_SHA"
 export NEXT_TELEMETRY_DISABLED=1
+# Tiện ích trình duyệt cần biết địa chỉ site -> lấy SITE_URL từ cấu hình đang chạy
+if [ -f /opt/sandeal/.env ]; then
+  SITE_URL="$(grep -E '^SITE_URL=' /opt/sandeal/.env | tail -1 | cut -d= -f2- | tr -d '"')"
+  export SITE_URL
+fi
 NODE_OPTIONS="--max-old-space-size=1536" NO_TAR=1 bash deploy/make-release.sh
 
 # ----------------------------------------------------------------------------
