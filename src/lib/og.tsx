@@ -187,3 +187,59 @@ export async function listOgImage(title: string, items: { imageUrl: string | nul
     { ...OG_SIZE, fonts: await fonts() },
   );
 }
+
+let logoCache: string | null = null;
+/** Logo tròn Săn Deal (đã cắt nền), dùng cho ảnh chia sẻ trang chủ */
+async function logoData() {
+  if (logoCache) return logoCache;
+  const buf = await fs.readFile(path.join(process.cwd(), "src", "assets", "logo-sandeal.png"));
+  logoCache = `data:image/png;base64,${buf.toString("base64")}`;
+  return logoCache;
+}
+
+/** Ảnh xem trước khi chia sẻ link trang chủ (và các trang không có ảnh riêng) */
+export async function homeOgImage(domain: string) {
+  const logo = await logoData();
+  const points = ["Biết ngay giảm thật hay giảm ảo", "So với lịch sử giá 30 ngày qua", "Mã giảm giá còn hạn, báo khi giá giảm"];
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: 40,
+          padding: "0 64px 0 44px",
+          fontFamily: FAMILY,
+          color: "#fff",
+          backgroundColor: "#1a0b3d",
+          backgroundImage:
+            "radial-gradient(circle at 18% 50%, rgba(168,85,247,0.55) 0%, rgba(26,11,61,0) 45%), radial-gradient(circle at 95% 0%, rgba(236,72,153,0.45) 0%, rgba(26,11,61,0) 40%), radial-gradient(circle at 90% 100%, rgba(34,211,238,0.35) 0%, rgba(26,11,61,0) 40%)",
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={logo} width={520} height={520} alt="" style={{ flex: "none" }} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 22 }}>
+          <div style={{ display: "flex", alignSelf: "flex-start", fontSize: 22, fontWeight: 700, color: "#fde68a", background: "rgba(255,255,255,0.1)", border: "2px solid rgba(255,255,255,0.18)", padding: "6px 18px", borderRadius: 999 }}>
+            {domain}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", fontSize: 62, fontWeight: 800, lineHeight: 1.08 }}>
+            <span>Săn deal</span>
+            <span style={{ color: "#fbbf24" }}>giảm thật</span>
+          </div>
+          <div style={{ display: "flex", fontSize: 26, fontWeight: 700, color: "#e9d5ff" }}>Shopee · Lazada · TikTok Shop</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 6 }}>
+            {points.map((t) => (
+              <div key={t} style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 22, fontWeight: 700, color: "rgba(255,255,255,0.92)" }}>
+                <div style={{ width: 14, height: 14, flex: "none", borderRadius: 999, background: "linear-gradient(135deg,#34d399,#22d3ee)" }} />
+                {t}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    ),
+    { ...OG_SIZE, fonts: await fonts() },
+  );
+}

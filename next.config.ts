@@ -4,8 +4,8 @@ const nextConfig: NextConfig = {
   // Docker build đặt NEXT_OUTPUT=standalone để đóng gói gọn
   output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   images: { unoptimized: true },
-  // Font cho ảnh chia sẻ (Open Graph) được đọc từ đĩa lúc chạy
-  outputFileTracingIncludes: { "/**/opengraph-image*": ["./src/assets/fonts/**"] },
+  // Font + logo cho ảnh chia sẻ (Open Graph) được đọc từ đĩa lúc chạy
+  outputFileTracingIncludes: { "/**/opengraph-image*": ["./src/assets/fonts/**", "./src/assets/logo-sandeal.png"] },
   serverExternalPackages: ["@electric-sql/pglite", "pg", "node-cron", "nodemailer"],
 };
 
