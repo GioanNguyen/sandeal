@@ -60,5 +60,5 @@ export function middleware(req: NextRequest) {
   return NextResponse.rewrite(url);
 }
 
-// Chạy cho mọi đường dẫn (để khoá mật khẩu phủ cả site), trừ file tĩnh của Next và favicon
-export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"] };
+// Chạy cho mọi đường dẫn (để khoá mật khẩu phủ cả site), trừ file tĩnh của Next và các biểu tượng (favicon)
+export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|icons/).*)"] };

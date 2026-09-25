@@ -22,7 +22,16 @@ export const metadata: Metadata = {
   openGraph: { siteName: "Săn Deal", locale: "vi_VN", type: "website" },
   twitter: { card: "summary_large_image" },
   appleWebApp: { capable: true, title: "Săn Deal", statusBarStyle: "default" },
-  icons: { apple: "/icons/apple-touch-icon.png" },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/icons/apple-touch-icon.png",
+  },
   description: "Chỉ hiện deal giảm thật so với giá 30 ngày, kèm mã giảm giá còn hạn từ Shopee, Lazada, TikTok Shop.",
 };
 
