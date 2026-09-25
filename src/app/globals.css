@@ -231,7 +231,6 @@ html[data-theme="dark"] .lowest-tag { color: #0b1f16; }
 .pager { display: flex; gap: 12px; justify-content: center; align-items: center; margin: 32px 0; }
 .empty { text-align: center; padding: 48px 16px; color: var(--muted); background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius); }
 .site-footer { margin-top: 48px; border-top: 1px solid var(--border); background: var(--surface); }
-.site-footer .container { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; padding: 28px 16px; font-size: 13px; color: var(--muted); }
 
 /* ===== Motion ===== */
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
@@ -439,9 +438,6 @@ html[data-theme="dark"] .lowest-tag { color: #0b1f16; }
 .tool:hover { border-color: var(--primary); transform: translateY(-2px); }
 .tool svg { color: var(--primary); margin-bottom: 4px; }
 .tool span { font-size: 13px; color: var(--muted); }
-.footer-tools { display: flex !important; flex-wrap: wrap; gap: 8px 20px; padding-bottom: 0 !important; }
-.footer-tools a { color: var(--text); font-weight: 600; min-height: 32px; display: inline-flex; align-items: center; }
-.footer-tools a:hover { color: var(--primary); }
 .install-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1.5px solid var(--primary); background: var(--primary-soft); color: var(--primary); font-weight: 700; font-size: 13px; white-space: nowrap; }
 
 /* ===== Máy tính giá ===== */
@@ -1411,3 +1407,41 @@ html[data-theme="dark"] .view-line { color: #c4b5fd; }
 .sale-alert-text a { color: var(--primary); font-weight: 600; }
 .sale-alert .btn { flex: none; }
 @media (max-width: 480px) { .sale-alert { flex-wrap: wrap; } .sale-alert .btn { margin-left: 52px; } }
+
+/* ===== Footer (4 cột, gọn) ===== */
+.skip-link { position: absolute; left: 12px; top: -48px; z-index: 100; padding: 10px 14px; border-radius: var(--radius-sm); background: var(--text); color: var(--bg); font-weight: 700; transition: top .15s ease-out; }
+.skip-link:focus { top: 12px; }
+main:focus { outline: none; }
+.site-footer { margin-top: 64px; border-top: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 14px; }
+.foot-main { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr)); gap: 40px; padding-top: 48px; padding-bottom: 40px; }
+.foot-brand .logo { color: var(--text); width: max-content; }
+.foot-pitch { margin: 14px 0 16px; max-width: 42ch; line-height: 1.6; color: var(--muted); }
+.foot-trust { list-style: none; margin: 0 0 18px; padding: 0; display: grid; gap: 8px; }
+.foot-trust li { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 13.5px; }
+.foot-trust svg { flex: none; color: var(--save); }
+.foot-platforms-label { margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.foot-platforms { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; }
+.foot-platform { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border: 1px solid var(--border); border-radius: 999px; color: var(--text); background: var(--bg); font-weight: 600; }
+.foot-platform .dot { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--text) 30%, transparent); }
+.foot-col h2 { margin: 6px 0 14px; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text); }
+.foot-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.foot-col a { display: inline-flex; align-items: center; min-height: 36px; color: var(--muted); transition: color .15s ease-out; }
+.foot-col a:hover { color: var(--primary); }
+.site-footer a:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 6px; }
+.foot-bottom { border-top: 1px solid var(--border); background: var(--bg); }
+.foot-bottom .container { display: flex; align-items: center; justify-content: space-between; gap: 16px 32px; padding-top: 18px; padding-bottom: 18px; }
+.foot-legal { margin: 0; flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.65; }
+.foot-actions { display: flex; align-items: center; gap: 10px; flex: none; }
+.foot-top { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.foot-top svg { transform: rotate(-90deg); }
+.foot-top:hover { border-color: var(--primary); color: var(--primary); }
+@media (max-width: 960px) {
+  .foot-main { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px 24px; }
+  .foot-brand { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .foot-main { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-top: 36px; padding-bottom: 28px; }
+  .foot-bottom .container { flex-direction: column; align-items: flex-start; }
+  .foot-col:last-child { grid-column: 1 / -1; }
+  .foot-col:last-child ul { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
+}

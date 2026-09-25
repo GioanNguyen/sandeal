@@ -1,5 +1,6 @@
 import { IMAGE_ORIGINS } from "@/lib/images";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { SiteFooter } from "@/components/SiteFooter";
 import { BOOT_SCRIPT } from "@/lib/boot";
 import { HeaderFit } from "@/components/HeaderFit";
 import { SearchBox } from "@/components/SearchBox";
@@ -54,7 +55,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <NavProgress />
         </Suspense>
         <SavedProvider>
-        <header className="site-header">
+        <a href="#main" className="skip-link">Bỏ qua, tới nội dung chính</a>
+        <header className="site-header" id="top">
           <div className="container">
             <Link href="/" className="logo" aria-label="Săn Deal – trang chủ">
               <span className="logo-mark"><Icon name="flame" size={18} /></span>
@@ -84,24 +86,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <HeaderFit />
           </div>
         </header>
-        <main className="container">{children}</main>
-        <footer className="site-footer">
-          <nav className="container footer-tools" aria-label="Công cụ">
-            <Link href="/kiem-tra-gia">Kiểm tra giá thật</Link>
-            <Link href="/tinh-gia">Máy tính giá cuối cùng</Link>
-            <Link href="/so-sanh">So sánh giá giữa các sàn</Link>
-            <Link href="/top">Top deal tuần này</Link>
-            <Link href="/bo-suu-tap">Bộ sưu tập deal</Link>
-            <Link href="/cach-hoat-dong">Săn Deal hoạt động thế nào</Link>
-            <Link href="/tien-ich">Tiện ích trình duyệt</Link>
-            <Link href="/cong-dong?tab=top">Bảng xếp hạng thợ săn</Link>
-          </nav>
-          <div className="container">
-            <span>© {new Date().getFullYear()} Săn Deal. Giá cập nhật định kỳ, vui lòng kiểm tra giá cuối cùng trên sàn.</span>
-            <span>Trang có sử dụng link tiếp thị liên kết.</span>
-            <span className="footer-theme"><ThemeToggle /></span>
-          </div>
-        </footer>
+        <main className="container" id="main" tabIndex={-1}>{children}</main>
+        <SiteFooter loggedIn={!!user} />
         </SavedProvider>
       </body>
     </html>
