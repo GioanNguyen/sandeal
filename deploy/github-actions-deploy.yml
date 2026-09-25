@@ -1,0 +1,34 @@
+# Muốn dùng: chép file này thành .github/workflows/deploy.yml trong repo.
+# Tự động cập nhật VPS mỗi khi push lên nhánh main (tuỳ chọn).
+# Bật bằng cách thêm 3 secret trong GitHub: Settings → Secrets and variables → Actions
+#   VPS_HOST      IP hoặc tên miền VPS
+#   VPS_USER      user SSH (vd root)
+#   VPS_SSH_KEY   private key SSH được phép đăng nhập VPS (xem deploy/DEPLOY.md)
+# Chưa có secret thì workflow chỉ bỏ qua, không báo lỗi.
+name: Deploy VPS
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency: deploy-vps
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Kiểm tra secret
+        id: check
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+        run: echo "ready=$([ -n "$HOST" ] && echo 1 || echo 0)" >> "$GITHUB_OUTPUT"
+      - name: SSH vào VPS và cập nhật
+        if: steps.check.outputs.ready == '1'
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          USER: ${{ secrets.VPS_USER }}
+          KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/.ssh/id_deploy "$USER@$HOST" 'cd /opt/sandeal/repo && sudo bash deploy/vps-update.sh'

@@ -28,5 +28,6 @@ cp deploy/install.sh deploy/DEPLOY.md "$OUT/"
 cp .env.example "$OUT/env.example"
 git rev-parse --short HEAD > "$OUT/VERSION" 2>/dev/null || date +%Y%m%d%H%M > "$OUT/VERSION"
 
+if [ "${NO_TAR:-}" = 1 ]; then echo "Xong: dist/sandeal (bản $(cat "$OUT/VERSION"))"; exit 0; fi
 tar -C dist -cf - sandeal | xz -T0 -9 > dist/sandeal-release.tar.xz
 echo "Xong: dist/sandeal-release.tar.xz ($(du -h dist/sandeal-release.tar.xz | cut -f1), bản $(cat "$OUT/VERSION"))"

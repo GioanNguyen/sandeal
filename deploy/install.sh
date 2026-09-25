@@ -38,7 +38,7 @@ warn() { echo "${C_WARN}! $*${C_0}"; }
 die()  { echo "${C_ERR}✘ $*${C_0}" >&2; exit 1; }
 
 [ "$(id -u)" = 0 ] || die "Hãy chạy bằng root: sudo bash install.sh"
-[ -f "$HERE/app/server.js" ] || die "Không thấy app/server.js cạnh install.sh – hãy chạy trong thư mục đã giải nén (sandeal/)."
+[ "${NODE_ONLY:-}" = 1 ] || [ -f "$HERE/app/server.js" ] || die "Không thấy app/server.js cạnh install.sh – hãy chạy trong thư mục đã giải nén (sandeal/)."
 [ "$(uname -m)" = x86_64 ] || die "Gói này build cho Linux x86_64, VPS đang là $(uname -m)."
 VERSION="$(cat "$HERE/VERSION" 2>/dev/null || echo manual)"
 
@@ -59,19 +59,26 @@ rand() { local s; s=$(openssl rand -base64 96 | tr -dc 'A-Za-z0-9'); echo "${s:0
 port_busy() { ss -ltnH "( sport = :$1 )" 2>/dev/null | grep -q .; }
 
 # -----------------------------------------------------------------------------
-step "1/6 Node.js"
-need_node=1
-if command -v node >/dev/null; then
-  v=$(node -p 'process.versions.node.split(".")[0]')
-  [ "$v" -ge 20 ] && need_node=0 && ok "Đã có Node $(node -v)"
+step "1/6 Node.js (bản riêng trong $BASE/node – không đụng Node hệ thống)"
+NODE_DIR="$BASE/node"
+NODE_MIRROR="${NODE_MIRROR:-https://nodejs.org/dist}"
+if [ -x "$NODE_DIR/bin/node" ] && [ "$("$NODE_DIR/bin/node" -p 'process.versions.node.split(".")[0]')" -ge 20 ]; then
+  ok "Đã có Node $("$NODE_DIR/bin/node" -v) tại $NODE_DIR"
+else
+  command -v xz >/dev/null || pkg_install xz-utils 2>/dev/null || pkg_install xz
+  tmp=$(mktemp -d)
+  curl -fsSL "$NODE_MIRROR/latest-v$NODE_MAJOR.x/SHASUMS256.txt" -o "$tmp/SUMS" || die "Không tải được danh sách Node từ $NODE_MIRROR"
+  file=$(grep -oE "node-v[0-9.]+-linux-x64\.tar\.xz" "$tmp/SUMS" | head -1)
+  [ -n "$file" ] || die "Không tìm thấy bản Node $NODE_MAJOR cho linux-x64"
+  curl -fsSL "$NODE_MIRROR/latest-v$NODE_MAJOR.x/$file" -o "$tmp/$file"
+  (cd "$tmp" && grep " $file\$" SUMS | sha256sum -c --quiet -) || die "Checksum Node không khớp"
+  mkdir -p "$BASE"; rm -rf "$NODE_DIR.new"; mkdir "$NODE_DIR.new"
+  tar -xJf "$tmp/$file" -C "$NODE_DIR.new" --strip-components=1
+  rm -rf "$NODE_DIR"; mv "$NODE_DIR.new" "$NODE_DIR"; rm -rf "$tmp"
+  ok "Đã cài Node $("$NODE_DIR/bin/node" -v) tại $NODE_DIR"
 fi
-if [ $need_node = 1 ]; then
-  if [ "$PM" = apt ]; then curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash -
-  else curl -fsSL "https://rpm.nodesource.com/setup_${NODE_MAJOR}.x" | bash -; fi
-  pkg_install nodejs
-  ok "Đã cài Node $(node -v)"
-fi
-NODE_BIN="$(command -v node)"
+NODE_BIN="$NODE_DIR/bin/node"
+[ "${NODE_ONLY:-}" = 1 ] && { ok "Chỉ cài Node – xong"; exit 0; }
 
 # -----------------------------------------------------------------------------
 step "2/6 PostgreSQL (chạy song song MySQL, cổng 5432)"
@@ -90,13 +97,17 @@ systemctl enable --now "$PG_UNIT" >/dev/null 2>&1 || systemctl start "$PG_UNIT"
 for _ in $(seq 1 20); do su - postgres -c "psql -qtAc 'select 1'" >/dev/null 2>&1 && break; sleep 1; done
 su - postgres -c "psql -qtAc 'select 1'" >/dev/null 2>&1 || die "PostgreSQL không chạy được (xem: journalctl -u $PG_UNIT)"
 
-# Trên RHEL/Alma mặc định kết nối 127.0.0.1 dùng 'ident' -> đổi sang mật khẩu
+# Cho phép đúng user/database của Săn Deal đăng nhập bằng mật khẩu qua 127.0.0.1.
+# Chỉ THÊM 2 dòng riêng cho 'sandeal' lên đầu pg_hba.conf – không sửa dòng nào của site khác.
 HBA=$(su - postgres -c "psql -qtAc 'show hba_file'")
-if grep -Eq '^host\s+all\s+all\s+(127\.0\.0\.1/32|::1/128)\s+ident' "$HBA"; then
+if ! grep -q "^host  *$DB_NAME  *$DB_USER  *127.0.0.1/32" "$HBA"; then
   cp -a "$HBA" "$HBA.bak-sandeal"
-  sed -Ei 's/^(host\s+all\s+all\s+(127\.0\.0\.1\/32|::1\/128)\s+)ident/\1scram-sha-256/' "$HBA"
+  { echo "# Săn Deal (install.sh)"
+    echo "host  $DB_NAME  $DB_USER  127.0.0.1/32  md5"
+    echo "host  $DB_NAME  $DB_USER  ::1/128       md5"
+    cat "$HBA.bak-sandeal"; } > "$HBA"
   su - postgres -c "psql -qtAc 'select pg_reload_conf()'" >/dev/null
-  ok "Đã bật đăng nhập bằng mật khẩu cho 127.0.0.1 (bản cũ: $HBA.bak-sandeal)"
+  ok "Đã thêm quyền đăng nhập cho '$DB_USER' vào $HBA (bản cũ: $HBA.bak-sandeal)"
 fi
 ok "PostgreSQL $(su - postgres -c "psql -qtAc 'show server_version'" | cut -d' ' -f1) đang chạy"
 
