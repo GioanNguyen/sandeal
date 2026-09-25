@@ -202,6 +202,21 @@ sudo ln -sfn /opt/sandeal/releases/<bản-cũ> /opt/sandeal/current
 sudo systemctl restart sandeal
 ```
 
+## Khoá cả site bằng mật khẩu (khi đang chạy thử)
+
+Trình duyệt sẽ hiện hộp "Sign in", người xem phải nhập tên và mật khẩu mới vào được site. Để bật, thêm 2 dòng này vào `/opt/sandeal/.env`:
+
+```
+BASIC_AUTH_USER=sandeal
+BASIC_AUTH_PASSWORD=mat-khau-cua-ban
+```
+
+Sau đó chạy `sudo systemctl restart sandeal`. Để mở site cho mọi người, xoá giá trị của 2 dòng (hoặc xoá hẳn 2 dòng), rồi restart lại.
+
+- Riêng `/api/ext/*` luôn mở, để tiện ích trình duyệt vẫn tra được giá.
+- Trong lúc khoá, Google không vào được site nên sẽ không index trang nào.
+- Nên đặt mật khẩu mạnh. Chỉ bật khoá khi site đã có HTTPS, vì qua HTTP thường, mật khẩu được gửi đi không mã hoá.
+
 ## Tiện ích trình duyệt (extension)
 
 File `san-deal-extension.zip` ở trang `/tien-ich` được đóng gói lúc build. Địa chỉ `SITE_URL` được ghi sẵn vào file này, nên sau khi đổi tên miền hoặc sửa `SITE_URL` trong `.env`, bạn cần chạy lại lệnh cập nhật để đóng gói lại:

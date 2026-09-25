@@ -181,6 +181,10 @@ VAPID_PUBLIC_KEY=$VAPID_PUB
 VAPID_PRIVATE_KEY=$VAPID_PRIV
 VAPID_SUBJECT=mailto:${ADMIN:-admin@$DOMAIN}
 
+# Khoá cả site bằng mật khẩu (trình duyệt hiện hộp "Sign in"). Điền cả 2 để bật, để trống để tắt.
+BASIC_AUTH_USER=
+BASIC_AUTH_PASSWORD=
+
 # Telegram (tuỳ chọn)
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_BOT_USERNAME=
@@ -243,7 +247,8 @@ systemctl restart $SVC
 healthy=0
 for _ in $(seq 1 45); do
   code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/" || true)
-  [ "$code" = 200 ] && { healthy=1; break; }
+  # 401 = site đang bật khoá mật khẩu (BASIC_AUTH_*) – app vẫn chạy tốt
+  case "$code" in 200|401) healthy=1; break ;; esac
   sleep 2
 done
 if [ $healthy = 1 ]; then
@@ -394,7 +399,7 @@ APC
 
   if [ -n "$CERTBOT_PLUGIN" ]; then
     code=$(curl -s -o /dev/null -w '%{http_code}' -H "Host: $DOMAIN" http://127.0.0.1/ || true)
-    [ "$code" = 200 ] && ok "$WS đã chuyển $DOMAIN tới app" || warn "Thử http://127.0.0.1/ với Host $DOMAIN trả về $code"
+    case "$code" in 200|401) true ;; *) false ;; esac && ok "$WS đã chuyển $DOMAIN tới app" || warn "Thử http://127.0.0.1/ với Host $DOMAIN trả về $code"
     CB_ARGS=(--"$CERTBOT_PLUGIN" --non-interactive --agree-tos --redirect --keep-until-expiring -d "$DOMAIN")
     [ -n "$WWW" ] && CB_ARGS+=(-d "$WWW")
     if [ -n "$EMAIL" ]; then CB_ARGS+=(-m "$EMAIL"); else CB_ARGS+=(--register-unsafely-without-email); fi
