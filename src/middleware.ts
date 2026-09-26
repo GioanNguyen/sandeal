@@ -6,6 +6,8 @@ import { NextResponse, type NextRequest } from "next/server";
  * Trừ /api/ext/*: tiện ích trình duyệt gọi từ trang Shopee/Lazada, không gửi kèm mật khẩu được.
  */
 const OPEN_PATHS = [/^\/api\/ext\//];
+/** Không gắn X-Robots-Tag: API, chuyển hướng mua hàng, ảnh chia sẻ, sitemap */
+const NO_ROBOTS_HEADER = /^\/(api|go|sitemap|robots|manifest)|opengraph-image|twitter-image/;
 
 /** So sánh không lộ thời gian (tránh dò mật khẩu theo độ trễ) */
 function safeEqual(a: string, b: string) {
@@ -52,9 +54,17 @@ export function middleware(req: NextRequest) {
   const denied = checkBasicAuth(req);
   if (denied) return denied;
 
+  // Trang có tham số (?q=, ?shop=mall, ?page=2, ?utm_…) là biến thể của trang gốc: không cho Google index
+  // (vẫn "follow" để đi tiếp các link sản phẩm). Canonical của từng trang đã trỏ về bản không tham số.
+  const noindex = req.nextUrl.search.length > 1 && !NO_ROBOTS_HEADER.test(req.nextUrl.pathname);
+
   // Đường dẫn sản phẩm cũ chỉ có số (/product/12) -> chuyển 301 sang đường dẫn có tên (xử lý ở /api/p/12)
   const m = req.nextUrl.pathname.match(/^\/product\/(\d+)\/?$/);
-  if (!m) return NextResponse.next();
+  if (!m) {
+    const res = NextResponse.next();
+    if (noindex) res.headers.set("X-Robots-Tag", "noindex, follow");
+    return res;
+  }
   const url = req.nextUrl.clone();
   url.pathname = `/api/p/${m[1]}`;
   // Sau nginx/Apache, nextUrl mang giao thức https (từ X-Forwarded-Proto) trong khi Node chạy http:

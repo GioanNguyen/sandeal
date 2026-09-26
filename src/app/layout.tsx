@@ -14,6 +14,12 @@ import { NavProgress } from "@/components/NavProgress";
 import { Suspense } from "react";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { siteUrl } from "@/lib/mail";
+// Font tự host (không gọi Google Fonts): 1 file CSS/độ đậm, trình duyệt chỉ tải bộ ký tự cần (latin / tiếng Việt)
+import "@fontsource/be-vietnam-pro/400.css";
+import "@fontsource/be-vietnam-pro/500.css";
+import "@fontsource/be-vietnam-pro/600.css";
+import "@fontsource/be-vietnam-pro/700.css";
+import "@fontsource/be-vietnam-pro/800.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -51,13 +57,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <head>
         <script dangerouslySetInnerHTML={{ __html: BOOT_SCRIPT }} />
         {IMAGE_ORIGINS.map((o) => <link key={o} rel="preconnect" href={o} />)}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap"
-        />
       </head>
       <body>
         <Suspense fallback={null}>

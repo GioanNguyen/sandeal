@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { ViewToggle } from "@/components/ViewToggle";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -43,9 +44,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
 
   return (
     <>
-      <nav className="crumbs" aria-label="Breadcrumb">
-        <Link href="/">Deal hot</Link> <span aria-hidden="true">/</span> <span className="muted">{cat.name}</span>
-      </nav>
+      <Breadcrumbs items={[{ name: cat.name, href: `/danh-muc/${cat.slug}` }]} />
       <h1 className="page-title" style={{ marginTop: 0 }}>Deal {cat.name} giảm thật hôm nay</h1>
       <p className="page-sub">{total} sản phẩm, xếp theo điểm deal. Giá được so với lịch sử 30 ngày để loại giảm giá ảo.</p>
       <nav className="chips" aria-label="Lọc theo sàn" style={{ marginBottom: 16 }}>

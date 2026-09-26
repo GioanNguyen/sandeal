@@ -23,7 +23,7 @@ export function CardImage({ src: original, alt = "", hover, priority = false }: 
     return () => card.removeEventListener("pointerenter", arm);
   }, [hover]);
   return (
-    <span ref={box} className={`card-img ${state}${alt2 === "done" && state === "done" ? " has-alt" : ""}`}>
+    <span ref={box} className={`card-img ${state}${priority ? " prio" : ""}${alt2 === "done" && state === "done" ? " has-alt" : ""}`}>
       {src && state !== "error" && (
         // eslint-disable-next-line @next/next/no-img-element
         <img

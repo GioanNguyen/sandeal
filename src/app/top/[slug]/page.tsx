@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -53,10 +54,7 @@ export default async function RoundupPage({ params }: P) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
-      <nav className="crumbs" aria-label="Breadcrumb">
-        <Link href="/">Deal hot</Link> <span aria-hidden="true">/</span> <Link href="/top">Top deal tuần này</Link> <span aria-hidden="true">/</span>
-        <span className="muted">{def.title}</span>
-      </nav>
+      <Breadcrumbs items={[{ name: "Top deal tuần này", href: "/top" }, { name: def.title }]} />
       <header className="roundup-head">
         <span className="roundup-week"><Icon name="calendar" size={14} /> {weekLabel(now)} · cập nhật {updated}</span>
         <h1 className="page-title">{def.title}</h1>

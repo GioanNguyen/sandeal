@@ -4,6 +4,7 @@ import { SwipeDeck } from "@/components/SwipeDeck";
 export const metadata: Metadata = {
   title: "Lướt deal",
   description: "Lướt nhanh deal giảm thật: vuốt phải để lưu, vuốt trái để bỏ qua.",
+  alternates: { canonical: "/luot-deal" },
 };
 
 export default function SwipePage() {

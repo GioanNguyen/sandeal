@@ -1,3 +1,6 @@
+import { JsonLd } from "@/components/JsonLd";
+import { siteUrl } from "@/lib/mail";
+import type { Metadata } from "next";
 import { thumbUrl } from "@/lib/images";
 import { roundupDefs } from "@/lib/roundups";
 import { productPath } from "@/lib/slug";
@@ -25,6 +28,8 @@ import { Icon } from "@/components/Icon";
 import { VoucherTicket } from "@/components/VoucherTicket";
 
 export const dynamic = "force-dynamic";
+// Trang chủ có bộ lọc (?q, ?shop…) đều trỏ canonical về "/" – middleware gắn thêm noindex cho các biến thể đó
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 const PAGE_SIZE = 24;
 
 type SP = Promise<Record<string, string | undefined>>;
@@ -75,8 +80,15 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
     return { key: c.key, label: c.label, icon: c.icon, on, count: chipCounts[i], href: `${href({ [c.param]: on ? undefined : c.value })}#deals` };
   });
 
+  const site = siteUrl();
+  // Tên site + logo cho Google (hiện "Săn Deal" thay vì tên miền ở kết quả tìm kiếm)
+  const siteLd = [
+    { "@context": "https://schema.org", "@type": "WebSite", name: "Săn Deal", alternateName: new URL(site).host, url: `${site}/` },
+    { "@context": "https://schema.org", "@type": "Organization", name: "Săn Deal", url: `${site}/`, logo: `${site}/icons/icon-512.png` },
+  ];
   return (
     <>
+      {isLanding && <JsonLd data={siteLd} />}
       {isLanding ? (
         <section className="hero">
           <div style={{ position: "relative", zIndex: 1 }}>

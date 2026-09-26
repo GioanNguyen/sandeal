@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Đoán giá deal hôm nay",
   description: "5 câu mỗi ngày: biết giá thường ngày, đoán giá sale thật trên Shopee, Lazada, TikTok Shop. Rủ bạn bè so điểm!",
+  alternates: { canonical: "/doan-gia" },
 };
 
 export default async function GuessPage() {

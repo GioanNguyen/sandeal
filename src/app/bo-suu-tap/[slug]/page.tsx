@@ -1,6 +1,6 @@
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { ViewToggle } from "@/components/ViewToggle";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { collectionBySlug, isInSeason } from "@/lib/collections";
 import { listDeals } from "@/lib/queries";
@@ -25,10 +25,7 @@ export default async function CollectionPage({ params, searchParams }: Props) {
   const pages = Math.ceil(total / PAGE_SIZE);
   return (
     <>
-      <nav className="crumbs" aria-label="Breadcrumb">
-        <Link href="/">Deal hot</Link> <span aria-hidden="true">/</span> <Link href="/bo-suu-tap">Bộ sưu tập</Link> <span aria-hidden="true">/</span>
-        <span className="muted">{c.title}</span>
-      </nav>
+      <Breadcrumbs items={[{ name: "Bộ sưu tập", href: "/bo-suu-tap" }, { name: c.title }]} />
       <section className="collection-hero">
         <Icon name={c.icon} size={28} />
         <div>

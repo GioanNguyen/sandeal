@@ -1,5 +1,6 @@
+import { JsonLd } from "@/components/JsonLd";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { siteUrl } from "@/lib/mail";
@@ -91,31 +92,33 @@ export default async function ProductPage({ params, searchParams }: Props) {
     : [false, false];
   const platformLabel = PLATFORMS[p.platform]?.label ?? p.platform;
 
+  const pageUrl = `${siteUrl()}${productPath(p)}`;
+  const imgs = [p.imageUrl, ...(p.images ?? [])].filter((u): u is string => !!u && u.startsWith("http")).slice(0, 5);
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: p.name,
-    image: p.imageUrl?.startsWith("http") ? [p.imageUrl] : undefined,
-    brand: p.shopName ? { "@type": "Brand", name: p.shopName } : undefined,
+    url: pageUrl,
+    sku: `${p.platform}-${p.externalId}`,
+    image: imgs.length ? imgs : undefined,
+    category: p.category ?? undefined,
+    description: `${p.name} trên ${platformLabel}: giá hiện tại ${vnd(p.price)}${p.realDropPct >= 1 ? `, rẻ hơn ${Math.round(p.realDropPct)}% so với giá thường ngày 30 ngày qua` : ""}. Xem lịch sử giá và nhận báo khi giá giảm.`,
+    // Không khai aggregateRating: sàn chỉ cho điểm sao, không cho số lượt đánh giá – Google yêu cầu cả hai
     offers: {
       "@type": "Offer",
+      url: pageUrl,
       price: p.price,
       priceCurrency: "VND",
       availability: "https://schema.org/InStock",
-      url: `${siteUrl()}${productPath(p)}`,
-      seller: { "@type": "Organization", name: platformLabel },
+      seller: { "@type": "Organization", name: p.shopName ? `${p.shopName} (${platformLabel})` : platformLabel },
     },
   };
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <JsonLd data={jsonLd} />
       <RecordView id={p.id} price={p.price} category={p.category} />
-      <nav className="crumbs" aria-label="Breadcrumb">
-        <Link href="/">Deal hot</Link> <span aria-hidden="true">/</span>
-        {p.category ? <><Link href={`/danh-muc/${slugify(p.category)}`}>{p.category}</Link> <span aria-hidden="true">/</span></> : null}
-        <span className="muted">{p.name}</span>
-      </nav>
+      <Breadcrumbs items={[...(p.category ? [{ name: p.category, href: `/danh-muc/${slugify(p.category)}` }] : []), { name: p.name }]} />
       <div className="detail">
         <div className="detail-media">
           {/* eslint-disable-next-line @next/next/no-img-element */}

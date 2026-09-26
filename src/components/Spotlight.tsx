@@ -77,7 +77,7 @@ export function Spotlight({ items }: { items: DealRow[] }) {
               tabIndex={i === index ? 0 : -1}
             >
               <div className="spot-media">
-                <CardImage src={p.imageUrl} priority={i === 0} />
+                <CardImage src={p.imageUrl} alt={p.name} priority={i === 0} />
                 <PlatformBadge platform={p.platform} />
                 {p.recordLow && <span className="record-ribbon"><Icon name="trophy" size={14} /> Giá thấp kỷ lục</span>}
               </div>

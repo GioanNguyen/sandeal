@@ -44,7 +44,7 @@ export function DealCard({ p, priority = false }: { p: DealRow; isLowest?: boole
     <article className={`deal${veryFresh ? " deal-fresh" : ""}${p.recordLow ? " deal-record" : ""}`}>
       <Link href={productPath(p)} className="deal-link">
         <div className={`deal-media${p.recordLow ? " has-record" : ""}`}>
-          <CardImage src={p.imageUrl} hover={p.images?.[0]} priority={priority} />
+          <CardImage src={p.imageUrl} alt={p.name} hover={p.images?.[0]} priority={priority} />
           <PlatformBadge platform={p.platform} />
           {p.recordLow && (
             <span className="record-ribbon" title={`Thấp nhất từ trước tới nay: giá thấp nhất trong ${Math.floor(p.trackedDays ?? 0)} ngày Săn Deal theo dõi sản phẩm này`}>
