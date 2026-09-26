@@ -71,3 +71,18 @@ test("trang giá: gom loại sản phẩm theo tên, rẻ nhất & thấp nhất
   assert.ok(d.daily.length > 0);
   assert.ok(d.cheapest[0].price <= d.cheapest[d.cheapest.length - 1].price);
 });
+
+test("thẻ deal: số tiền vừa giảm và bảng giá theo sàn lấy từ dữ liệu thật", async () => {
+  const q = await import("./queries");
+  const now = Date.now();
+  const [a] = await dbm.db.insert(schema.products).values({ platform: "shopee", externalId: "g1", name: "Quạt mini A", price: 150_000, affiliateUrl: "https://shopee.vn/x-i.1.9", groupKey: "quat-mini" }).returning();
+  await dbm.db.insert(schema.products).values({ platform: "lazada", externalId: "g2", name: "Quạt mini A", price: 170_000, affiliateUrl: "https://lazada.vn/x-i9.html", groupKey: "quat-mini" });
+  await dbm.db.insert(schema.pricePoints).values([
+    { productId: a.id, price: 200_000, capturedAt: new Date(now - 5 * DAY) },
+    { productId: a.id, price: 150_000, capturedAt: new Date(now - 2 * 3_600_000) },
+  ]);
+  const [row] = await q.enrichDeals([a]);
+  assert.equal(row.droppedBy, 50_000);
+  assert.ok(row.droppedAt && now - row.droppedAt.getTime() < 3 * 3_600_000);
+  assert.deepEqual(row.offers?.map((o) => [o.platform, o.price]), [["shopee", 150_000], ["lazada", 170_000]]);
+});

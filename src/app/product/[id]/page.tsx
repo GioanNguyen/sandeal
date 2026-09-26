@@ -1,3 +1,5 @@
+import { CardImage } from "@/components/CardImage";
+import { ShareImageButton } from "@/components/ShareImageButton";
 import Link from "next/link";
 import { priceTopics, topicName } from "@/lib/pricepages";
 import { JsonLd } from "@/components/JsonLd";
@@ -69,6 +71,9 @@ export default async function ProductPage({ params, searchParams }: Props) {
   // Không lặp lại món đã có ở mục trên, bỏ bản sao cùng sản phẩm ở sàn khác (đã có ở "So sánh giữa các sàn")
   const offerIds = new Set(offers.map((o) => o.id));
   const also = alsoRaw.filter((d) => !offerIds.has(d.id));
+  // 3 món đầu hiện gọn ngay dưới nút Mua, phần còn lại ở mục cuối trang
+  const alsoTop = also.slice(0, 3);
+  const alsoRest = also.slice(3);
   const shown = new Set([...cheaper.map((d) => d.id), ...also.map((d) => d.id)]);
   const similar = similarAll.filter((d) => !shown.has(d.id)).slice(0, 5);
   const expiring = await soonestVoucher(p.platform, 24);
@@ -199,7 +204,27 @@ export default async function ProductPage({ params, searchParams }: Props) {
             <Freshness at={p.lastSeenAt} long />
           </div>
 
-          <ShareButtons url={`${siteUrl()}${productPath(p)}`} title={`${p.name} – ${vnd(p.price)} trên Săn Deal`} />
+          {alsoTop.length > 0 && (
+            <aside className="also-mini" aria-labelledby="also-mini-head">
+              <h2 id="also-mini-head"><Icon name="users" size={16} /> Người xem món này cũng săn</h2>
+              <ul>
+                {alsoTop.map((d) => (
+                  <li key={d.id}>
+                    <Link href={productPath(d)}>
+                      <span className="thumb"><CardImage src={d.imageUrl} alt={d.name} /></span>
+                      <span className="nm">{d.name}</span>
+                      <span className="pr"><b>{vnd(d.price)}</b>{d.realDropPct >= 5 ? <small>−{Math.round(d.realDropPct)}% thật</small> : null}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </aside>
+          )}
+
+          <div className="share-line">
+            <ShareButtons url={`${siteUrl()}${productPath(p)}`} title={`${p.name} – ${vnd(p.price)} trên Săn Deal`} />
+            <ShareImageButton id={p.id} url={`${siteUrl()}${productPath(p)}`} title={`${p.name} – ${vnd(p.price)}${p.realDropPct >= 5 ? `, giảm thật ${Math.round(p.realDropPct)}%` : ""}`} />
+          </div>
 
           {offers.length >= 2 && (
             <section className="panel" style={{ marginTop: 20 }}>
@@ -248,13 +273,13 @@ export default async function ProductPage({ params, searchParams }: Props) {
         </section>
       )}
 
-      {also.length >= 3 && (
+      {alsoRest.length >= 3 && (
         <section className="section" aria-labelledby="also-head">
           <div className="section-head">
             <h2 id="also-head"><Icon name="users" size={22} /> Người xem món này cũng xem</h2>
             <span className="muted" style={{ fontSize: 13 }}>Tính từ lượt xem ẩn danh 30 ngày qua</span>
           </div>
-          <DealGrid items={also} />
+          <DealGrid items={alsoRest} />
         </section>
       )}
 

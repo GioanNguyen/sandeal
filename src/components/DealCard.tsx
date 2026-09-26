@@ -19,6 +19,8 @@ export function agoShort(d: Date) {
 }
 
 const round1k = (n: number) => Math.round(n / 1000) * 1000;
+/** 25.000 -> "25K", 1.250.000 -> "1,25tr" */
+export const kShort = (n: number) => (n >= 1_000_000 ? `${(Math.round(n / 10_000) / 100).toString().replace(".", ",")}tr` : `${Math.round(n / 1000)}K`);
 
 /** Nhãn dễ hiểu thay cho con số điểm (ưu tiên từ trên xuống, chỉ hiện 1 nhãn) */
 export function dealLabel(p: DealRow): { text: string; tone: "save" | "hot" | "neutral"; icon: IconName } | null {
@@ -29,6 +31,23 @@ export function dealLabel(p: DealRow): { text: string; tone: "save" | "hot" | "n
   if ((p.communityNet ?? 0) >= 3) return { text: "Cộng đồng chọn", tone: "hot", icon: "thumbUp" };
   if (p.dealScore >= 70) return { text: "Deal tốt", tone: "hot", icon: "flame" };
   return null;
+}
+
+/** Bảng giá cùng sản phẩm trên các sàn (hiện khi rê chuột / nhấn giữ dòng so giá) */
+function OffersDetail({ offers, currentId }: { offers: NonNullable<DealRow["offers"]>; currentId: number }) {
+  const best = offers[0].price;
+  return (
+    <div className="offers-pop">
+      <b className="offers-title">Giá trên các sàn</b>
+      {offers.map((o) => (
+        <span key={o.platform} className={`offers-row${o.id === currentId ? " cur" : ""}`} title={o.id === currentId ? "Bạn đang xem" : undefined}>
+          <span className="pl"><span className="dot" style={{ background: PLATFORMS[o.platform]?.color }} aria-hidden="true" />{(PLATFORMS[o.platform]?.label ?? o.platform).replace(" Shop", "")}</span>
+          <b>{vnd(o.price)}</b>
+          <small className={o.price === best ? "best-tag" : ""}>{o.price === best ? "rẻ nhất" : `+${kShort(o.price - best)}`}</small>
+        </span>
+      ))}
+    </div>
+  );
 }
 
 export function DealCard({ p, priority = false }: { p: DealRow; isLowest?: boolean; priority?: boolean }) {
@@ -53,7 +72,7 @@ export function DealCard({ p, priority = false }: { p: DealRow; isLowest?: boole
           )}
           {fresh && (
             <span className={`fresh-tag${veryFresh ? " live" : ""}`} suppressHydrationWarning>
-              <span className="pulse-dot" aria-hidden="true" /> Vừa giảm · {agoShort(fresh)}
+              <span className="pulse-dot" aria-hidden="true" /> Vừa giảm{p.droppedBy && p.droppedBy >= 1000 ? ` ${kShort(p.droppedBy)}` : ""} · {agoShort(fresh)}
             </span>
           )}
         </div>
@@ -92,9 +111,21 @@ export function DealCard({ p, priority = false }: { p: DealRow; isLowest?: boole
             </SparkPeek>
           )}
 
-          {p.cheaperElsewhere && (
+          {p.offers && p.offers.length >= 2 ? (
+            <SparkPeek detail={<OffersDetail offers={p.offers} currentId={p.id} />}>
+              <span className={`elsewhere${p.cheaperElsewhere ? "" : " best"}`}>
+                <Icon name="scale" size={13} />
+                <span>
+                  {p.cheaperElsewhere
+                    ? <>{PLATFORMS[p.cheaperElsewhere.platform]?.label} rẻ hơn {vnd(p.price - p.cheaperElsewhere.price)}</>
+                    : <>Rẻ nhất trong {p.offers.length} sàn</>}
+                  <span className="peek-hint" aria-hidden="true"> · so giá</span>
+                </span>
+              </span>
+            </SparkPeek>
+          ) : p.cheaperElsewhere ? (
             <span className="elsewhere"><Icon name="scale" size={13} /> {PLATFORMS[p.cheaperElsewhere.platform]?.label} rẻ hơn {vnd(p.price - p.cheaperElsewhere.price)}</span>
-          )}
+          ) : null}
           {(p.viewers1h ?? 0) >= VIEWERS_MIN_CARD && (
             <span className="view-line"><Icon name="eye" size={13} /> {p.viewers1h} người xem · 1 giờ qua</span>
           )}
@@ -118,7 +149,7 @@ export function DealCard({ p, priority = false }: { p: DealRow; isLowest?: boole
               {p.rating ? <><Icon name="star" size={13} />{p.rating.toFixed(1)}</> : null}
               {p.sold ? <span>{p.rating ? " · " : ""}{p.sold >= 1000 ? `${(p.sold / 1000).toFixed(1).replace(".0", "")}k` : p.sold} đã bán</span> : null}
             </span>
-            {label && (
+            {label && !(label.icon === "scale" && p.offers) && (
               <span className={`deal-label ${label.tone}`} title={`Điểm deal ${score}/100`}>
                 <Icon name={label.icon} size={12} /> {label.text}
               </span>

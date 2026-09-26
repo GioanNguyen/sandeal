@@ -58,6 +58,10 @@ function dealWhere(f: DealFilter) {
 export type DealRow = Product & {
   low30: number | null;
   droppedAt?: Date | null;
+  /** Số tiền giảm ở lần giảm gần nhất đó (giá trước − giá sau) */
+  droppedBy?: number | null;
+  /** Giá rẻ nhất của cùng sản phẩm trên từng sàn (khi có ≥ 2 sàn) */
+  offers?: { platform: string; price: number; id: number }[];
   clicks24?: number;
   /** Lịch sử giá 30 ngày [thời điểm ms, giá] cho biểu đồ nhỏ trên thẻ */
   spark?: [number, number][];
@@ -163,15 +167,23 @@ export async function enrichDeals(rows: Product[]): Promise<DealRow[]> {
     if (f?.before != null) series.push([since.getTime(), f.before]);
     for (const pt of pts) series.push([pt.at.getTime(), pt.price]);
     let droppedAt: Date | null = null;
+    let droppedBy: number | null = null;
     for (let i = series.length - 1; i > 0; i--) {
-      if (series[i][1] <= series[i - 1][1] * 0.95) { droppedAt = new Date(series[i][0]); break; }
+      if (series[i][1] <= series[i - 1][1] * 0.95) { droppedAt = new Date(series[i][0]); droppedBy = series[i - 1][1] - series[i][1]; break; }
     }
     const low30 = series.length ? Math.min(...series.map((x) => x[1])) : null;
 
     let cheaperElsewhere: DealRow["cheaperElsewhere"] = null;
     let cheapestAcross: number | undefined;
+    let offers: DealRow["offers"];
     if (p.groupKey) {
       const members = groupRows.filter((g) => g.groupKey === p.groupKey);
+      const perPlatform = new Map<string, { platform: string; price: number; id: number }>();
+      for (const m of members) {
+        const cur = perPlatform.get(m.platform);
+        if (!cur || m.price < cur.price) perPlatform.set(m.platform, { platform: m.platform, price: m.price, id: m.id });
+      }
+      if (perPlatform.size >= 2) offers = [...perPlatform.values()].sort((a, b) => a.price - b.price);
       const others = members.filter((g) => g.platform !== p.platform).sort((a, b) => a.price - b.price);
       if (others[0] && others[0].price < p.price * 0.99) cheaperElsewhere = { platform: others[0].platform, price: others[0].price, id: others[0].id };
       else if (others.length) cheapestAcross = new Set(members.map((m) => m.platform)).size;
@@ -187,6 +199,8 @@ export async function enrichDeals(rows: Product[]): Promise<DealRow[]> {
       withVoucher: bestVoucherFor(p, voucherList),
       spark: series,
       droppedAt,
+      droppedBy,
+      offers,
       trackedDays,
       clicks24: clickMap.get(p.id) ?? 0,
       communityNet: voteMap.get(p.id)?.net ?? 0,

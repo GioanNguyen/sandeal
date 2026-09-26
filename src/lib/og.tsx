@@ -243,3 +243,78 @@ export async function homeOgImage(domain: string) {
     { ...OG_SIZE, fonts: await fonts() },
   );
 }
+
+/**
+ * Ảnh vuông 1080×1080 để chia sẻ lên Zalo/Facebook/Instagram: ảnh sản phẩm, giá, mức giảm thật,
+ * biểu đồ giá và thời điểm lấy giá (giá sàn thay đổi liên tục nên luôn ghi giờ).
+ */
+export async function productSquareImage(p: OgProduct & { usual: number; low: number; at: Date; domain: string }) {
+  const img = await imageData(p.imageUrl);
+  const plat = PLATFORMS[p.platform] ?? { label: p.platform, color: "#666" };
+  const name = p.name.length > 70 ? `${p.name.slice(0, 68).trim()}…` : p.name;
+  const saving = Math.round((p.usual - p.price) / 1000) * 1000;
+  const h = p.history && p.history.length >= 2 ? [...p.history, p.price] : null;
+  let spark = "", area = "";
+  const W = 920, H = 250;
+  if (h) {
+    const lo = Math.min(...h), hi = Math.max(...h);
+    const pts = h.map((v, i) => [(i / (h.length - 1)) * W, 10 + (1 - (v - lo) / Math.max(1, hi - lo)) * (H - 20)] as const);
+    spark = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+    area = `${spark} L${W},${H} L0,${H} Z`;
+  }
+  const at = p.at.toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Asia/Ho_Chi_Minh" });
+  return new ImageResponse(
+    (
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: C.bg, padding: 64, gap: 28, fontFamily: FAMILY, color: C.text }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Brand />
+          <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 26, fontWeight: 700, background: "#fff", border: `2px solid ${C.border}`, padding: "8px 18px", borderRadius: 999 }}>
+            <div style={{ width: 16, height: 16, borderRadius: 999, background: plat.color }} />
+            {plat.label}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 36, alignItems: "center" }}>
+          <div style={{ width: 380, height: 380, borderRadius: 32, overflow: "hidden", background: "#fff", border: `2px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+            {img ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={img} width={380} height={380} style={{ objectFit: "cover" }} alt="" />
+            ) : (
+              <div style={{ display: "flex", fontSize: 36, color: C.muted, fontWeight: 700 }}>{plat.label}</div>
+            )}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, flex: 1 }}>
+            <div style={{ display: "flex", fontSize: 36, fontWeight: 800, lineHeight: 1.2 }}>{name}</div>
+            <div style={{ display: "flex", fontSize: 76, fontWeight: 800, color: C.primary, lineHeight: 1 }}>{vnd(p.price)}</div>
+            {p.realDropPct >= 5 && saving >= 1000 ? (
+              <div style={{ display: "flex", flexDirection: "column", alignSelf: "flex-start", background: C.saveSoft, color: C.save, padding: "12px 20px", borderRadius: 18 }}>
+                <div style={{ display: "flex", fontSize: 22, fontWeight: 800 }}>GIẢM THẬT {Math.round(p.realDropPct)}%</div>
+                <div style={{ display: "flex", fontSize: 30, fontWeight: 800 }}>rẻ hơn thường ngày {vnd(saving)}</div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", fontSize: 26, fontWeight: 700, color: C.muted }}>Giá thường ngày {vnd(p.usual)}</div>
+            )}
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, background: "#fff", border: `2px solid ${C.border}`, borderRadius: 24, padding: "20px 24px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 24, fontWeight: 700, color: C.muted }}>
+            <span>Lịch sử giá</span>
+            <span style={{ color: C.save }}>Thấp nhất {vnd(p.low)}</span>
+          </div>
+          {spark ? (
+            <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+              <path d={area} fill="rgba(208,57,15,0.10)" />
+              <path d={spark} fill="none" stroke={C.primary} strokeWidth="5" strokeLinejoin="round" />
+            </svg>
+          ) : (
+            <div style={{ display: "flex", fontSize: 26, color: C.muted, height: H, alignItems: "center" }}>Mới bắt đầu theo dõi giá</div>
+          )}
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 24, color: C.muted, fontWeight: 700, marginTop: "auto" }}>
+          <span>Giá lúc {at} · có thể thay đổi</span>
+          <span style={{ color: C.primary }}>{p.domain}</span>
+        </div>
+      </div>
+    ),
+    { width: 1080, height: 1080, fonts: await fonts() },
+  );
+}

@@ -14,7 +14,8 @@ import { nextSale } from "@/lib/sales";
 import { PLATFORMS } from "@/lib/format";
 import { countDeals, homeStats, justDropped, listActiveVouchers, listCategories, listDeals, type DealFilter } from "@/lib/queries";
 import { filterFromParams } from "@/lib/dealParams";
-import { logSearch, mysteryDeal, spotlightDeals } from "@/lib/discovery";
+import { logSearch, mysteryDeal, nextVnMidnight, spotlightDeals } from "@/lib/discovery";
+import { saleBySlug, saleSlug } from "@/lib/salepages";
 import { MysteryDeal } from "@/components/MysteryDeal";
 import { QuickChips, type QuickChip } from "@/components/QuickChips";
 import { Spotlight } from "@/components/Spotlight";
@@ -81,6 +82,11 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
   });
 
   const site = siteUrl();
+  // Mã hết hạn trước 0 giờ đêm nay (giờ VN) – đếm ngược theo giờ hết hạn thật của mã
+  const midnight = nextVnMidnight(now);
+  const endingToday = isLanding
+    ? (await listActiveVouchers()).filter((v) => v.endAt && v.endAt > now && v.endAt <= midnight)
+    : [];
   // Tên site + logo cho Google (hiện "Săn Deal" thay vì tên miền ở kết quả tìm kiếm)
   const siteLd = [
     { "@context": "https://schema.org", "@type": "WebSite", name: "Săn Deal", alternateName: new URL(site).host, url: `${site}/` },
@@ -129,7 +135,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
         const live = now >= sale.start;
         const soon = !live && sale.start.getTime() - now.getTime() < 24 * 3_600_000;
         return (
-          <Link href="/lich-sale" className={`sale-bar${live ? " is-live" : soon ? " is-soon" : ""}`}>
+          <Link href={saleBySlug(saleSlug(sale), now) ? `/sale/${saleSlug(sale)}` : "/lich-sale"} className={`sale-bar${live ? " is-live" : soon ? " is-soon" : ""}`}>
             {live ? <span className="live-badge"><span className="pulse-dot" aria-hidden="true" /> ĐANG DIỄN RA</span> : <Icon name="calendar" size={18} />}
             <span><b>{sale.name}</b> {live ? "kết thúc sau" : "còn"}</span>
             {live || soon ? (
@@ -141,6 +147,20 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
           </Link>
         );
       })()}
+
+      {isLanding && endingToday.length > 0 && (
+        <Link href="/vouchers" className="ending-bar">
+          <Icon name="clock" size={18} />
+          <span>
+            <b>{endingToday.length} mã giảm giá hết hạn hôm nay</b>
+            <small>
+              Sớm nhất: {endingToday[0].code ? <code>{endingToday[0].code}</code> : endingToday[0].title} ({PLATFORMS[endingToday[0].platform]?.label})
+            </small>
+          </span>
+          <UrgencyTimer end={endingToday[0].endAt!.toISOString()} label="" endedLabel="Vừa hết hạn" bar={false} size="sm" />
+          <span className="sale-bar-cta">Lấy mã <Icon name="arrowRight" size={14} /></span>
+        </Link>
+      )}
 
       {isLanding && <Spotlight items={spotlight} />}
 
