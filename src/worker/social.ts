@@ -2,7 +2,8 @@ import { and, desc, eq, gte, notExists, sql } from "drizzle-orm";
 import { products, socialPosts, type Product } from "@/db/schema";
 import { db } from "@/lib/db";
 import { siteUrl } from "@/lib/mail";
-import { buildCaption, shareUrl } from "@/lib/social";
+import { buildCaption, priceK, shareUrl } from "@/lib/social";
+import { enrichDeals } from "@/lib/queries";
 import { sendTelegram } from "@/lib/telegram";
 
 export type Channel = "telegram" | "facebook";
@@ -68,11 +69,17 @@ export async function postDeal(channel: Channel, p: Product, variant = 0): Promi
   let externalId: string | null = null;
   let error: string | null = null;
   try {
+    // Mã giảm giá đang áp được + "giá thấp kỷ lục" lấy từ dữ liệu thật như trên thẻ deal
+    const [row] = await enrichDeals([p]);
+    const extras = { voucher: row?.withVoucher ?? null, recordLow: !!row?.recordLow, at: p.lastSeenAt };
     if (channel === "telegram") {
-      const ok = await sendTelegram(process.env.TELEGRAM_CHAT_ID!, buildCaption(p, link, { variant, html: true }), p.imageUrl);
+      const ok = await sendTelegram(process.env.TELEGRAM_CHAT_ID!, buildCaption(p, link, { variant, html: true, ...extras }), p.imageUrl, {
+        text: `🛒 Xem deal ${priceK(p.price)}`,
+        url: link,
+      });
       if (!ok) throw new Error("Telegram từ chối tin nhắn");
     } else {
-      externalId = await postFacebook(buildCaption(p, link, { variant }), link);
+      externalId = await postFacebook(buildCaption(p, link, { variant, ...extras }), link);
     }
   } catch (err) {
     error = (err as Error).message.slice(0, 300);

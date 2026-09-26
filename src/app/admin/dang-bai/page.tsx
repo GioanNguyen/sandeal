@@ -1,3 +1,4 @@
+import { enrichDeals } from "@/lib/queries";
 import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
@@ -20,6 +21,7 @@ export default async function SocialAdmin() {
   await ensureMigrated();
   const connected = channels();
   const deals = await pickDeals("zalo", 6, new Date(), false);
+  const enriched = new Map((await enrichDeals(deals)).map((d) => [d.id, d]));
   const history = await db
     .select({ post: socialPosts, name: products.name })
     .from(socialPosts)
@@ -48,7 +50,7 @@ export default async function SocialAdmin() {
           {deals.map((p, i) => {
             const link = shareUrl(site, p.id, "zalo");
             return (
-              <SocialComposer key={p.id} productId={p.id} name={p.name} caption={buildCaption(p, link, { variant: i })} link={link}
+              <SocialComposer key={p.id} productId={p.id} name={p.name} caption={buildCaption(p, link, { variant: i, voucher: enriched.get(p.id)?.withVoucher ?? null, recordLow: !!enriched.get(p.id)?.recordLow, at: p.lastSeenAt })} link={link}
                 image={`/product/${p.id}/opengraph-image`} connected={connected} />
             );
           })}
