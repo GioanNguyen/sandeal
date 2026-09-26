@@ -7,8 +7,8 @@ const p = {
 } as unknown as Parameters<typeof buildCaption>[0];
 
 test("nội dung bài đăng: tiêu đề nổi bật, số liệu thật, voucher, link và cảnh báo giá", () => {
-  const link = shareUrl("https://sandeal.vn", 7, "facebook");
-  assert.equal(link, "https://sandeal.vn/product/7?utm_source=facebook&utm_medium=social");
+  const link = shareUrl("https://sandeal.vn", p, "facebook");
+  assert.equal(link, "https://sandeal.vn/product/tai-nghe-anc-7?utm_source=facebook&utm_medium=social");
   const c = buildCaption(p, link, { variant: 0, voucher: { code: "SALE50", price: 550_000 } });
   assert.match(c, /^🔥 DEAL SỐC SHOPEE/);
   assert.match(c, /Giảm thật 40% so với giá thường ngày \(bớt 400K\)/);

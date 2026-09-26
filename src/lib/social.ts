@@ -1,12 +1,15 @@
 import type { Product } from "@/db/schema";
 import { PLATFORMS, vnd } from "./format";
-import { slugify } from "./slug";
+import { productPath, slugify } from "./slug";
 
 const round1k = (n: number) => Math.round(n / 1000) * 1000;
 
-/** Link sản phẩm kèm nguồn để đo lượt vào từ từng kênh; trang sản phẩm có ảnh xem trước đẹp */
-export const shareUrl = (site: string, productId: number, channel: string) =>
-  `${site}/product/${productId}?utm_source=${channel}&utm_medium=social`;
+/**
+ * Link sản phẩm kèm nguồn để đo lượt vào từ từng kênh; trang sản phẩm có ảnh xem trước đẹp.
+ * Dùng đường dẫn có tên (/product/ten-san-pham-47) – trùng canonical, không phải qua chuyển hướng 301.
+ */
+export const shareUrl = (site: string, p: { id: number; name?: string | null }, channel: string) =>
+  `${site}${productPath(p)}?utm_source=${channel}&utm_medium=social`;
 
 /** 329.000 -> "329K", 1.250.000 -> "1,25tr" */
 export const priceK = (n: number) =>

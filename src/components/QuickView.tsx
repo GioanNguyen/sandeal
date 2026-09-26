@@ -95,7 +95,7 @@ export function QuickView({ id, name }: { id: number; name: string }) {
             {data.offers.length > 1 && (
               <div className="qv-offers">
                 {data.offers.map((o, i) => (
-                  <a key={o.id} href={`/product/${o.id}`} className={`gap-offer${i === 0 ? " best" : ""}`}>
+                  <a key={o.id} href={productPath(o)} className={`gap-offer${i === 0 ? " best" : ""}`}>
                     <span className="dot" style={{ background: PLATFORMS[o.platform]?.color }} aria-hidden="true" />
                     {PLATFORMS[o.platform]?.label}{o.id === p.id ? " (đang xem)" : ""} <b>{vnd(o.price)}</b>
                   </a>

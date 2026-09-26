@@ -5,6 +5,7 @@ import { clicks, conversions, products, users, watches } from "@/db/schema";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { db, ensureMigrated } from "@/lib/db";
 import { PLATFORMS, shortDate, vnd } from "@/lib/format";
+import { productPath } from "@/lib/slug";
 import { BarChart } from "@/components/BarChart";
 import { PlatformBadge } from "@/components/PlatformBadge";
 import { SyncButton } from "@/components/SyncButton";
@@ -135,7 +136,7 @@ export default async function AdminPage() {
               <tbody>
                 {topProducts.map((p) => (
                   <tr key={p.id}>
-                    <td><a href={`/product/${p.id}`}>{p.name}</a> <span className="muted">· {PLATFORMS[p.platform]?.label}</span></td>
+                    <td><a href={productPath(p)}>{p.name}</a> <span className="muted">· {PLATFORMS[p.platform]?.label}</span></td>
                     <td className="num">{p.n}</td>
                   </tr>
                 ))}

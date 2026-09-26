@@ -65,7 +65,7 @@ async function postFacebook(message: string, link: string): Promise<string> {
 
 /** Đăng 1 deal lên 1 kênh, ghi lịch sử. Trả về true nếu thành công. */
 export async function postDeal(channel: Channel, p: Product, variant = 0): Promise<boolean> {
-  const link = shareUrl(siteUrl(), p.id, channel);
+  const link = shareUrl(siteUrl(), p, channel);
   let externalId: string | null = null;
   let error: string | null = null;
   try {

@@ -48,7 +48,7 @@ export default async function SocialAdmin() {
       {deals.length ? (
         <div className="composers">
           {deals.map((p, i) => {
-            const link = shareUrl(site, p.id, "zalo");
+            const link = shareUrl(site, p, "zalo");
             return (
               <SocialComposer key={p.id} productId={p.id} name={p.name} caption={buildCaption(p, link, { variant: i, voucher: enriched.get(p.id)?.withVoucher ?? null, recordLow: !!enriched.get(p.id)?.recordLow, at: p.lastSeenAt })} link={link}
                 image={`/product/${p.id}/opengraph-image`} connected={connected} />
