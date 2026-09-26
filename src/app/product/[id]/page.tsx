@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { priceTopics, topicName } from "@/lib/pricepages";
 import { JsonLd } from "@/components/JsonLd";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import type { Metadata } from "next";
@@ -91,6 +93,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
     ? await Promise.all([hasSaleAlert(user.id, p.id), db.select({ e: pushSubscriptions.endpoint }).from(pushSubscriptions).where(eq(pushSubscriptions.userId, user.id)).limit(1).then((r) => r.length > 0)])
     : [false, false];
   const platformLabel = PLATFORMS[p.platform]?.label ?? p.platform;
+  // Trang "Giá [loại] hôm nay" khớp với tên sản phẩm (liên kết nội bộ cho SEO)
+  const topic = (await priceTopics()).filter((t) => p.name.toLowerCase().startsWith(t.label.toLowerCase())).sort((a, b) => b.label.length - a.label.length)[0];
 
   const pageUrl = `${siteUrl()}${productPath(p)}`;
   const imgs = [p.imageUrl, ...(p.images ?? [])].filter((u): u is string => !!u && u.startsWith("http")).slice(0, 5);
@@ -207,6 +211,11 @@ export default async function ProductPage({ params, searchParams }: Props) {
           <section className="panel" style={{ marginTop: 20 }}>
             <h2><Icon name="trendingDown" /> Lịch sử giá 90 ngày</h2>
             <PriceChart points={p.prices} current={p.price} usual={advice.verdict === "new" ? undefined : advice.usual} sales={advice.sales} />
+            {topic && (
+              <p style={{ margin: "10px 0 0", fontSize: 14 }}>
+                <Link href={`/gia/${topic.slug}`}>Xem giá {topicName(topic)} hôm nay trên 3 sàn <Icon name="arrowRight" size={14} /></Link>
+              </p>
+            )}
           </section>
           <section className="panel" id="theo-doi">
             <h2><Icon name="bell" /> Báo tôi khi giá giảm</h2>

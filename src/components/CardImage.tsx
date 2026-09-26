@@ -35,7 +35,12 @@ export function CardImage({ src: original, alt = "", hover, priority = false }: 
           decoding="async"
           width={400}
           height={400}
-          ref={(el) => { if (el?.complete && el.naturalWidth) setState("done"); }}
+          ref={(el) => {
+            // Ảnh đã tải xong (hoặc lỗi) trước khi React gắn sự kiện -> tự xử lý lại
+            if (!el?.complete) return;
+            if (el.naturalWidth) setState("done");
+            else if (el.currentSrc) (!plain && src !== original ? setPlain(true) : setState("error"));
+          }}
           onLoad={() => setState("done")}
           onError={() => (!plain && src !== original ? setPlain(true) : setState("error"))}
         />

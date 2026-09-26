@@ -63,6 +63,13 @@ export default async function RoundupPage({ params }: P) {
           TikTok Shop, xếp theo điểm deal (mức giảm thật, đánh giá, lượt bán). Không xếp theo hoa hồng. Mỗi sản phẩm chỉ giữ sàn có deal tốt nhất.
         </p>
       </header>
+      {items.length > 0 && (
+        <p className="data-intro">
+          Mức giảm thật trung bình của danh sách: <b>−{Math.round(items.reduce((s, i) => s + i.deal.realDropPct, 0) / items.length)}%</b>, giá từ{" "}
+          <b>{vnd(Math.min(...items.map((i) => i.deal.price)))}</b> đến <b>{vnd(Math.max(...items.map((i) => i.deal.price)))}</b>
+          {(() => { const n = items.filter((i) => i.deal.recordLow).length; return n ? <>; <b>{n}</b> món đang ở giá thấp nhất từ khi theo dõi</> : null; })()}.
+        </p>
+      )}
 
       <ol className="roundup-list">
         {items.map(({ deal: d, reasons }, i) => (

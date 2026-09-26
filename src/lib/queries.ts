@@ -386,3 +386,18 @@ export async function dealsByIds(ids: number[]): Promise<DealRow[]> {
   const byId = new Map(rows.map((r) => [r.id, r]));
   return enrichDeals(clean.map((id) => byId.get(id)).filter((r): r is Product => !!r));
 }
+
+/** Số liệu tóm tắt cho đoạn mở đầu trang danh mục (lấy từ dữ liệu thật, không viết tay) */
+export async function categoryStats(category: string) {
+  await ensureMigrated();
+  const real = await db
+    .select({ id: products.id, name: products.name, price: products.price, realDropPct: products.realDropPct, platform: products.platform })
+    .from(products)
+    .where(and(eq(products.category, category), gte(products.realDropPct, 5)));
+  const [{ total }] = await db.select({ total: count() }).from(products).where(eq(products.category, category));
+  if (!real.length) return { total, realCount: 0, avgDrop: 0, cheapest: null, deepest: null, platforms: 0 };
+  const avgDrop = real.reduce((s, r) => s + r.realDropPct, 0) / real.length;
+  const cheapest = real.reduce((a, b) => (b.price < a.price ? b : a));
+  const deepest = real.reduce((a, b) => (b.realDropPct > a.realDropPct ? b : a));
+  return { total, realCount: real.length, avgDrop, cheapest, deepest, platforms: new Set(real.map((r) => r.platform)).size };
+}

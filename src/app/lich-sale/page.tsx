@@ -4,6 +4,7 @@ import { and, gte, isNull, lte, or } from "drizzle-orm";
 import { vouchers } from "@/db/schema";
 import { db, ensureMigrated } from "@/lib/db";
 import { FLASH_SLOTS, nextSale, upcomingSales } from "@/lib/sales";
+import { salePages, saleTitle } from "@/lib/salepages";
 import { Countdown } from "@/components/Countdown";
 import { UrgencyTimer } from "@/components/UrgencyTimer";
 import { Icon } from "@/components/Icon";
@@ -23,6 +24,9 @@ export default async function SaleCalendar() {
   await ensureMigrated();
   const now = new Date();
   const events = upcomingSales(now, 9);
+  const pages = salePages(now);
+  const pageOf = new Map(pages.map((p) => [p.event.key, p.slug]));
+  const pastPages = pages.filter((p) => p.state === "past");
   const major = nextSale(now, true);
   const majorVouchers = await db
     .select()
@@ -61,6 +65,12 @@ export default async function SaleCalendar() {
       <div className="sale-grid">
         <section className="panel">
           <h2><Icon name="calendar" /> Các đợt sale sắp tới</h2>
+          {pastPages.length > 0 && (
+            <p className="muted" style={{ fontSize: 14, margin: "0 0 10px" }}>
+              Tổng kết đợt trước:{" "}
+              {pastPages.map((p, i) => <span key={p.slug}>{i ? " · " : ""}<Link href={`/sale/${p.slug}`}>{saleTitle(p.event)}</Link></span>)}
+            </p>
+          )}
           <ul className="sale-list">
             {events.map((e) => (
               <li key={e.key} className={`sale-item sale-${e.kind}`}>
@@ -69,7 +79,7 @@ export default async function SaleCalendar() {
                   <span>Th {e.start.toLocaleDateString("vi-VN", { month: "numeric", timeZone: "Asia/Ho_Chi_Minh" })}</span>
                 </div>
                 <div className="sale-info">
-                  <b>{e.name}</b>
+                  {pageOf.get(e.key) ? <Link href={`/sale/${pageOf.get(e.key)}`}><b>{e.name}</b></Link> : <b>{e.name}</b>}
                   <span className="muted">{e.note}</span>
                 </div>
                 <Countdown to={e.start.toISOString()} until={e.end.toISOString()} compact />

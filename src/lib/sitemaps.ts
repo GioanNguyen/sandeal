@@ -8,6 +8,9 @@ import { COLLECTIONS } from "./collections";
 import { db, ensureMigrated } from "./db";
 import { siteUrl } from "./mail";
 import { roundupDefs } from "./roundups";
+import { GUIDES } from "./guides";
+import { priceTopics } from "./pricepages";
+import { salePages } from "./salepages";
 import { productPath, slugify } from "./slug";
 
 export const PRODUCTS_PER_FILE = 10_000;
@@ -59,6 +62,7 @@ export async function sitemapFiles(): Promise<{ name: string; lastmod: Date | nu
     { name: "pages.xml", lastmod: null },
     { name: "categories.xml", lastmod: at ?? null },
     { name: "tops.xml", lastmod: at ?? null },
+    { name: "topics.xml", lastmod: at ?? null },
     ...Array.from({ length: chunks }, (_, i) => ({ name: `products-${i + 1}.xml`, lastmod: at ?? null })),
   ];
 }
@@ -79,11 +83,15 @@ export async function sitemapUrls(name: string): Promise<Url[] | null> {
       ["/doan-gia", "daily", 0.5],
       ["/cong-dong", "daily", 0.5],
       ["/tien-ich", "monthly", 0.5],
+      ["/gia", "daily", 0.7],
+      ["/huong-dan", "monthly", 0.6],
       ["/cach-hoat-dong", "monthly", 0.4],
     ];
     return [
       ...pages.map(([p, changefreq, priority]) => ({ loc: `${base}${p}`, changefreq, priority })),
       ...COLLECTIONS.map((c) => ({ loc: `${base}/bo-suu-tap/${c.slug}`, changefreq: "daily", priority: 0.7 })),
+      ...GUIDES.map((g) => ({ loc: `${base}/huong-dan/${g.slug}`, lastmod: new Date(`${g.updated}T00:00:00+07:00`), changefreq: "monthly", priority: 0.6 })),
+      ...salePages().map((p) => ({ loc: `${base}/sale/${p.slug}`, changefreq: p.state === "past" ? "monthly" : "daily", priority: p.state === "past" ? 0.5 : 0.8 })),
     ];
   }
   if (name === "categories.xml") {
@@ -94,6 +102,14 @@ export async function sitemapUrls(name: string): Promise<Url[] | null> {
       .where(isNotNull(products.category))
       .groupBy(products.category);
     return rows.map((r) => ({ loc: `${base}/danh-muc/${slugify(r.category!)}`, lastmod: r.at, changefreq: "daily", priority: 0.8 }));
+  }
+  if (name === "topics.xml") {
+    const [topics, rows] = await Promise.all([priceTopics(), productRows()]);
+    return topics.map((t) => {
+      const pre = t.label.toLowerCase();
+      const at = newest(rows.filter((r) => r.name.toLowerCase().startsWith(pre)).map((r) => r.at));
+      return { loc: `${base}/gia/${t.slug}`, lastmod: at, changefreq: "daily", priority: 0.7 };
+    });
   }
   if (name === "tops.xml") {
     const [defs, rows] = await Promise.all([roundupDefs(), productRows()]);

@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PLATFORMS } from "@/lib/format";
-import { listCategories, listDeals } from "@/lib/queries";
+import { categoryStats, listCategories, listDeals } from "@/lib/queries";
+import { vnd } from "@/lib/format";
 import { LoadMore } from "@/components/Personal";
 
 export const dynamic = "force-dynamic";
@@ -20,9 +21,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const cat = await findCategory((await params).slug);
   if (!cat) return {};
   const title = `Deal ${cat.name} giảm thật hôm nay – Shopee, Lazada, TikTok Shop`;
+  const st = await categoryStats(cat.name);
   return {
     title,
-    description: `${cat.count} sản phẩm ${cat.name.toLowerCase()} đang giảm giá, xếp theo mức giảm thật so với giá 30 ngày.`,
+    description: st.realCount
+      ? `${st.realCount} sản phẩm ${cat.name.toLowerCase()} đang giảm thật, trung bình −${Math.round(st.avgDrop)}% so với giá 30 ngày, rẻ nhất ${vnd(st.cheapest!.price)}. Xem lịch sử giá trước khi mua.`
+      : `${cat.count} sản phẩm ${cat.name.toLowerCase()} trên Shopee, Lazada, TikTok Shop, xếp theo mức giảm thật so với giá 30 ngày.`,
     alternates: { canonical: `/danh-muc/${cat.slug}` },
     openGraph: { title },
   };
@@ -34,7 +38,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const cat = await findCategory(slug);
   if (!cat) notFound();
   const page = Math.max(1, Number(sp.page) || 1);
-  const { items, total } = await listDeals({ category: cat.name, platform: sp.platform, page, pageSize: PAGE_SIZE });
+  const [{ items, total }, st] = await Promise.all([listDeals({ category: cat.name, platform: sp.platform, page, pageSize: PAGE_SIZE }), categoryStats(cat.name)]);
   const base = `/danh-muc/${slug}`;
   const href = (patch: Record<string, string | undefined>) => {
     const q = new URLSearchParams();
@@ -47,6 +51,13 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       <Breadcrumbs items={[{ name: cat.name, href: `/danh-muc/${cat.slug}` }]} />
       <h1 className="page-title" style={{ marginTop: 0 }}>Deal {cat.name} giảm thật hôm nay</h1>
       <p className="page-sub">{total} sản phẩm, xếp theo điểm deal. Giá được so với lịch sử 30 ngày để loại giảm giá ảo.</p>
+      {st.realCount > 0 && st.cheapest && st.deepest && (
+        <p className="data-intro">
+          Hôm nay có <b>{st.realCount}</b>/{st.total} sản phẩm {cat.name.toLowerCase()} đang <b>giảm thật</b> (rẻ hơn giá 30 ngày từ 5%), trung bình{" "}
+          <b>−{Math.round(st.avgDrop)}%</b>{st.platforms > 1 ? ` trên ${st.platforms} sàn` : ""}. Rẻ nhất là <b>{vnd(st.cheapest.price)}</b> ({st.cheapest.name}); giảm sâu nhất là{" "}
+          {st.deepest.name} <b>−{Math.round(st.deepest.realDropPct)}%</b>.
+        </p>
+      )}
       <nav className="chips" aria-label="Lọc theo sàn" style={{ marginBottom: 16 }}>
         <Link className="chip" href={href({ platform: undefined })} aria-current={!sp.platform}>Tất cả sàn</Link>
         {Object.entries(PLATFORMS).map(([k, v]) => (

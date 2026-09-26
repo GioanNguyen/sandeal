@@ -20,6 +20,7 @@ export function SiteFooter({ loggedIn }: { loggedIn: boolean }) {
         { href: "/lich-sale", label: "Lịch sale" },
         { href: "/top", label: "Top deal tuần này" },
         { href: "/bo-suu-tap", label: "Bộ sưu tập deal" },
+        { href: "/gia", label: "Giá hôm nay" },
       ],
     },
     {
@@ -30,6 +31,7 @@ export function SiteFooter({ loggedIn }: { loggedIn: boolean }) {
         { href: "/so-sanh", label: "So sánh giá các sàn" },
         { href: "/doan-gia", label: "Đoán giá mỗi ngày" },
         { href: "/tien-ich", label: "Tiện ích trình duyệt" },
+        { href: "/huong-dan", label: "Hướng dẫn săn deal" },
       ],
     },
     {
