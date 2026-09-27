@@ -81,7 +81,7 @@ export default async function Community({ searchParams }: { searchParams: SP }) 
               {list.map((r) => (
                 <li key={r.post.id} className={`post${r.post.hidden ? " hidden-post" : ""}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={thumbUrl(r.product.imageUrl) ?? ""} alt="" width={88} height={88} />
+                  <img src={thumbUrl(r.product.imageUrl) ?? ""} alt="" width={88} height={88} loading="lazy" decoding="async" />
                   <div className="post-main">
                     <div className="row" style={{ gap: 8 }}>
                       <PlatformBadge platform={r.product.platform} inline />

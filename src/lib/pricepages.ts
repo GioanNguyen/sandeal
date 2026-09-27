@@ -9,6 +9,7 @@ import { db, ensureMigrated } from "./db";
 import { enrichDeals, type DealRow } from "./queries";
 import { salesBetween, type SaleEvent } from "./sales";
 import { slugify } from "./slug";
+import { availableSql } from "./availability";
 
 export interface PriceTopic {
   slug: string;
@@ -88,7 +89,7 @@ export async function getPriceTopic(slug: string): Promise<PriceTopicPage | null
   const rows = (await db
     .select()
     .from(products)
-    .where(ilike(products.name, `${topic.label.replace(/[%_]/g, "")}%`))
+    .where(and(ilike(products.name, `${topic.label.replace(/[%_]/g, "")}%`), availableSql()))
     .orderBy(products.price, desc(products.dealScore))) as Product[];
   if (!rows.length) return null;
 

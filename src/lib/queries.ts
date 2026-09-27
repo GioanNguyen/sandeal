@@ -2,6 +2,7 @@ import { and, asc, count, desc, eq, gte, ilike, inArray, isNotNull, isNull, lte,
 import { clicks, posts, pricePoints, products, productViews, votes, vouchers, type Product } from "@/db/schema";
 import { db, ensureMigrated } from "./db";
 import { slugify } from "./slug";
+import { availableSql } from "./availability";
 import { voucherGain, type CalcVoucher } from "./voucher";
 
 const DAY = 86_400_000;
@@ -37,7 +38,8 @@ const SORTS: Record<string, SQL[]> = {
 };
 
 function dealWhere(f: DealFilter) {
-  const conds: SQL[] = [];
+  // Không liệt kê món đã không còn thấy trên sàn (trang sản phẩm vẫn giữ, xem availability.ts)
+  const conds: SQL[] = [availableSql()];
   if (f.platform) conds.push(eq(products.platform, f.platform));
   if (f.category) conds.push(eq(products.category, f.category));
   if (f.q) conds.push(ilike(products.name, `%${f.q.replace(/[%_]/g, "")}%`));
@@ -137,7 +139,7 @@ export async function enrichDeals(rows: Product[]): Promise<DealRow[]> {
       .where(inArray(votes.productId, ids))
       .groupBy(votes.productId),
     groupKeys.length
-      ? db.select({ id: products.id, groupKey: products.groupKey, platform: products.platform, price: products.price }).from(products).where(inArray(products.groupKey, groupKeys))
+      ? db.select({ id: products.id, groupKey: products.groupKey, platform: products.platform, price: products.price }).from(products).where(and(inArray(products.groupKey, groupKeys), availableSql()))
       : Promise.resolve([] as { id: number; groupKey: string | null; platform: string; price: number }[]),
     db
       .select({ productId: posts.productId, note: posts.note })
@@ -270,9 +272,9 @@ export async function listActiveVouchers(opts: { platform?: string; limit?: numb
 export async function homeStats() {
   await ensureMigrated();
   const [[{ realDeals }], [{ voucherCount }], [{ best }]] = await Promise.all([
-    db.select({ realDeals: count() }).from(products).where(gte(products.realDropPct, 10)),
+    db.select({ realDeals: count() }).from(products).where(and(gte(products.realDropPct, 10), availableSql())),
     db.select({ voucherCount: count() }).from(vouchers).where(activeVoucher()),
-    db.select({ best: sql<number>`coalesce(max(${products.realDropPct}), 0)` }).from(products),
+    db.select({ best: sql<number>`coalesce(max(${products.realDropPct}), 0)` }).from(products).where(availableSql()),
   ]);
   return { realDeals, voucherCount, best: Number(best) };
 }
@@ -295,7 +297,7 @@ export async function similarDeals(p: Product, limit = 5) {
   const rows = await db
     .select()
     .from(products)
-    .where(and(p.category ? eq(products.category, p.category) : undefined, sql`${products.id} <> ${p.id}`))
+    .where(and(p.category ? eq(products.category, p.category) : undefined, sql`${products.id} <> ${p.id}`, availableSql()))
     .orderBy(desc(products.dealScore))
     .limit(limit);
   return enrichDeals(rows);
@@ -305,7 +307,8 @@ export async function similarDeals(p: Product, limit = 5) {
 export async function compareOffers(p: Product) {
   if (!p.groupKey) return [];
   await ensureMigrated();
-  const rows = await db.select().from(products).where(eq(products.groupKey, p.groupKey)).orderBy(asc(products.price));
+  // Món đang xem luôn có mặt; món khác chỉ tính khi còn thấy trên sàn
+  const rows = await db.select().from(products).where(and(eq(products.groupKey, p.groupKey), or(eq(products.id, p.id), availableSql()))).orderBy(asc(products.price));
   const best = new Map<string, Product>();
   for (const r of rows) if (!best.has(r.platform)) best.set(r.platform, r);
   return [...best.values()].sort((a, b) => a.price - b.price);
@@ -322,7 +325,7 @@ export async function biggestGaps(limit = 20) {
       platforms: sql<number>`count(distinct ${products.platform})`,
     })
     .from(products)
-    .where(isNotNull(products.groupKey))
+    .where(and(isNotNull(products.groupKey), availableSql()))
     .groupBy(products.groupKey)
     .having(sql`count(distinct ${products.platform}) >= 2`)
     .orderBy(sql`(max(${products.price}) - min(${products.price})) / max(${products.price}) desc`)
@@ -331,7 +334,7 @@ export async function biggestGaps(limit = 20) {
   const members = await db
     .select()
     .from(products)
-    .where(sql`${products.groupKey} in (${sql.join(groups.map((g) => sql`${g.key}`), sql`, `)})`)
+    .where(and(sql`${products.groupKey} in (${sql.join(groups.map((g) => sql`${g.key}`), sql`, `)})`, availableSql()))
     .orderBy(asc(products.price));
   return groups.map((g) => {
     const list = members.filter((m) => m.groupKey === g.key);
@@ -372,7 +375,7 @@ export async function justDropped(hours = 24, limit = 12): Promise<DealRow[]> {
   const rows = await db
     .select({ product: products, droppedAt: droppedAtSql, clicks24: clicks24Sql })
     .from(products)
-    .where(and(gte(products.realDropPct, 5), sql`${droppedAtSql} >= ${since}`))
+    .where(and(gte(products.realDropPct, 5), sql`${droppedAtSql} >= ${since}`, availableSql()))
     .orderBy(sql`${droppedAtSql} desc`, desc(products.dealScore))
     .limit(limit);
   return enrichDeals(rows.map((r) => r.product));
@@ -407,8 +410,8 @@ export async function categoryStats(category: string) {
   const real = await db
     .select({ id: products.id, name: products.name, price: products.price, realDropPct: products.realDropPct, platform: products.platform })
     .from(products)
-    .where(and(eq(products.category, category), gte(products.realDropPct, 5)));
-  const [{ total }] = await db.select({ total: count() }).from(products).where(eq(products.category, category));
+    .where(and(eq(products.category, category), gte(products.realDropPct, 5), availableSql()));
+  const [{ total }] = await db.select({ total: count() }).from(products).where(and(eq(products.category, category), availableSql()));
   if (!real.length) return { total, realCount: 0, avgDrop: 0, cheapest: null, deepest: null, platforms: 0 };
   const avgDrop = real.reduce((s, r) => s + r.realDropPct, 0) / real.length;
   const cheapest = real.reduce((a, b) => (b.price < a.price ? b : a));

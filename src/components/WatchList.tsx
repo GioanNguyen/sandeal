@@ -47,7 +47,7 @@ export function WatchList({ initial }: { initial: WatchItem[] }) {
           return (
             <li key={w.id} className="watch-item">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={thumbUrl(w.product.imageUrl) ?? ""} alt="" width={64} height={64} />
+              <img src={thumbUrl(w.product.imageUrl) ?? ""} alt="" width={64} height={64} loading="lazy" decoding="async" />
               <div className="watch-main">
                 <Link href={productPath(w.product)} className="watch-name">{w.product.name}</Link>
                 <div className="watch-prices">

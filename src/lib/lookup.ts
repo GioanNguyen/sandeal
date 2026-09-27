@@ -1,6 +1,7 @@
-import { and, eq, isNull, lt, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, sql } from "drizzle-orm";
 import { enabledAdapters } from "@/adapters";
-import { productRequests, products } from "@/db/schema";
+import { productRequests, products, type Product } from "@/db/schema";
+import { platformLatest, staleCutoff } from "./availability";
 import { upsertProduct } from "./ingest";
 import { db, ensureMigrated } from "./db";
 import { refFromInput, type ProductRef } from "./links";
@@ -10,12 +11,12 @@ export type CheckResult =
   | { status: "queued"; ref: ProductRef }
   | { status: "invalid" };
 
-async function tryAdapters(ref: ProductRef): Promise<number | null> {
+async function tryAdapters(ref: ProductRef, opts: { restockCutoff?: Date | null; skipMock?: boolean } = {}): Promise<number | null> {
   for (const a of enabledAdapters()) {
-    if (!a.lookup) continue;
+    if (!a.lookup || (opts.skipMock && a.name === "mock")) continue;
     try {
       const p = await a.lookup(ref);
-      if (p) return await upsertProduct(p);
+      if (p) return await upsertProduct(p, new Date(), { restockCutoff: opts.restockCutoff });
     } catch (err) {
       console.warn(`[lookup] ${a.name} lỗi:`, (err as Error).message);
     }
@@ -66,4 +67,36 @@ export async function retryProductRequests(limit = 50): Promise<number> {
     if (id) resolved++;
   }
   return resolved;
+}
+
+/**
+ * Worker: kiểm tra lại từng món đã hơn 1 ngày không thấy trong nguồn deal nhưng có người quan tâm
+ * (đang theo dõi, hoặc được xem trong 7 ngày). Nguồn deal chỉ trả về món đang nổi, nên một món vắng mặt
+ * chưa chắc đã hết hàng – tra cứu trực tiếp theo mã để biết món còn bán hay không và cập nhật giá.
+ */
+export async function refreshMissing(limit = 40, now = new Date()): Promise<number> {
+  const rows = (await db
+    .select()
+    .from(products)
+    .where(
+      and(
+        sql`${products.lastSeenAt} < (select max(p2.last_seen_at) from products p2 where p2.platform = ${products.platform}) - interval '1 day'`,
+        sql`(exists (select 1 from watches w where w.product_id = ${products.id})
+          or exists (select 1 from product_views v where v.product_id = ${products.id} and v.created_at >= ${new Date(now.getTime() - 7 * 86_400_000)}))`,
+      ),
+    )
+    .orderBy(desc(products.lastSeenAt))
+    .limit(limit)) as Product[];
+  if (!rows.length) return 0;
+  const latest = await platformLatest();
+  let found = 0;
+  for (const p of rows) {
+    const id = await tryAdapters(
+      { platform: p.platform as ProductRef["platform"], externalId: p.externalId, url: p.affiliateUrl },
+      // Dữ liệu mẫu không phải sàn thật: không dùng để "xác nhận" món còn bán
+      { restockCutoff: staleCutoff(latest.get(p.platform)), skipMock: true },
+    );
+    if (id) found++;
+  }
+  return found;
 }

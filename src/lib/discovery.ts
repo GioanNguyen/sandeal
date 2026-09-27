@@ -3,6 +3,7 @@ import { and, desc, eq, gte, ilike, lt, sql } from "drizzle-orm";
 import { productViews, products, searchLog, type Product } from "@/db/schema";
 import { db, ensureMigrated } from "./db";
 import { enrichDeals, listCategories, type DealRow } from "./queries";
+import { availableSql } from "./availability";
 
 const DAY = 86_400_000;
 
@@ -65,7 +66,7 @@ export async function suggest(q: string): Promise<Suggestion> {
 /** Deal nổi bật cho dải trượt đầu trang: điểm cao nhất, giảm thật ≥10%, mỗi nhóm sản phẩm chỉ lấy 1 */
 export async function spotlightDeals(limit = 5): Promise<DealRow[]> {
   await ensureMigrated();
-  const rows = await db.select().from(products).where(gte(products.realDropPct, 10)).orderBy(desc(products.dealScore)).limit(limit * 4);
+  const rows = await db.select().from(products).where(and(gte(products.realDropPct, 10), availableSql())).orderBy(desc(products.dealScore)).limit(limit * 4);
   const seen = new Set<string>();
   const pick: Product[] = [];
   for (const r of rows) {
@@ -89,7 +90,7 @@ export async function cheaperSimilar(p: Product, limit = 5): Promise<DealRow[]> 
   const rows = await db
     .select()
     .from(products)
-    .where(and(eq(products.category, p.category), lt(products.price, p.price * 0.97), sql`${products.id} <> ${p.id}`, gte(products.realDropPct, 1)))
+    .where(and(eq(products.category, p.category), lt(products.price, p.price * 0.97), sql`${products.id} <> ${p.id}`, gte(products.realDropPct, 1), availableSql()))
     .orderBy(desc(overlap), desc(products.dealScore))
     .limit(limit);
   return enrichDeals(rows);
@@ -119,7 +120,7 @@ export async function alsoViewed(productId: number, limit = 6): Promise<(DealRow
   const list = (rows as unknown as { rows: { product_id: number; viewers: number }[] }).rows ?? (rows as unknown as { product_id: number; viewers: number }[]);
   if (!list.length) return [];
   const ids = list.map((r) => Number(r.product_id));
-  const prods = await db.select().from(products).where(sql`${products.id} in (${sql.join(ids.map((i) => sql`${i}`), sql`, `)})`);
+  const prods = await db.select().from(products).where(and(sql`${products.id} in (${sql.join(ids.map((i) => sql`${i}`), sql`, `)})`, availableSql()));
   const byId = new Map(prods.map((x) => [x.id, x]));
   const enriched = await enrichDeals(ids.map((i) => byId.get(i)).filter((x): x is Product => !!x));
   const viewers = new Map(list.map((r) => [Number(r.product_id), Number(r.viewers)]));
@@ -138,7 +139,7 @@ export function nextVnMidnight(now = new Date()) {
  */
 export async function mysteryDeal(excludeIds: number[] = [], now = new Date()): Promise<{ deal: DealRow; day: string; nextAt: string } | null> {
   await ensureMigrated();
-  const rows = await db.select().from(products).where(gte(products.realDropPct, 15)).orderBy(desc(products.dealScore), products.id).limit(20);
+  const rows = await db.select().from(products).where(and(gte(products.realDropPct, 15), availableSql())).orderBy(desc(products.dealScore), products.id).limit(20);
   const pool = rows.filter((r) => !excludeIds.includes(r.id)).slice(0, 12);
   if (!pool.length) return null;
   const day = vnDay(now);
@@ -161,7 +162,7 @@ export async function alternativesFor(p: Product, limit = 2): Promise<DealRow[]>
   const rows = await db
     .select()
     .from(products)
-    .where(and(eq(products.category, p.category), ilike(products.name, `${kind}%`), sql`${products.id} <> ${p.id}`, p.groupKey ? sql`coalesce(${products.groupKey}, '') <> ${p.groupKey}` : undefined, sql`lower(${products.name}) <> ${p.name.toLowerCase()}`))
+    .where(and(eq(products.category, p.category), ilike(products.name, `${kind}%`), sql`${products.id} <> ${p.id}`, p.groupKey ? sql`coalesce(${products.groupKey}, '') <> ${p.groupKey}` : undefined, sql`lower(${products.name}) <> ${p.name.toLowerCase()}`, availableSql()))
     .orderBy(desc(overlap), desc(products.dealScore))
     .limit(limit * 3);
   // Mỗi tên chỉ lấy 1 (tránh 2 cột cùng một món ở 2 sàn)

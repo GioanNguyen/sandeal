@@ -1,0 +1,1 @@
+CREATE INDEX "products_seen_idx" ON "products" USING btree ("platform","last_seen_at");

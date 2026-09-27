@@ -39,6 +39,8 @@ export const products = pgTable(
     uniqueIndex("products_platform_ext_uq").on(t.platform, t.externalId),
     index("products_score_idx").on(t.dealScore),
     index("products_cat_idx").on(t.platform, t.category),
+    // Lần đồng bộ mới nhất của từng sàn (xác định món "không còn thấy trên sàn")
+    index("products_seen_idx").on(t.platform, t.lastSeenAt),
   ],
 );
 

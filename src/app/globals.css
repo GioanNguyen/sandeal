@@ -604,6 +604,7 @@ html[data-theme="dark"] { --hot: #f87171; --hot-soft: #3b1414; }
   .buy-sticky { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(10px); border-top: 1px solid var(--border); box-shadow: 0 -6px 20px rgb(0 0 0 / 8%); }
   .buy-sticky > div { display: flex; flex-direction: column; min-width: 0; }
   .buy-sticky .price { font-size: 18px; }
+  .buy-sticky .btn { white-space: nowrap; flex: none; }
   body:has(.buy-sticky) .site-footer { padding-bottom: 80px; }
 }
 @media (max-width: 640px) {
@@ -1520,3 +1521,9 @@ main:focus { outline: none; }
 .also-mini .pr { text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .also-mini .pr b { display: block; color: var(--primary); }
 .also-mini .pr small { color: var(--save); font-weight: 700; font-size: 12px; }
+
+/* Món không còn thấy trên sàn (trang sản phẩm) */
+.gone-box { border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); background: var(--warn-soft); border-radius: var(--radius); padding: 12px 14px; margin: 0 0 14px; font-size: 14px; }
+.gone-box p { margin: 0 0 8px; color: var(--text); }
+.gone-box .gone-title { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--warn); }
+.gone-actions { display: flex; flex-wrap: wrap; gap: 8px; }

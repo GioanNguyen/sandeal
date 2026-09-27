@@ -1,4 +1,5 @@
 import { CardImage } from "@/components/CardImage";
+import { ProductImage } from "@/components/ProductImage";
 import { ShareImageButton } from "@/components/ShareImageButton";
 import Link from "next/link";
 import { priceTopics, topicName } from "@/lib/pricepages";
@@ -34,6 +35,7 @@ import { Icon } from "@/components/Icon";
 import { PlatformBadge } from "@/components/PlatformBadge";
 import { PriceChart } from "@/components/PriceChart";
 import { WatchForm } from "@/components/WatchForm";
+import { isUnavailable, platformLatest } from "@/lib/availability";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +45,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = await getProduct(productIdFromParam((await params).id));
   if (!p) return {};
   const title = `Lịch sử giá ${p.name} – có đang rẻ thật? (${vnd(p.price)}, ${PLATFORMS[p.platform]?.label ?? p.platform})`;
-  const description = `Giá hiện tại ${vnd(p.price)}${p.realDropPct >= 1 ? `, rẻ hơn ${Math.round(p.realDropPct)}% so với giá 30 ngày` : ""}. Xem biểu đồ giá 90 ngày và nhận báo khi giá giảm.`;
+  const gone = isUnavailable(p, await platformLatest());
+  const description = gone
+    ? `Giá ghi nhận lần cuối ${vnd(p.price)}. Săn Deal hiện không còn thấy món này trên sàn – xem lịch sử giá, món tương tự và nhận báo khi có lại.`
+    : `Giá hiện tại ${vnd(p.price)}${p.realDropPct >= 1 ? `, rẻ hơn ${Math.round(p.realDropPct)}% so với giá 30 ngày` : ""}. Xem biểu đồ giá 90 ngày và nhận báo khi giá giảm.`;
   return {
     title,
     description,
@@ -64,8 +69,11 @@ export default async function ProductPage({ params, searchParams }: Props) {
     const q = new URLSearchParams(Object.entries(sp).filter(([, v]) => typeof v === "string") as [string, string][]).toString();
     permanentRedirect(q ? `${canonical}?${q}` : canonical);
   }
+  // Món không còn thấy trên sàn: vẫn giữ trang (lịch sử giá, link cũ, thứ hạng Google) nhưng không mời mua,
+  // đưa món tương tự đang bán lên đầu và mời "Báo khi có lại"
+  const gone = isUnavailable(p, await platformLatest());
   const [similarAll, offers, pv, votes, cheaper, alsoRaw] = await Promise.all([
-    similarDeals(p, 10), compareOffers(p), calcVouchers(p.platform), voteSummary(p.id, user?.id), cheaperSimilar(p, 5), alsoViewed(p.id, 6),
+    similarDeals(p, gone ? 12 : 10), compareOffers(p), calcVouchers(p.platform), voteSummary(p.id, user?.id), cheaperSimilar(p, 5), alsoViewed(p.id, 6),
   ]);
   const [alts, [currentRow]] = await Promise.all([alternativesFor(p, 2), dealsByIds([p.id])]);
   // Không lặp lại món đã có ở mục trên, bỏ bản sao cùng sản phẩm ở sàn khác (đã có ở "So sánh giữa các sàn")
@@ -76,6 +84,10 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const alsoRest = also.slice(3);
   const shown = new Set([...cheaper.map((d) => d.id), ...also.map((d) => d.id)]);
   const similar = similarAll.filter((d) => !shown.has(d.id)).slice(0, 5);
+  // Khi món vắng: gộp "rẻ hơn" + "cùng danh mục" thành 1 mục ở đầu trang
+  const replacements = gone ? [...cheaper, ...similarAll.filter((d) => !cheaper.some((c) => c.id === d.id))].slice(0, 8) : [];
+  const vnSeen = new Date(p.lastSeenAt.getTime() + 7 * 3_600_000).toISOString();
+  const lastSeen = `${vnSeen.slice(8, 10)}/${vnSeen.slice(5, 7)}`;
   const expiring = await soonestVoucher(p.platform, 24);
   // Lần giảm giá gần nhất (≥5%) trong lịch sử
   let droppedAt: Date | null = null;
@@ -113,7 +125,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
     category: p.category ?? undefined,
     description: `${p.name} trên ${platformLabel}: giá hiện tại ${vnd(p.price)}${p.realDropPct >= 1 ? `, rẻ hơn ${Math.round(p.realDropPct)}% so với giá thường ngày 30 ngày qua` : ""}. Xem lịch sử giá và nhận báo khi giá giảm.`,
     // Không khai aggregateRating: sàn chỉ cho điểm sao, không cho số lượt đánh giá – Google yêu cầu cả hai
-    offers: {
+    // Món không còn thấy trên sàn: không khai giá bán/tình trạng hàng (không biết chắc) thay vì khai sai "còn hàng"
+    offers: gone ? undefined : {
       "@type": "Offer",
       url: pageUrl,
       price: p.price,
@@ -130,8 +143,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
       <Breadcrumbs items={[...(p.category ? [{ name: p.category, href: `/danh-muc/${slugify(p.category)}` }] : []), { name: p.name }]} />
       <div className="detail">
         <div className="detail-media">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={p.imageUrl ?? ""} alt={p.name} width={600} height={600} />
+          <ProductImage src={p.imageUrl} alt={p.name} />
         </div>
         <div>
           <div className="buy-row" style={{ margin: 0 }}>
@@ -143,8 +155,9 @@ export default async function ProductPage({ params, searchParams }: Props) {
           </div>
           <h1>{p.name}</h1>
           <div className="price-row">
+            {gone && <span className="muted" style={{ fontSize: 14 }}>Giá lần cuối</span>}
             <span className="price">{vnd(p.price)}</span>
-            {p.originalPrice && p.originalPrice > p.price ? (
+            {!gone && p.originalPrice && p.originalPrice > p.price ? (
               <>
                 <span className="strike">{vnd(p.originalPrice)}</span>
                 <span className="ribbon" style={{ position: "static" }}>-{Math.round(p.discountPct)}%</span>
@@ -155,49 +168,62 @@ export default async function ProductPage({ params, searchParams }: Props) {
           {sp.moi && (
             <p className="form-msg save" role="status"><Icon name="check" size={16} /> Đã thêm sản phẩm vào danh sách theo dõi giá.</p>
           )}
-          <AdviceBox
-            a={advice}
-            price={p.price}
-            buyHref={`/go/${p.id}`}
-            buyLabel={`Mua trên ${platformLabel}`}
-            cheaperElsewhere={offers.length >= 2 && offers[0].id !== p.id ? { label: PLATFORMS[offers[0].platform]?.label ?? offers[0].platform, save: p.price - offers[0].price, href: productPath(offers[0]) } : null}
-          />
-
-          {sale && !sale.live && sale.days <= 45 && (
-            <SaleAlertButton
-              productId={p.id}
-              saleName={sale.name.replace(/ – .*/, "")}
-              days={sale.days}
-              initialOn={alertOn}
-              loggedIn={!!user}
-              loginHref={`/login?next=${encodeURIComponent(`${productPath(p)}?nhacsale=1`)}`}
-              pushHint={hasPush}
-            />
-          )}
-
-          {viewers >= VIEWERS_MIN_PAGE && (
-            <p className="view-line page"><Icon name="eye" size={16} /> <b>{viewers} người</b> đã xem món này trong 1 giờ qua</p>
-          )}
-          {freshDrop && (
-            <p className="fresh-line"><span className="pulse-dot" aria-hidden="true" /> Giá vừa giảm lúc {freshDrop.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Ho_Chi_Minh" })} hôm nay. Giá sàn có thể đổi bất cứ lúc nào.</p>
-          )}
-          {expiring?.endAt && (
-            <div className="expiring">
-              <span><b>{expiring.code ? `Mã ${expiring.code}` : expiring.title}</b> {expiring.code ? `· ${expiring.title}` : ""}</span>
-              <UrgencyTimer end={expiring.endAt.toISOString()} start={expiring.startAt?.toISOString()} label="Hết hạn sau" endedLabel="Mã đã hết hạn" size="sm" />
+          {gone ? (
+            <div className="gone-box" role="status">
+              <p className="gone-title"><Icon name="alert" size={18} /> Săn Deal không còn thấy món này trên {platformLabel} từ {lastSeen}</p>
+              <p>Có thể món đã hết hàng, ngừng bán hoặc không còn khuyến mãi. Giá ở trên là giá ghi nhận lần cuối, không phải giá đang bán.</p>
+              <div className="gone-actions">
+                {replacements.length > 0 && <a className="btn btn-primary btn-sm" href="#tuong-tu">Xem {replacements.length} món tương tự đang bán</a>}
+                <a className="btn btn-ghost btn-sm" href="#theo-doi"><Icon name="bell" size={14} /> Báo khi có lại</a>
+              </div>
             </div>
-          )}
-          {afterCodes < p.price && (
-            <a className="best-price" href={`/tinh-gia?p=${p.id}`}>
-              <Icon name="ticket" size={18} />
-              <span>Giá sau mã tốt nhất <b>{vnd(afterCodes)}</b>{plan.shipSaved > 0 ? " + freeship" : ""}</span>
-              <span className="muted">Xem cách áp mã →</span>
-            </a>
+          ) : (
+            <>
+            <AdviceBox
+              a={advice}
+              price={p.price}
+              buyHref={`/go/${p.id}`}
+              buyLabel={`Mua trên ${platformLabel}`}
+              cheaperElsewhere={offers.length >= 2 && offers[0].id !== p.id ? { label: PLATFORMS[offers[0].platform]?.label ?? offers[0].platform, save: p.price - offers[0].price, href: productPath(offers[0]) } : null}
+            />
+
+            {sale && !sale.live && sale.days <= 45 && (
+              <SaleAlertButton
+                productId={p.id}
+                saleName={sale.name.replace(/ – .*/, "")}
+                days={sale.days}
+                initialOn={alertOn}
+                loggedIn={!!user}
+                loginHref={`/login?next=${encodeURIComponent(`${productPath(p)}?nhacsale=1`)}`}
+                pushHint={hasPush}
+              />
+            )}
+
+            {viewers >= VIEWERS_MIN_PAGE && (
+              <p className="view-line page"><Icon name="eye" size={16} /> <b>{viewers} người</b> đã xem món này trong 1 giờ qua</p>
+            )}
+            {freshDrop && (
+              <p className="fresh-line"><span className="pulse-dot" aria-hidden="true" /> Giá vừa giảm lúc {freshDrop.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Ho_Chi_Minh" })} hôm nay. Giá sàn có thể đổi bất cứ lúc nào.</p>
+            )}
+            {expiring?.endAt && (
+              <div className="expiring">
+                <span><b>{expiring.code ? `Mã ${expiring.code}` : expiring.title}</b> {expiring.code ? `· ${expiring.title}` : ""}</span>
+                <UrgencyTimer end={expiring.endAt.toISOString()} start={expiring.startAt?.toISOString()} label="Hết hạn sau" endedLabel="Mã đã hết hạn" size="sm" />
+              </div>
+            )}
+            {afterCodes < p.price && (
+              <a className="best-price" href={`/tinh-gia?p=${p.id}`}>
+                <Icon name="ticket" size={18} />
+                <span>Giá sau mã tốt nhất <b>{vnd(afterCodes)}</b>{plan.shipSaved > 0 ? " + freeship" : ""}</span>
+                <span className="muted">Xem cách áp mã →</span>
+              </a>
+            )}
+            </>
           )}
 
           <div className="buy-row">
-            <a className="btn btn-primary" href={`/go/${p.id}`} target="_blank" rel="nofollow sponsored noopener">
-              Mua trên {platformLabel} <Icon name="external" size={16} />
+            <a className={`btn ${gone ? "btn-ghost" : "btn-primary"}`} href={`/go/${p.id}`} target="_blank" rel="nofollow sponsored noopener">
+              {gone ? "Kiểm tra trên" : "Mua trên"} {platformLabel} <Icon name="external" size={16} />
             </a>
             <span className="save-inline"><SaveButton id={p.id} name={p.name} price={p.price} /></span>
             <VoteBox productId={p.id} initial={votes} loggedIn={!!user} />
@@ -243,12 +269,27 @@ export default async function ProductPage({ params, searchParams }: Props) {
             )}
           </section>
           <section className="panel" id="theo-doi">
-            <h2><Icon name="bell" /> Báo tôi khi giá giảm</h2>
-            <p className="muted" style={{ margin: 0 }}>Nhận email khi giá xuống bằng hoặc thấp hơn mức bạn đặt. Tối đa 1 email mỗi ngày.</p>
+            <h2><Icon name="bell" /> {gone ? "Báo tôi khi món này có lại" : "Báo tôi khi giá giảm"}</h2>
+            <p className="muted" style={{ margin: 0 }}>
+              {gone
+                ? "Săn Deal kiểm tra lại món này mỗi ngày. Khi thấy lại trên sàn, bạn nhận email (và thông báo nếu đã bật) kèm giá mới, dù giá có cao hơn mức bạn đặt."
+                : "Nhận email khi giá xuống bằng hoặc thấp hơn mức bạn đặt. Tối đa 1 email mỗi ngày."}
+            </p>
             <WatchForm productId={p.id} suggested={Math.round((advice.low * 0.98) / 1000) * 1000} userEmail={user?.email} initial={{ status: sp.watch, msg: sp.msg }} />
           </section>
         </div>
       </div>
+      {gone ? (
+      <div className="buy-sticky" role="region" aria-label="Món tương tự">
+        <div>
+          <b className="price">{vnd(p.price)}</b>
+          <span className="muted" style={{ fontSize: 12 }}>Giá lần cuối, đã vắng trên sàn</span>
+        </div>
+        {replacements.length > 0
+          ? <a className="btn btn-primary" href="#tuong-tu">Xem món khác</a>
+          : <a className="btn btn-primary" href="#theo-doi">Báo khi có lại</a>}
+      </div>
+      ) : (
       <div className="buy-sticky" role="region" aria-label="Mua nhanh">
         <div>
           <b className="price">{vnd(p.price)}</b>
@@ -260,10 +301,21 @@ export default async function ProductPage({ params, searchParams }: Props) {
         </div>
         <a className="btn btn-primary" href={`/go/${p.id}`} target="_blank" rel="nofollow sponsored noopener">Mua ngay <Icon name="external" size={14} /></a>
       </div>
+      )}
 
-      {alts.length > 0 && currentRow && <CompareAlternatives current={currentRow} others={alts} />}
+      {gone && replacements.length > 0 && (
+        <section className="section" id="tuong-tu" aria-labelledby="repl-head">
+          <div className="section-head">
+            <h2 id="repl-head"><Icon name="flame" size={22} /> Món tương tự đang bán</h2>
+            <span className="muted" style={{ fontSize: 13 }}>Cùng danh mục {p.category}, giá vừa cập nhật từ sàn</span>
+          </div>
+          <DealGrid items={replacements} />
+        </section>
+      )}
 
-      {cheaper.length > 0 && (
+      {!gone && alts.length > 0 && currentRow && <CompareAlternatives current={currentRow} others={alts} />}
+
+      {!gone && cheaper.length > 0 && (
         <section className="section" aria-labelledby="cheap-head">
           <div className="section-head">
             <h2 id="cheap-head"><Icon name="trendingDown" size={22} /> Món tương tự rẻ hơn</h2>
@@ -283,7 +335,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
         </section>
       )}
 
-      {similar.length > 0 && (
+      {!gone && similar.length > 0 && (
         <section className="section" aria-labelledby="sim-head">
           <div className="section-head"><h2 id="sim-head"><Icon name="flame" size={22} /> Deal cùng danh mục</h2></div>
           <DealGrid items={similar} />

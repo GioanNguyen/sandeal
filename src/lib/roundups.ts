@@ -7,6 +7,7 @@ import { products, type Product } from "@/db/schema";
 import { db, ensureMigrated } from "./db";
 import { vnd } from "./format";
 import { enrichDeals, type DealRow } from "./queries";
+import { availableSql } from "./availability";
 import { slugify } from "./slug";
 
 export const ROUNDUP_MIN = 3;
@@ -40,6 +41,7 @@ const realDeal = () => gte(products.realDropPct, 5);
 function whereOf(d: Pick<RoundupDef, "category" | "typePrefix" | "maxPrice">): SQL | undefined {
   return and(
     realDeal(),
+    availableSql(),
     d.category ? eq(products.category, d.category) : undefined,
     d.typePrefix ? ilike(products.name, `${d.typePrefix.replace(/[%_]/g, "")}%`) : undefined,
     d.maxPrice ? lte(products.price, d.maxPrice) : undefined,

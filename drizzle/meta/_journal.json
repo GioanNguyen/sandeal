@@ -71,6 +71,13 @@
       "when": 1790266028418,
       "tag": "0009_sale_alerts_weekly",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790503244461,
+      "tag": "0010_product_seen_idx",
+      "breakpoints": true
     }
   ]
 }

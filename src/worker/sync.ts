@@ -4,7 +4,8 @@ import { upsertProduct, upsertVoucher } from "@/lib/ingest";
 import { notifyWatchers } from "./notify";
 import { syncConversions } from "./conversions";
 import { groupProducts } from "./grouping";
-import { retryProductRequests } from "@/lib/lookup";
+import { refreshMissing, retryProductRequests } from "@/lib/lookup";
+import { platformLatest, staleCutoff } from "@/lib/availability";
 
 export { upsertProduct, upsertVoucher };
 
@@ -14,6 +15,8 @@ export interface SyncReport {
   emails: number;
   groups: number;
   requests: number;
+  /** Món vắng trong nguồn deal đã tra cứu lại được */
+  refreshed: number;
   conversions: number;
   errors: string[];
   ms: number;
@@ -22,11 +25,13 @@ export interface SyncReport {
 export async function runSync(): Promise<SyncReport> {
   await ensureMigrated();
   const started = Date.now();
-  const report: SyncReport = { products: 0, vouchers: 0, emails: 0, groups: 0, requests: 0, conversions: 0, errors: [], ms: 0 };
+  const report: SyncReport = { products: 0, vouchers: 0, emails: 0, groups: 0, requests: 0, refreshed: 0, conversions: 0, errors: [], ms: 0 };
+  // Mốc "không còn thấy trên sàn" tính trước khi đồng bộ: món vắng lâu nay thấy lại -> báo người theo dõi
+  const latest = await platformLatest();
   for (const adapter of enabledAdapters()) {
     try {
       const ps = (await adapter.fetchProducts?.()) ?? [];
-      for (const p of ps) await upsertProduct(p);
+      for (const p of ps) await upsertProduct(p, new Date(), { restockCutoff: staleCutoff(latest.get(p.platform)) });
       const vs = (await adapter.fetchVouchers?.()) ?? [];
       for (const v of vs) await upsertVoucher(v);
       report.products += ps.length;
@@ -39,6 +44,7 @@ export async function runSync(): Promise<SyncReport> {
   }
   for (const [key, job] of [
     ["requests", () => retryProductRequests()],
+    ["refreshed", () => refreshMissing()],
     ["groups", groupProducts],
     ["emails", notifyWatchers],
     ["conversions", syncConversions],

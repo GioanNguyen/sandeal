@@ -8,7 +8,20 @@ import { parseDiscount } from "./voucher";
 /** Ghi sản phẩm/voucher vào DB (dùng chung cho worker và tính năng dán link) */
 const DAY = 86_400_000;
 
-export async function upsertProduct(p: ProductInput, now = new Date()) {
+/**
+ * `restockCutoff`: món thấy lần cuối trước mốc này là đang "không còn thấy trên sàn";
+ * nay thấy lại thì báo cho người đang theo dõi (xem availability.ts). Worker truyền mốc tính lúc bắt đầu đồng bộ.
+ */
+export async function upsertProduct(p: ProductInput, now = new Date(), opts: { restockCutoff?: Date | null } = {}) {
+  let wasGone = false;
+  if (opts.restockCutoff) {
+    const [prev] = await db
+      .select({ lastSeenAt: products.lastSeenAt })
+      .from(products)
+      .where(and(eq(products.platform, p.platform), eq(products.externalId, p.externalId)))
+      .limit(1);
+    wasGone = !!prev && prev.lastSeenAt < opts.restockCutoff;
+  }
   const data = {
     name: p.name,
     imageUrl: p.imageUrl ?? null,
@@ -59,6 +72,10 @@ export async function upsertProduct(p: ProductInput, now = new Date()) {
 
   const r = computeDealScore({ price: p.price, discountPct: p.discountPct, rating: p.rating, sold: p.sold, history, now });
   await db.update(products).set({ dealScore: r.score, realDropPct: r.realDropPct }).where(eq(products.id, row.id));
+  if (wasGone) {
+    const { notifyRestock } = await import("@/worker/notify");
+    await notifyRestock(row.id, now).catch((err) => console.warn("[restock] lỗi:", (err as Error).message));
+  }
   return row.id;
 }
 
