@@ -11,7 +11,14 @@ export const metadata: Metadata = {
 };
 
 export default function ExtensionPage() {
-  const hasZip = fs.existsSync(path.join(process.cwd(), "public", "downloads", "san-deal-extension.zip"));
+  const dir = path.join(process.cwd(), "public", "downloads");
+  const hasZip = fs.existsSync(path.join(dir, "san-deal-extension.zip"));
+  // Phiên bản ghi lúc đóng gói (scripts/build-extension.mjs)
+  let info: { version: string; file: string; builtAt: string } | null = null;
+  try {
+    info = JSON.parse(fs.readFileSync(path.join(dir, "san-deal-extension.json"), "utf8"));
+  } catch {}
+  const built = info ? new Date(info.builtAt).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Asia/Ho_Chi_Minh" }) : null;
   return (
     <>
       <section className="sale-hero ext-hero">
@@ -22,7 +29,12 @@ export default function ExtensionPage() {
         </div>
         <div className="hero-actions">
           {hasZip ? (
-            <a className="btn btn-light" href="/downloads/san-deal-extension.zip" download><Icon name="download" size={16} /> Tải tiện ích (Chrome, Edge, Cốc Cốc)</a>
+            <>
+              <a className="btn btn-light" href={`/downloads/san-deal-extension.zip${info ? `?v=${info.version}` : ""}`} download={info?.file ?? "san-deal-extension.zip"}>
+                <Icon name="download" size={16} /> Tải tiện ích{info ? ` v${info.version}` : ""} (Chrome, Edge, Cốc Cốc)
+              </a>
+              {info && <span className="ext-version">Phiên bản mới nhất: <b>{info.version}</b> · đóng gói {built}</span>}
+            </>
           ) : (
             <span className="btn btn-light" aria-disabled="true">Chạy <code>npm run ext:build</code> để tạo file cài đặt</span>
           )}
@@ -55,11 +67,15 @@ export default function ExtensionPage() {
         <section className="panel">
           <h2><Icon name="download" /> Cách cài (khoảng 1 phút)</h2>
           <ol className="tips">
-            <li>Tải file <b>san-deal-extension.zip</b> ở trên và <b>giải nén</b>.</li>
+            <li>Tải file <b>{info?.file ?? "san-deal-extension.zip"}</b> ở trên và <b>giải nén</b> (được thư mục có số phiên bản trong tên).</li>
             <li>Mở <code>chrome://extensions</code> (Edge: <code>edge://extensions</code>), bật <b>Chế độ nhà phát triển</b> ở góc phải.</li>
             <li>Bấm <b>Tải tiện ích đã giải nén</b> và chọn thư mục vừa giải nén.</li>
             <li>Mở một sản phẩm trên Shopee, bảng Săn Deal hiện ở góc phải dưới màn hình.</li>
           </ol>
+          <p className="muted" style={{ fontSize: 13 }}>
+            <b>Cập nhật bản mới:</b> xem phiên bản đang dùng ở <code>chrome://extensions</code> (hoặc bấm biểu tượng Săn Deal – tiện ích tự báo khi có bản mới).
+            Nếu cũ hơn {info ? <b>{info.version}</b> : "bản trên trang này"}, tải lại file, gỡ bản cũ rồi nạp thư mục mới.
+          </p>
           <p className="muted" style={{ fontSize: 13 }}>Sắp có trên Chrome Web Store để cài bằng một cú bấm.</p>
         </section>
       </div>

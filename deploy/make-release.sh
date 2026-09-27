@@ -22,7 +22,7 @@ cp -a .next/static "$OUT/app/.next/static"
 cp -a public/. "$OUT/app/public/"
 # Luôn đóng gói lại tiện ích với đúng SITE_URL (kể cả khi SKIP_BUILD)
 node scripts/build-extension.mjs
-cp public/downloads/san-deal-extension.zip "$OUT/app/public/downloads/"
+cp public/downloads/san-deal-extension.zip public/downloads/san-deal-extension.json "$OUT/app/public/downloads/"
 # Không mang file bí mật / dữ liệu máy dev lên server
 rm -f "$OUT/app/.env" "$OUT/app/.env."*
 rm -rf "$OUT/app/.data"

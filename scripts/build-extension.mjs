@@ -23,11 +23,16 @@ const files = [];
   }
 })(srcDir);
 
+// Phiên bản lấy từ manifest; mọi file nằm trong thư mục "san-deal-extension-v1.1.0/" để giải nén ra là thấy ngay phiên bản
+const version = JSON.parse(fs.readFileSync(path.join(srcDir, "manifest.json"), "utf8")).version;
+const folder = `san-deal-extension-v${version}`;
+
 const entries = files.map((full) => {
-  const name = path.relative(srcDir, full).split(path.sep).join("/");
+  const rel = path.relative(srcDir, full).split(path.sep).join("/");
+  const name = `${folder}/${rel}`;
   let data = fs.readFileSync(full);
-  if (name === "config.js") data = Buffer.from(`self.SAN_DEAL_DEFAULT_SERVER = ${JSON.stringify(site)};\n`);
-  if (name === "manifest.json") {
+  if (rel === "config.js") data = Buffer.from(`self.SAN_DEAL_DEFAULT_SERVER = ${JSON.stringify(site)};\n`);
+  if (rel === "manifest.json") {
     const m = JSON.parse(data.toString());
     const origin = new URL(site);
     const own = `${origin.protocol}//${origin.host}/*`;
@@ -77,4 +82,6 @@ const outDir = path.join(root, "public", "downloads");
 fs.mkdirSync(outDir, { recursive: true });
 const out = path.join(outDir, "san-deal-extension.zip");
 fs.writeFileSync(out, Buffer.concat([...locals, ...centrals, end]));
-console.log(`[extension] ${entries.length} file -> ${path.relative(root, out)} (máy chủ: ${site})`);
+// Thông tin phiên bản cho trang /tien-ich và để tiện ích tự kiểm tra có bản mới
+fs.writeFileSync(path.join(outDir, "san-deal-extension.json"), JSON.stringify({ version, file: `${folder}.zip`, builtAt: new Date().toISOString() }) + "\n");
+console.log(`[extension] v${version}: ${entries.length} file -> ${path.relative(root, out)} (máy chủ: ${site})`);

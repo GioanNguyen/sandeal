@@ -1569,3 +1569,4 @@ main:focus { outline: none; }
 .week-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
 .week-list a { display: flex; gap: 10px; align-items: baseline; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); }
 .week-list a:hover { border-color: var(--primary); }
+.ext-version { display: block; margin-top: 8px; font-size: 13px; opacity: .9; }
