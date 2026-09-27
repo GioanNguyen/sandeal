@@ -70,3 +70,41 @@ export function buildCaption(p: Product, link: string, opts: { variant?: number;
     .filter(Boolean)
     .join("\n");
 }
+
+export interface DigestItem {
+  product: Product;
+  link: string;
+  voucher?: { code: string | null; price: number } | null;
+}
+
+/**
+ * Bài tổng hợp nhiều deal cho Trang Facebook (1 bài / lượt thay vì 1 bài / sản phẩm).
+ * Giá là giá thật lúc lấy; chỉ ghi "giảm thật" khi thấp hơn giá thường ngày 30 ngày từ 5% trở lên.
+ */
+export function buildDigestCaption(items: DigestItem[], opts: { pageName?: string; at?: Date } = {}) {
+  const page = opts.pageName || "Săn Deal";
+  const oldest = items.reduce<Date | undefined>((m, it) => {
+    const t = it.product.lastSeenAt;
+    return t && (!m || t < m) ? t : m;
+  }, undefined);
+  // "11:00 27/09" theo giờ Việt Nam
+  const vn = new Date((opts.at ?? oldest ?? new Date()).getTime() + 7 * 3_600_000).toISOString();
+  const at = `${vn.slice(11, 16)} ${vn.slice(8, 10)}/${vn.slice(5, 7)}`;
+  const blocks = items.map(({ product: p, link, voucher }) => {
+    const name = p.name.length > 80 ? `${p.name.slice(0, 78).trim()}…` : p.name;
+    const drop = Math.round(p.realDropPct);
+    return [
+      `🛍️ ${name}`,
+      `💰 Giá hiện tại: ${vnd(p.price)}${drop >= 5 ? ` (giảm thật ${drop}% so với giá thường ngày)` : ""}`,
+      voucher && voucher.price < p.price ? `🎟 ${voucher.code ? `Nhập mã ${voucher.code}` : "Dùng mã sàn"} còn ${vnd(voucher.price)}` : "",
+      `🔗 ${link}`,
+    ].filter(Boolean).join("\n");
+  });
+  return [
+    "🔥 DEAL ĐÁNG CHÚ Ý HÔM NAY",
+    `Hôm nay, ${page} giới thiệu một số sản phẩm đang có chương trình ưu đãi:`,
+    ...blocks,
+    `⏱ Giá cập nhật lúc ${at}. Ưu đãi có thể thay đổi tùy thời điểm. Bạn hãy kiểm tra giá cuối cùng trước khi đặt hàng nhé!`,
+    "#SănDeal #DealHômNay",
+  ].join("\n\n");
+}

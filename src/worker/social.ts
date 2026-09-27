@@ -2,7 +2,7 @@ import { and, desc, eq, gte, notExists, sql } from "drizzle-orm";
 import { products, socialPosts, type Product } from "@/db/schema";
 import { db } from "@/lib/db";
 import { siteUrl } from "@/lib/mail";
-import { buildCaption, priceK, shareUrl } from "@/lib/social";
+import { buildCaption, buildDigestCaption, priceK, shareUrl } from "@/lib/social";
 import { enrichDeals } from "@/lib/queries";
 import { sendTelegram } from "@/lib/telegram";
 
@@ -90,12 +90,45 @@ export async function postDeal(channel: Channel, p: Product, variant = 0): Promi
   return !error;
 }
 
+/** Nội dung bài tổng hợp Facebook cho danh sách deal (dùng chung cho đăng tự động và trang admin) */
+export async function digestFor(deals: Product[], channel = "facebook") {
+  const rows = new Map((await enrichDeals(deals)).map((d) => [d.id, d]));
+  const items = deals.map((p) => ({ product: p, link: shareUrl(siteUrl(), p, channel), voucher: rows.get(p.id)?.withVoucher ?? null }));
+  return { message: buildDigestCaption(items, { pageName: process.env.FB_PAGE_NAME }), link: items[0]?.link ?? siteUrl() };
+}
+
+/**
+ * Đăng 1 bài tổng hợp nhiều deal lên Trang Facebook, ghi lịch sử cho từng sản phẩm (để không đăng lặp).
+ * Ảnh xem trước của bài lấy từ link sản phẩm đầu tiên. Trả về số sản phẩm đã đăng.
+ */
+export async function postFacebookDigest(deals: Product[]): Promise<number> {
+  if (!deals.length) return 0;
+  let externalId: string | null = null;
+  let error: string | null = null;
+  try {
+    const { message, link } = await digestFor(deals);
+    externalId = await postFacebook(message, link);
+  } catch (err) {
+    error = (err as Error).message.slice(0, 300);
+    console.warn("[social] facebook lỗi:", error);
+  }
+  await db.insert(socialPosts).values(deals.map((p) => ({ channel: "facebook", productId: p.id, externalId, error })));
+  return error ? 0 : deals.length;
+}
+
+/** Facebook đăng kiểu tổng hợp (mặc định) hay mỗi sản phẩm 1 bài (FB_POST_STYLE="single") */
+const fbDigest = () => (process.env.FB_POST_STYLE || "digest") !== "single";
+
 /** Chạy vào giờ vàng: mỗi kênh đăng SOCIAL_PER_RUN deal (mặc định 3) */
 export async function postGoldenHour(now = new Date()): Promise<number> {
   const per = Number(process.env.SOCIAL_PER_RUN ?? process.env.TELEGRAM_PER_RUN ?? 3);
   let n = 0;
   for (const ch of channels()) {
     const deals = await pickDeals(ch, per, now);
+    if (ch === "facebook" && fbDigest()) {
+      n += await postFacebookDigest(deals);
+      continue;
+    }
     for (let i = 0; i < deals.length; i++) if (await postDeal(ch, deals[i], now.getDate() + i)) n++;
   }
   return n;

@@ -7,7 +7,7 @@ process.env.FB_PAGE_ID = "123";
 process.env.FB_PAGE_TOKEN = "tok";
 process.env.SOCIAL_PER_RUN = "2";
 
-test("đăng giờ vàng: chọn deal khác danh mục, gọi Facebook, không đăng lặp", async () => {
+test("đăng giờ vàng: chọn deal khác danh mục, gộp 1 bài Facebook, không đăng lặp", async () => {
   const dbm = await import("./db");
   await dbm.ensureMigrated();
   const { upsertProduct } = await import("./ingest");
@@ -31,14 +31,16 @@ test("đăng giờ vàng: chọn deal khác danh mục, gọi Facebook, không �
     const { postGoldenHour, channels } = await import("@/worker/social");
     assert.deepEqual(channels(), ["facebook"]);
     assert.equal(await postGoldenHour(), 2);
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 1, "2 deal gộp trong 1 bài");
     assert.match(calls[0].url, /graph\.facebook\.com\/v21\.0\/123\/feed/);
     assert.match(calls[0].body.link, /utm_source=facebook/);
-    const cats = new Set<string>();
-    for (const c of calls) cats.add(c.body.message.includes("Serum") ? "lamdep" : "dientu");
-    assert.equal(cats.size, 2, "mỗi danh mục 1 bài");
+    const msg = calls[0].body.message;
+    assert.match(msg, /^🔥 DEAL ĐÁNG CHÚ Ý HÔM NAY/);
+    assert.ok(msg.includes("Serum C"), "mỗi danh mục 1 món");
+    assert.equal((msg.match(/🛍️/g) ?? []).length, 2);
     assert.equal(await postGoldenHour(), 1, "chỉ còn món chưa đăng");
     assert.equal(await postGoldenHour(), 0, "không đăng lặp trong 7 ngày");
+    assert.equal(calls.length, 2, "lượt không còn deal thì không đăng bài rỗng");
     const logged = await dbm.db.select().from(schema.socialPosts);
     assert.equal(logged.length, 3);
   } finally {

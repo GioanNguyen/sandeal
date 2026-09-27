@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { products, socialPosts } from "@/db/schema";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { channels, postDeal } from "@/worker/social";
+import { channels, postDeal, postFacebookDigest } from "@/worker/social";
 
 const MANUAL = ["zalo", "tiktok", "facebook-group"];
 
@@ -13,6 +13,15 @@ export async function POST(req: Request) {
   if (!user || !isAdmin(user.email)) return NextResponse.json({ error: "Không có quyền" }, { status: 403 });
   const body = await req.json().catch(() => null);
   const channel = String(body?.channel ?? "");
+  // Bài tổng hợp nhiều deal lên Trang Facebook
+  if (Array.isArray(body?.productIds)) {
+    if (channel !== "facebook" || !(channels() as string[]).includes("facebook")) return NextResponse.json({ error: "Trang Facebook chưa được cấu hình" }, { status: 400 });
+    const ids = body.productIds.map(Number).filter(Number.isFinite).slice(0, 10);
+    const found = await db.select().from(products).where(inArray(products.id, ids));
+    const deals = ids.map((id: number) => found.find((p) => p.id === id)).filter((p: unknown): p is (typeof found)[number] => !!p);
+    const n = await postFacebookDigest(deals);
+    return n ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "Đăng thất bại, xem lịch sử bên dưới" }, { status: 502 });
+  }
   const [p] = await db.select().from(products).where(eq(products.id, Number(body?.productId))).limit(1);
   if (!p) return NextResponse.json({ error: "Không tìm thấy sản phẩm" }, { status: 404 });
   if (MANUAL.includes(channel)) {

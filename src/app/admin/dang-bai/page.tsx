@@ -7,9 +7,11 @@ import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { db, ensureMigrated } from "@/lib/db";
 import { siteUrl } from "@/lib/mail";
 import { buildCaption, shareUrl } from "@/lib/social";
+import { productPath } from "@/lib/slug";
 import { Icon } from "@/components/Icon";
 import { SocialComposer } from "@/components/SocialComposer";
-import { channels, pickDeals } from "@/worker/social";
+import { DigestComposer } from "@/components/DigestComposer";
+import { channels, digestFor, pickDeals } from "@/worker/social";
 
 export const metadata = { title: "Đăng bài mạng xã hội", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -29,6 +31,8 @@ export default async function SocialAdmin() {
     .orderBy(desc(socialPosts.postedAt))
     .limit(20);
   const site = siteUrl();
+  const digestDeals = await pickDeals("facebook", Number(process.env.SOCIAL_PER_RUN ?? 3), new Date());
+  const digest = digestDeals.length ? await digestFor(digestDeals) : null;
   const hours = (process.env.SOCIAL_HOURS || "11,20").split(",").map((h) => `${h.trim()}h`).join(" và ");
 
   return (
@@ -45,6 +49,14 @@ export default async function SocialAdmin() {
         Zalo, TikTok và nhóm Facebook: chép nội dung + tải ảnh bên dưới rồi đăng tay.
       </p>
 
+      {digest && (
+        <section style={{ marginBottom: 24 }}>
+          <div className="section-head"><h2>Bài tổng hợp cho Trang Facebook</h2></div>
+          <DigestComposer caption={digest.message} productIds={digestDeals.map((p) => p.id)} canPost={connected.includes("facebook")} />
+        </section>
+      )}
+
+      <div className="section-head"><h2>Từng deal</h2></div>
       {deals.length ? (
         <div className="composers">
           {deals.map((p, i) => {
@@ -69,7 +81,7 @@ export default async function SocialAdmin() {
                 <tr key={post.id}>
                   <td>{post.postedAt.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}</td>
                   <td>{post.channel}</td>
-                  <td><Link href={`/product/${post.productId}`}>{name}</Link></td>
+                  <td><Link href={productPath({ id: post.productId, name })}>{name}</Link></td>
                   <td>{post.error ? <span className="status">Lỗi: {post.error}</span> : <span className="status status-completed">Đã đăng</span>}</td>
                 </tr>
               ))}

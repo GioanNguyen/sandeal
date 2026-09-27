@@ -32,7 +32,7 @@ Cần một **Trang** (Page), không đăng được lên trang cá nhân hay nh
 1. Vào [Meta for Developers](https://developers.facebook.com/) → tạo ứng dụng (loại Business).
 2. Trong Graph API Explorer, chọn ứng dụng và Trang của bạn, cấp quyền `pages_manage_posts`, `pages_read_engagement`, lấy **Page Access Token**.
 3. Đổi sang token dài hạn (Access Token Debugger → Extend Access Token), điền `FB_PAGE_TOKEN`; ID của Trang điền `FB_PAGE_ID`.
-4. Bài đăng gồm nội dung + link sản phẩm; Facebook tự lấy ảnh xem trước từ link.
+4. Mặc định mỗi lượt đăng **1 bài tổng hợp** `SOCIAL_PER_RUN` deal ("🔥 DEAL ĐÁNG CHÚ Ý HÔM NAY", mỗi món: tên, giá hiện tại, mã giảm nếu có, link). Facebook lấy ảnh xem trước từ link món đầu tiên. Muốn mỗi deal 1 bài riêng: `FB_POST_STYLE="single"`. Tên trong câu "Hôm nay, … giới thiệu" lấy từ `FB_PAGE_NAME`.
 
 > Quy trình cấp quyền của Meta có thể thay đổi và ứng dụng có thể cần xét duyệt trước khi dùng thật. Kiểm tra lại tài liệu Meta khi thiết lập.
 
