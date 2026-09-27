@@ -15,12 +15,14 @@ export function SiteFooter({ loggedIn }: { loggedIn: boolean }) {
     {
       title: "Săn deal",
       links: [
-        { href: "/", label: "Deal hot hôm nay" },
+        { href: "/deal-hom-nay", label: "Deal hôm nay" },
+        { href: "/", label: "Deal hot" },
         { href: "/vouchers", label: "Mã giảm giá" },
         { href: "/lich-sale", label: "Lịch sale" },
         { href: "/top", label: "Top deal tuần này" },
         { href: "/bo-suu-tap", label: "Bộ sưu tập deal" },
         { href: "/gia", label: "Giá hôm nay" },
+        { href: "/bao-cao-gia", label: "Báo cáo giá tuần" },
       ],
     },
     {
@@ -32,6 +34,7 @@ export function SiteFooter({ loggedIn }: { loggedIn: boolean }) {
         { href: "/doan-gia", label: "Đoán giá mỗi ngày" },
         { href: "/tien-ich", label: "Tiện ích trình duyệt" },
         { href: "/huong-dan", label: "Hướng dẫn săn deal" },
+        { href: "/shop", label: "Shop giảm giá thật?" },
       ],
     },
     {

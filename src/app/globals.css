@@ -1547,3 +1547,25 @@ main:focus { outline: none; }
 /* Thanh mua cố định trên điện thoại: nút báo giá */
 .buy-sticky-actions, .buy-sticky > .buy-sticky-actions { display: flex; flex-direction: row; align-items: center; gap: 8px; flex: none; }
 .buy-sticky .btn-icon { width: 44px; height: 44px; padding: 0; justify-content: center; }
+
+/* Trang shop / so sánh / báo cáo: danh sách nhận xét từ dữ liệu */
+.shop-findings { margin: 0; padding-left: 20px; display: grid; gap: 8px; font-size: 15px; line-height: 1.55; }
+.alt-table.vs-table { min-width: 0; }
+.vs-table thead th { width: calc((100% - 170px) / 2); }
+@media (max-width: 600px) {
+  .vs-table { font-size: 13px; }
+  .vs-table tbody th, .vs-table tfoot th { width: 92px; padding: 8px; white-space: normal; }
+  .vs-table td, .vs-table thead th { padding: 8px; }
+  .vs-table thead th { width: auto; }
+  .vs-table .btn { padding-inline: 10px; white-space: normal; }
+}
+.vs-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.vs-chart-title { margin: 0 0 8px; font-size: 15px; line-height: 1.4; }
+@media (max-width: 860px) { .vs-charts { grid-template-columns: 1fr; } }
+.alt-vs { display: block; margin-top: 6px; font-size: 13px; }
+.chg-down { color: var(--save); font-weight: 700; }
+.chg-up { color: var(--hot); font-weight: 700; }
+.week-nav { display: flex; justify-content: space-between; margin: 24px 0; }
+.week-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.week-list a { display: flex; gap: 10px; align-items: baseline; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); }
+.week-list a:hover { border-color: var(--primary); }

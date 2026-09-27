@@ -1,4 +1,5 @@
 import { productPath } from "@/lib/slug";
+import { comparable, versusPath } from "@/lib/versus";
 import Link from "next/link";
 import type { DealRow } from "@/lib/queries";
 import { PLATFORMS, vnd } from "@/lib/format";
@@ -67,7 +68,10 @@ export function CompareAlternatives({ current, others }: { current: DealRow; oth
                   {i === 0 ? (
                     <a className="btn btn-primary btn-sm" href={`/go/${p.id}`} target="_blank" rel="nofollow sponsored noopener">Mua <Icon name="external" size={13} /></a>
                   ) : (
-                    <Link className="btn btn-ghost btn-sm" href={productPath(p)}>Xem món này</Link>
+                    <>
+                      <Link className="btn btn-ghost btn-sm" href={productPath(p)}>Xem món này</Link>
+                      {comparable(current, p) && <Link className="alt-vs" href={versusPath(current, p)}>So sánh chi tiết</Link>}
+                    </>
                   )}
                 </td>
               ))}

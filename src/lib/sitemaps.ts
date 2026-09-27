@@ -12,6 +12,10 @@ import { GUIDES } from "./guides";
 import { priceTopics } from "./pricepages";
 import { salePages } from "./salepages";
 import { productPath, slugify } from "./slug";
+import { listShops } from "./shops";
+import { versusPairs, versusPath } from "./versus";
+import { reportWeeks } from "./weekly";
+import { recentDays } from "./daily";
 
 export const PRODUCTS_PER_FILE = 10_000;
 type Url = { loc: string; lastmod?: Date | null; changefreq?: string; priority?: number };
@@ -63,6 +67,9 @@ export async function sitemapFiles(): Promise<{ name: string; lastmod: Date | nu
     { name: "categories.xml", lastmod: at ?? null },
     { name: "tops.xml", lastmod: at ?? null },
     { name: "topics.xml", lastmod: at ?? null },
+    { name: "reports.xml", lastmod: at ?? null },
+    { name: "shops.xml", lastmod: at ?? null },
+    { name: "versus.xml", lastmod: at ?? null },
     ...Array.from({ length: chunks }, (_, i) => ({ name: `products-${i + 1}.xml`, lastmod: at ?? null })),
   ];
 }
@@ -84,6 +91,9 @@ export async function sitemapUrls(name: string): Promise<Url[] | null> {
       ["/cong-dong", "daily", 0.5],
       ["/tien-ich", "monthly", 0.5],
       ["/gia", "daily", 0.7],
+      ["/deal-hom-nay", "hourly", 0.9],
+      ["/bao-cao-gia", "weekly", 0.6],
+      ["/shop", "weekly", 0.5],
       ["/huong-dan", "monthly", 0.6],
       ["/cach-hoat-dong", "monthly", 0.4],
     ];
@@ -102,6 +112,22 @@ export async function sitemapUrls(name: string): Promise<Url[] | null> {
       .where(isNotNull(products.category))
       .groupBy(products.category);
     return rows.map((r) => ({ loc: `${base}/danh-muc/${slugify(r.category!)}`, lastmod: r.at, changefreq: "daily", priority: 0.8 }));
+  }
+  if (name === "reports.xml") {
+    const [weeks, days] = await Promise.all([reportWeeks(12), recentDays(30)]);
+    return [
+      ...weeks.map((w, i) => ({ loc: `${base}/bao-cao-gia/${w.slug}`, lastmod: i === 0 ? new Date() : w.end, changefreq: i === 0 ? "daily" : "yearly", priority: 0.6 })),
+      ...days.map((d) => ({ loc: `${base}/deal-hom-nay/${d.slug}`, changefreq: "yearly", priority: 0.4 })),
+    ];
+  }
+  if (name === "shops.xml") {
+    const weekAgo = Date.now() - 7 * 86_400_000;
+    return (await listShops())
+      .filter((s) => s.firstSeen && s.firstSeen.getTime() < weekAgo)
+      .map((s) => ({ loc: `${base}/shop/${s.slug}`, lastmod: s.lastSeen, changefreq: "weekly", priority: 0.5 }));
+  }
+  if (name === "versus.xml") {
+    return (await versusPairs()).map(({ a, b }) => ({ loc: `${base}${versusPath(a, b)}`, changefreq: "weekly", priority: 0.4 }));
   }
   if (name === "topics.xml") {
     const [topics, rows] = await Promise.all([priceTopics(), productRows()]);

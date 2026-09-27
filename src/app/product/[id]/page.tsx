@@ -37,6 +37,9 @@ import { PriceChart } from "@/components/PriceChart";
 import { WatchForm } from "@/components/WatchForm";
 import { AddOnBox } from "@/components/AddOnBox";
 import { addOnsFor } from "@/lib/addon";
+import { SHOP_MIN_PRODUCTS, shopPath } from "@/lib/shops";
+import { and, count } from "drizzle-orm";
+import { products } from "@/db/schema";
 import { isUnavailable, platformLatest } from "@/lib/availability";
 
 export const dynamic = "force-dynamic";
@@ -100,6 +103,11 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const plan = bestPlan({ platform: p.platform, subtotal: p.price, shipping: 30_000 }, pv);
   const afterCodes = p.price - plan.discount - plan.cashback;
   const addOns = gone ? [] : await addOnsFor(p, pv);
+  // Tên shop dẫn tới trang shop khi shop có đủ món để có trang riêng
+  const shopHref = p.shopName
+    ? await db.select({ n: count() }).from(products).where(and(eq(products.platform, p.platform), eq(products.shopName, p.shopName)))
+        .then(([r]) => (Number(r.n) >= SHOP_MIN_PRODUCTS ? shopPath(p) : null))
+    : null;
 
   const advice = buyAdvice(p.prices, p.price);
   const viewers = (await recentViewers([p.id])).get(p.id) ?? 0;
@@ -152,7 +160,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
           <div className="buy-row" style={{ margin: 0 }}>
             <PlatformBadge platform={p.platform} inline />
             <ShopBadge type={p.shopType} />
-            {p.shopName && <span className="muted">{p.shopName}{p.shopRating ? ` · shop ${p.shopRating.toFixed(1)}/5` : ""}</span>}
+            {p.shopName && <span className="muted">{shopHref ? <Link href={shopHref}>{p.shopName}</Link> : p.shopName}{p.shopRating ? ` · shop ${p.shopRating.toFixed(1)}/5` : ""}</span>}
             {p.rating ? <span className="rating muted"><Icon name="star" size={14} />{p.rating.toFixed(1)}</span> : null}
             {p.sold ? <span className="muted">· Đã bán {p.sold.toLocaleString("vi-VN")}</span> : null}
           </div>

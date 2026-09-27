@@ -73,11 +73,11 @@ async function history(ids: number[]) {
 }
 
 /** Tổng kết một đợt sale đã/đang diễn ra */
-export async function saleReport(e: SaleEvent, now = new Date()) {
+export async function saleReport(e: SaleEvent, now = new Date(), onlyIds?: number[]) {
   await ensureMigrated();
   const start = e.start.getTime();
   const end = Math.min(e.end.getTime(), now.getTime());
-  const all = (await db.select().from(products)) as Product[];
+  const all = (await (onlyIds ? db.select().from(products).where(inArray(products.id, onlyIds.length ? onlyIds : [-1])) : db.select().from(products))) as Product[];
   const hist = await history(all.map((p) => p.id));
   const rows: SaleRow[] = [];
   for (const p of all) {
