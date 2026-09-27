@@ -40,6 +40,18 @@ export default function ExtensionPage() {
             <li>Chỉ đọc địa chỉ trang sản phẩm bạn đang xem, không đọc tài khoản, giỏ hàng hay mật khẩu.</li>
           </ul>
         </section>
+        <section className="panel" id="gop-gia">
+          <h2><Icon name="users" /> Góp giá ẩn danh (tuỳ chọn)</h2>
+          <p style={{ margin: 0 }}>
+            Lần đầu dùng, tiện ích hỏi bạn có muốn <b>góp giá</b> không. Nếu đồng ý, khi bạn mở trang sản phẩm, tiện ích gửi <b>tên, giá, ảnh và điểm đánh giá</b>{" "}
+            mà trang công khai cho Săn Deal, để sản phẩm chưa có trên Săn Deal được bắt đầu theo dõi và lịch sử giá đầy đủ hơn cho mọi người.
+          </p>
+          <ul className="tips" style={{ listStyle: "disc" }}>
+            <li>Không gửi tài khoản, lịch sử duyệt web, giỏ hàng hay bất kỳ thông tin nào về bạn.</li>
+            <li>Máy chủ chỉ lưu mã băm của địa chỉ IP để đếm số người khác nhau thấy cùng mức giá (giá lệch nhiều cần 2 người xác nhận).</li>
+            <li>Trang sản phẩm ghi rõ khi giá đến từ người dùng tiện ích. Tắt bất cứ lúc nào trong phần Tuỳ chọn của tiện ích.</li>
+          </ul>
+        </section>
         <section className="panel">
           <h2><Icon name="download" /> Cách cài (khoảng 1 phút)</h2>
           <ol className="tips">

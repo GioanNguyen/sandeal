@@ -13,4 +13,12 @@
     await chrome.storage.sync.set({ server: `${url.protocol}//${url.host}` });
     msg.textContent = "Đã lưu.";
   };
+  const box = document.getElementById("contribute");
+  const cmsg = document.getElementById("cmsg");
+  const { contribute } = await chrome.storage.sync.get("contribute");
+  box.checked = contribute === true;
+  box.onchange = async () => {
+    await chrome.storage.sync.set({ contribute: box.checked });
+    cmsg.textContent = box.checked ? "Đã bật góp giá. Cảm ơn bạn!" : "Đã tắt góp giá.";
+  };
 })();

@@ -78,6 +78,13 @@
       "when": 1790503244461,
       "tag": "0010_product_seen_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790524243004,
+      "tag": "0011_ext_observations",
+      "breakpoints": true
     }
   ]
 }

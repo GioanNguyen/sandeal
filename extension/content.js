@@ -16,6 +16,7 @@
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
   let host, root, lastUrl = "", collapsed = false;
+  let current = null; // trạng thái đang hiển thị (để vẽ lại khi người dùng bấm đồng ý góp giá)
 
   function mount() {
     if (host) return;
@@ -49,6 +50,11 @@
     .btn { display: block; text-align: center; padding: 9px 8px; border-radius: 999px; font-weight: 700; font-size: 13px; text-decoration: none; border: 1.5px solid #f1e3da; color: #1c1a19; }
     .btn.primary { background: #d0390f; color: #fff; border-color: #d0390f; grid-column: 1 / -1; }
     .muted { color: #5b6170; font-size: 12px; }
+    .consent { border: 1.5px dashed #f1b89f; border-radius: 10px; padding: 8px 10px; font-size: 12.5px; }
+    .consent b { display: block; font-size: 13px; margin-bottom: 2px; }
+    .consent .row { display: flex; gap: 6px; margin-top: 6px; }
+    .consent button { flex: 1; min-height: 32px; border-radius: 999px; border: 1.5px solid #f1e3da; background: transparent; color: inherit; font-weight: 700; cursor: pointer; font-size: 12.5px; }
+    .consent button.yes { background: #d0390f; border-color: #d0390f; color: #fff; }
     .pill { display: inline-flex; align-items: center; gap: 8px; background: #d0390f; color: #fff; font-weight: 800; padding: 10px 14px; border-radius: 999px; border: 0; cursor: pointer; box-shadow: 0 8px 24px rgb(0 0 0 / 25%); font-size: 13px; }
     @media (prefers-color-scheme: dark) {
       .card { background: #1b1d22; color: #f2f3f5; border-color: #2d3139; }
@@ -71,7 +77,12 @@
     return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Biểu đồ giá"><line x1="0" x2="${W}" y1="${y(lo)}" y2="${y(lo)}" stroke="#047857" stroke-dasharray="4 4"/><path d="${d}" fill="none" stroke="#d0390f" stroke-width="2"/><circle cx="${x(t1)}" cy="${y(current)}" r="4" fill="#d0390f"/></svg>`;
   }
 
+  function consentBox() {
+    return `<div class="consent" role="group" aria-label="Góp giá"><b>Góp giá ẩn danh?</b>Khi bạn xem trang sản phẩm, tiện ích gửi <b style="display:inline">tên, giá, ảnh</b> sản phẩm cho Săn Deal để xây lịch sử giá cho mọi người. Không gửi thông tin gì về bạn. Đổi lại được trong Tuỳ chọn.<div class="row"><button class="yes" id="c-yes">Đồng ý</button><button id="c-no">Không</button></div></div>`;
+  }
+
   function render(state) {
+    current = state;
     mount();
     const style = `<style>${CSS}</style>`;
     if (collapsed && state.kind === "found") {
@@ -83,7 +94,7 @@
     let body = "";
     if (state.kind === "loading") body = `<p class="muted">Đang kiểm tra lịch sử giá…</p>`;
     else if (state.kind === "error") body = `<p class="muted">Không kết nối được máy chủ Săn Deal (${esc(state.error)}). Kiểm tra địa chỉ trong phần Tuỳ chọn của tiện ích.</p>`;
-    else if (state.kind === "queued") body = `<p>Chưa có dữ liệu cho sản phẩm này. Chúng tôi đã ghi nhận và sẽ bắt đầu theo dõi giá.</p><a class="btn" target="_blank" href="${esc(state.data.checkUrl)}">Mở trên Săn Deal</a>`;
+    else if (state.kind === "queued") body = `<p>${state.contributing ? "Đang ghi nhận giá từ trang này để bắt đầu theo dõi…" : "Chưa có dữ liệu cho sản phẩm này. Chúng tôi đã ghi nhận và sẽ bắt đầu theo dõi giá."}</p><a class="btn" target="_blank" href="${esc(state.data.checkUrl)}">Mở trên Săn Deal</a>`;
     else {
       const { product: p, offers, links } = state.data;
       const v = p.verdict === "good"
@@ -111,9 +122,35 @@
         </div>
         <div class="muted">Mua qua link Săn Deal giúp web duy trì, giá bạn trả không đổi.</div>`;
     }
+    if (state.askConsent && (state.kind === "found" || state.kind === "queued")) body += consentBox();
     root.innerHTML = `${style}<div class="card" role="complementary" aria-label="Săn Deal"><div class="head">Săn Deal<button id="min" aria-label="Thu nhỏ">–</button><button id="close" aria-label="Đóng" style="margin-left:4px">×</button></div><div class="body">${body}</div></div>`;
     root.getElementById("close").onclick = unmount;
+    const yes = root.getElementById("c-yes"), no = root.getElementById("c-no");
+    if (yes) yes.onclick = async () => { await chrome.storage.sync.set({ contribute: true }); render({ ...state, askConsent: false }); contribute(location.href, state); };
+    if (no) no.onclick = async () => { await chrome.storage.sync.set({ contribute: false }); render({ ...state, askConsent: false }); };
     root.getElementById("min").onclick = () => { collapsed = true; chrome.storage.local.set({ collapsed }); render(state); };
+  }
+
+  /**
+   * Góp giá: đọc dữ liệu sản phẩm mà trang công khai (JSON-LD / meta), thử lại vài lần vì trang tải dần,
+   * rồi gửi qua nền tiện ích. Món chưa có trên Săn Deal thì hiện dữ liệu ngay sau khi ghi nhận.
+   */
+  async function contribute(href, state) {
+    for (let i = 0; i < 8; i++) {
+      if (location.href !== href) return;
+      const d = self.SanDealExtract && self.SanDealExtract.fromDocument(document, href);
+      if (d && d.price > 0) {
+        const r = await chrome.runtime.sendMessage({ type: "observe", payload: { url: href, ...d } }).catch(() => null);
+        if (location.href !== href) return;
+        if (state.kind === "queued" && r?.ok && r.data?.status === "created") {
+          const again = await chrome.runtime.sendMessage({ type: "lookup", url: href }).catch(() => null);
+          if (location.href === href && again?.ok && again.data.status === "found") render({ kind: "found", data: again.data });
+        }
+        return;
+      }
+      await new Promise((ok) => setTimeout(ok, 1000));
+    }
+    if (state.kind === "queued" && location.href === href) render({ ...state, contributing: false });
   }
 
   async function check() {
@@ -125,9 +162,11 @@
     const r = await chrome.runtime.sendMessage({ type: "lookup", url: href }).catch((e) => ({ ok: false, error: String(e) }));
     if (location.href !== href) return; // đã chuyển trang
     if (!r?.ok) return render({ kind: "error", error: r?.error || "lỗi" });
-    if (r.data.status === "found") render({ kind: "found", data: r.data });
-    else if (r.data.status === "queued") render({ kind: "queued", data: r.data });
-    else unmount();
+    if (r.data.status !== "found" && r.data.status !== "queued") return unmount();
+    const { contribute: consent } = await chrome.storage.sync.get("contribute");
+    const state = { kind: r.data.status, data: r.data, askConsent: consent === undefined, contributing: consent === true };
+    render(state);
+    if (consent === true) contribute(href, state);
   }
 
   // Shopee/TikTok là web một trang: theo dõi thay đổi URL

@@ -12,7 +12,7 @@ const DAY = 86_400_000;
  * `restockCutoff`: món thấy lần cuối trước mốc này là đang "không còn thấy trên sàn";
  * nay thấy lại thì báo cho người đang theo dõi (xem availability.ts). Worker truyền mốc tính lúc bắt đầu đồng bộ.
  */
-export async function upsertProduct(p: ProductInput, now = new Date(), opts: { restockCutoff?: Date | null } = {}) {
+export async function upsertProduct(p: ProductInput, now = new Date(), opts: { restockCutoff?: Date | null; priceSource?: "api" | "ext" } = {}) {
   let wasGone = false;
   if (opts.restockCutoff) {
     const [prev] = await db
@@ -38,6 +38,8 @@ export async function upsertProduct(p: ProductInput, now = new Date(), opts: { r
     commissionRate: p.commissionRate ?? null,
     affiliateUrl: p.affiliateUrl,
     lastSeenAt: now,
+    // Dữ liệu từ API luôn đè nguồn "ext" (món người dùng góp nay có trong nguồn chính thức)
+    priceSource: opts.priceSource ?? "api",
   };
   const [row] = await db
     .insert(products)

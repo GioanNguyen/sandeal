@@ -1,7 +1,7 @@
 import { and, count, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { clicks, conversions, products, users, watches } from "@/db/schema";
+import { clicks, conversions, priceObservations, products, users, watches } from "@/db/schema";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { db, ensureMigrated } from "@/lib/db";
 import { PLATFORMS, shortDate, vnd } from "@/lib/format";
@@ -64,6 +64,19 @@ export default async function AdminPage() {
     db.select().from(conversions).orderBy(desc(conversions.purchasedAt)).limit(10),
   ]);
 
+  // Giá người dùng tiện ích góp trong 24 giờ
+  const [obs] = await db
+    .select({
+      n: count(),
+      created: sql<number>`count(*) filter (where ${priceObservations.status} = 'created')`,
+      updated: sql<number>`count(*) filter (where ${priceObservations.status} = 'updated')`,
+      pending: sql<number>`count(*) filter (where ${priceObservations.status} = 'pending')`,
+      people: sql<number>`count(distinct ${priceObservations.observer})`,
+    })
+    .from(priceObservations)
+    .where(gte(priceObservations.createdAt, new Date(Date.now() - 86_400_000)));
+  const [{ extProducts }] = await db.select({ extProducts: count() }).from(products).where(eq(products.priceSource, "ext"));
+
   const days = Array.from({ length: DAYS }, (_, i) => {
     const d = new Date(Date.now() - (DAYS - 1 - i) * 86_400_000);
     const key = d.toLocaleDateString("en-CA", { timeZone: TZ });
@@ -94,6 +107,11 @@ export default async function AdminPage() {
         <div className="kpi"><span>Doanh số</span><b>{vnd(Number(conv.amount))}</b></div>
         <div className="kpi"><span>Hoa hồng</span><b className="save">{vnd(Number(conv.comm))}</b><small className="muted">gồm cả đơn chờ duyệt</small></div>
       </div>
+
+      <p className="muted" style={{ fontSize: 14, margin: "0 0 16px" }}>
+        <b>Góp giá từ tiện ích (24 giờ):</b> {Number(obs.n)} lượt từ {Number(obs.people)} người · {Number(obs.created)} món mới · {Number(obs.updated)} lần cập nhật giá
+        {Number(obs.pending) ? ` · ${Number(obs.pending)} chờ người thứ 2 xác nhận (giá lệch > 50%)` : ""} · tổng {Number(extProducts)} món đang lấy giá từ người dùng.
+      </p>
 
       <div className="admin-grid">
         <section className="panel">

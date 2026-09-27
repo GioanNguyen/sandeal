@@ -240,6 +240,11 @@ export default async function ProductPage({ params, searchParams }: Props) {
             <span className="save-inline"><SaveButton id={p.id} name={p.name} price={p.price} /></span>
             <VoteBox productId={p.id} initial={votes} loggedIn={!!user} />
             <Freshness at={p.lastSeenAt} long />
+            {p.priceSource === "ext" && (
+              <span className="muted" style={{ fontSize: 12 }} title="Giá do người dùng tiện ích Săn Deal ghi nhận khi xem trang sản phẩm trên sàn">
+                Giá ghi nhận từ người dùng tiện ích
+              </span>
+            )}
           </div>
 
           {alsoTop.length > 0 && (

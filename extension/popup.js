@@ -6,4 +6,6 @@
     e.preventDefault();
     chrome.tabs.create({ url: `${base}/kiem-tra-gia?url=${encodeURIComponent(document.getElementById("u").value)}` });
   };
+  const { contribute } = await chrome.storage.sync.get("contribute");
+  document.getElementById("contrib").textContent = contribute === true ? "Góp giá ẩn danh: đang bật. Cảm ơn bạn!" : "Góp giá ẩn danh: đang tắt (bật trong Tuỳ chọn).";
 })();
