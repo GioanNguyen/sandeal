@@ -136,6 +136,8 @@
    * rồi gửi qua nền tiện ích. Món chưa có trên Săn Deal thì hiện dữ liệu ngay sau khi ghi nhận.
    */
   async function contribute(href, state) {
+    // Trang một-trang cần chút thời gian để thay dữ liệu của sản phẩm mới
+    await new Promise((ok) => setTimeout(ok, 1500));
     for (let i = 0; i < 8; i++) {
       if (location.href !== href) return;
       const d = self.SanDealExtract && self.SanDealExtract.fromDocument(document, href);

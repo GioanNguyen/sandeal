@@ -26,6 +26,24 @@
     return Number.isFinite(n) ? n : NaN;
   }
 
+  /** Bỏ dấu, chữ thường, chỉ giữ chữ và số */
+  function norm(s) {
+    return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/gi, "d").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  }
+  /**
+   * Tên sản phẩm có khớp tiêu đề tab không (trang một-trang như Shopee đổi tiêu đề khi chuyển sản phẩm
+   * nhưng có thể giữ nguyên dữ liệu JSON-LD/meta của sản phẩm trước). Không có tiêu đề thì coi như không kiểm được.
+   */
+  function nameMatchesTitle(name, title) {
+    const n = norm(name), t = norm(title);
+    if (!n || !t) return false;
+    if (t.includes(n.slice(0, 30))) return true;
+    const words = n.split(" ").filter((w) => w.length >= 2).slice(0, 10);
+    if (!words.length) return false;
+    const hit = words.filter((w) => t.split(" ").includes(w)).length;
+    return hit / words.length >= 0.7;
+  }
+
   function findProducts(node, out) {
     if (!node || typeof node !== "object") return out;
     if (Array.isArray(node)) { node.forEach((n) => findProducts(n, out)); return out; }
@@ -42,18 +60,22 @@
     return img.url || img.contentUrl;
   }
 
-  /** Từ các khối JSON-LD đã đọc + thẻ meta. Trả { name, price, image, rating } hoặc null. */
-  function fromData(ldBlocks, meta, href) {
+  /**
+   * Từ các khối JSON-LD đã đọc + thẻ meta + tiêu đề tab. Trả { name, price, image, rating } hoặc null.
+   * Chấp nhận khi: khối dữ liệu tự nhắc đúng mã sản phẩm, HOẶC tên trong dữ liệu khớp tiêu đề tab.
+   * (Địa chỉ canonical một mình không đủ: Shopee có thể đổi canonical mà giữ dữ liệu sản phẩm cũ.)
+   */
+  function fromData(ldBlocks, meta, href, title) {
     const id = itemIdOf(href);
     if (!id) return null;
-    const canon = String(meta.canonical || meta["og:url"] || "");
-    const pageMatches = canon.includes(id);
 
     const products = [];
     for (const b of ldBlocks) findProducts(b, products);
     for (const p of products) {
-      // Khối dữ liệu phải nhắc đúng mã sản phẩm (url/sku/offers) hoặc trang khai báo đúng địa chỉ
-      if (!JSON.stringify(p).includes(id) && !pageMatches) continue;
+      // Khối dữ liệu phải nhắc đúng mã sản phẩm (url/sku/offers), hoặc tên phải khớp tiêu đề tab hiện tại
+      const mentionsId = JSON.stringify(p).includes(id);
+      if (!mentionsId && !nameMatchesTitle(p.name, title)) continue;
+      if (mentionsId && title && p.name && !nameMatchesTitle(p.name, title)) continue; // dữ liệu nhắc mã nhưng tên lệch tiêu đề: không chắc, bỏ
       const offers = [].concat(p.offers || []);
       let price = NaN, currency = "";
       for (const o of offers) {
@@ -67,8 +89,9 @@
       return { name: String(p.name || "").trim(), price, image: firstImage(p.image), rating: rating > 0 ? rating : undefined };
     }
 
-    // Dự phòng: thẻ meta sản phẩm (chỉ khi trang khai báo đúng địa chỉ sản phẩm)
-    if (pageMatches && meta["product:price:amount"]) {
+    // Dự phòng: thẻ meta sản phẩm (địa chỉ og/canonical đúng mã VÀ tên khớp tiêu đề tab)
+    const canon = String(meta["og:url"] || meta.canonical || "");
+    if (canon.includes(id) && nameMatchesTitle(meta["og:title"], title) && meta["product:price:amount"]) {
       const cur = String(meta["product:price:currency"] || "VND").toUpperCase();
       const price = money(meta["product:price:amount"]);
       if (cur === "VND" && price > 0) return { name: String(meta["og:title"] || "").trim(), price, image: meta["og:image"] };
@@ -89,8 +112,8 @@
     });
     const c = doc.querySelector('link[rel="canonical"]');
     if (c) meta.canonical = c.getAttribute("href");
-    return fromData(ld, meta, href);
+    return fromData(ld, meta, href, doc.title);
   }
 
-  g.SanDealExtract = { itemIdOf, money, fromData, fromDocument };
+  g.SanDealExtract = { itemIdOf, money, nameMatchesTitle, fromData, fromDocument };
 })(typeof self !== "undefined" ? self : globalThis);

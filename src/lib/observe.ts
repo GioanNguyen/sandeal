@@ -8,7 +8,7 @@
  *  - Mỗi người, mỗi sản phẩm tối đa 1 lần ghi mỗi 30 phút.
  */
 import { createHash } from "node:crypto";
-import { and, countDistinct, eq, gte, lte } from "drizzle-orm";
+import { and, countDistinct, eq, gte, lte, ne } from "drizzle-orm";
 import type { ProductInput } from "@/adapters/types";
 import { priceObservations, productRequests, products, type Product } from "@/db/schema";
 import { db, ensureMigrated } from "./db";
@@ -54,6 +54,15 @@ export function cleanObservation(o: Observation) {
   return { ref, price, name: name.length >= 3 ? name : null, image, rating: rating > 0 && rating <= 5 ? Math.round(rating * 10) / 10 : undefined };
 }
 
+async function nameTakenElsewhere(platform: string, name: string, externalId: string) {
+  const [x] = await db
+    .select({ id: products.id })
+    .from(products)
+    .where(and(eq(products.platform, platform), eq(products.name, name), ne(products.externalId, externalId)))
+    .limit(1);
+  return !!x;
+}
+
 export async function recordObservation(o: Observation, ip: string, now = new Date()): Promise<{ status: ObserveStatus; productId?: number }> {
   await ensureMigrated();
   const c = cleanObservation(o);
@@ -79,6 +88,17 @@ export async function recordObservation(o: Observation, ip: string, now = new Da
 
   if (!existing) {
     if (!c.name) {
+      await log("invalid");
+      return { status: "invalid" };
+    }
+    // Tên trùng hẳn một món khác của cùng sàn: nhiều khả năng tiện ích đọc phải dữ liệu còn sót của trang trước
+    // (trang một-trang). Không tạo món mới để tránh gán nhầm tên/giá.
+    const [same] = await db
+      .select({ id: products.id })
+      .from(products)
+      .where(and(eq(products.platform, ref.platform), eq(products.name, c.name), ne(products.externalId, ref.externalId)))
+      .limit(1);
+    if (same) {
       await log("invalid");
       return { status: "invalid" };
     }
@@ -128,7 +148,8 @@ export async function recordObservation(o: Observation, ip: string, now = new Da
     {
       platform: ref.platform,
       externalId: ref.externalId,
-      name: isExt && c.name ? c.name : existing.name,
+      // Tên chỉ cập nhật cho món nguồn "ext", và không đổi sang tên đang thuộc về món khác
+      name: isExt && c.name && !(await nameTakenElsewhere(ref.platform, c.name, ref.externalId)) ? c.name : existing.name,
       imageUrl: (isExt && c.image) || existing.imageUrl || undefined,
       images: existing.images ?? undefined,
       shopName: existing.shopName ?? undefined,
