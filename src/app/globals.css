@@ -1527,3 +1527,23 @@ main:focus { outline: none; }
 .gone-box p { margin: 0 0 8px; color: var(--text); }
 .gone-box .gone-title { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--warn); }
 .gone-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Mua kèm cho đủ điều kiện mã giảm (trang sản phẩm) */
+.addon { margin: 0 0 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.addon h2 { margin: 0 0 8px; font-size: 14px; display: flex; align-items: center; gap: 6px; font-weight: 700; }
+.addon ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.addon-row { display: grid; grid-template-columns: 48px 1fr auto; gap: 10px; align-items: center; padding: 6px; border-radius: var(--radius-sm); color: var(--text); min-height: 44px; }
+.addon-row:hover { background: var(--surface-2); }
+.addon .thumb { position: relative; width: 48px; height: 48px; border-radius: 8px; overflow: hidden; display: block; }
+.addon-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.addon .nm { font-size: 14px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.addon-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; font-variant-numeric: tabular-nums; }
+.addon-tag { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+.addon-tag.same { background: var(--save-soft); color: var(--save); }
+.addon-why { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.addon-save { font-weight: 800; color: var(--save); font-size: 15px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.addon-note { margin: 8px 0 0; font-size: 12px; color: var(--muted); line-height: 1.45; }
+
+/* Thanh mua cố định trên điện thoại: nút báo giá */
+.buy-sticky-actions, .buy-sticky > .buy-sticky-actions { display: flex; flex-direction: row; align-items: center; gap: 8px; flex: none; }
+.buy-sticky .btn-icon { width: 44px; height: 44px; padding: 0; justify-content: center; }

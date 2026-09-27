@@ -35,6 +35,8 @@ import { Icon } from "@/components/Icon";
 import { PlatformBadge } from "@/components/PlatformBadge";
 import { PriceChart } from "@/components/PriceChart";
 import { WatchForm } from "@/components/WatchForm";
+import { AddOnBox } from "@/components/AddOnBox";
+import { addOnsFor } from "@/lib/addon";
 import { isUnavailable, platformLatest } from "@/lib/availability";
 
 export const dynamic = "force-dynamic";
@@ -97,6 +99,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const freshDrop = droppedAt && Date.now() - droppedAt.getTime() < 24 * 3_600_000 ? droppedAt : null;
   const plan = bestPlan({ platform: p.platform, subtotal: p.price, shipping: 30_000 }, pv);
   const afterCodes = p.price - plan.discount - plan.cashback;
+  const addOns = gone ? [] : await addOnsFor(p, pv);
 
   const advice = buyAdvice(p.prices, p.price);
   const viewers = (await recentViewers([p.id])).get(p.id) ?? 0;
@@ -218,6 +221,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
                 <span className="muted">Xem cách áp mã →</span>
               </a>
             )}
+            <AddOnBox price={p.price} items={addOns} />
             </>
           )}
 
@@ -299,7 +303,10 @@ export default async function ProductPage({ params, searchParams }: Props) {
             <span className="muted" style={{ fontSize: 12 }}>Sau mã: {vnd(afterCodes)}</span>
           ) : null}
         </div>
-        <a className="btn btn-primary" href={`/go/${p.id}`} target="_blank" rel="nofollow sponsored noopener">Mua ngay <Icon name="external" size={14} /></a>
+        <div className="buy-sticky-actions">
+          <a className="btn btn-ghost btn-icon" href="#theo-doi" aria-label="Báo khi giá giảm" title="Báo khi giá giảm"><Icon name="bell" size={18} /></a>
+          <a className="btn btn-primary" href={`/go/${p.id}`} target="_blank" rel="nofollow sponsored noopener">Mua ngay <Icon name="external" size={14} /></a>
+        </div>
       </div>
       )}
 

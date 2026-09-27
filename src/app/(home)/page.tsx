@@ -14,7 +14,8 @@ import { nextSale } from "@/lib/sales";
 import { PLATFORMS } from "@/lib/format";
 import { countDeals, homeStats, justDropped, listActiveVouchers, listCategories, listDeals, type DealFilter } from "@/lib/queries";
 import { filterFromParams } from "@/lib/dealParams";
-import { logSearch, mysteryDeal, nextVnMidnight, spotlightDeals } from "@/lib/discovery";
+import { logSearch, mysteryDeal, nextVnMidnight, spotlightDeals, trendingSearches } from "@/lib/discovery";
+import { priceTopics } from "@/lib/pricepages";
 import { saleBySlug, saleSlug } from "@/lib/salepages";
 import { MysteryDeal } from "@/components/MysteryDeal";
 import { QuickChips, type QuickChip } from "@/components/QuickChips";
@@ -63,9 +64,10 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
     Promise.all(QUICK.map((c) => (sp[c.param] === c.value ? Promise.resolve(0) : countDeals({ ...filter, ...c.patch })))),
   ]);
   if (sp.q && page === 1) logSearch(sp.q, total).catch(() => {});
-  const [mystery, tops] = await Promise.all([
+  const [mystery, tops, trending] = await Promise.all([
     isLanding ? mysteryDeal(spotlight.map((d) => d.id), now) : Promise.resolve(null),
     isLanding ? roundupDefs().then((d) => [...d.filter((x) => x.kind === "type"), ...d.filter((x) => x.kind !== "type")]) : Promise.resolve([]),
+    isLanding ? trendingLinks(categories) : Promise.resolve([]),
   ]);
   const pages = Math.ceil(total / PAGE_SIZE);
   // Query cho "tải thêm" (giữ bộ lọc hiện tại, bỏ page)
@@ -245,6 +247,20 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
 
       {isLanding && <CollectionCards />}
 
+      {isLanding && trending.length >= 3 && (
+        <section className="section" aria-labelledby="trend-head">
+          <div className="section-head">
+            <h2 id="trend-head"><Icon name="search" size={22} /> Mọi người đang tìm</h2>
+            <span className="muted" style={{ fontSize: 13 }}>Từ khoá được tìm nhiều trên Săn Deal 7 ngày qua</span>
+          </div>
+          <nav className="chips wrap" aria-label="Từ khoá được tìm nhiều">
+            {trending.map((t) => (
+              <Link key={t.q} className="chip" href={t.href}>{t.q}</Link>
+            ))}
+          </nav>
+        </section>
+      )}
+
       {isLanding && categories.length > 0 && (
         <section className="section" aria-labelledby="c-head">
           <div className="section-head"><h2 id="c-head"><Icon name="tag" size={22} /> Danh mục</h2></div>
@@ -325,4 +341,19 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
       </section>
     </>
   );
+}
+
+/**
+ * Từ khoá tìm nhiều -> link nội bộ. Khớp trang "Giá … hôm nay" hoặc danh mục thì trỏ tới trang đó
+ * (trang được Google index), còn lại trỏ tới kết quả tìm kiếm.
+ */
+async function trendingLinks(categories: { name: string; slug: string }[]) {
+  const [terms, topics] = await Promise.all([trendingSearches(12), priceTopics()]);
+  return terms.map(({ q }) => {
+    // Khớp đúng tên loại, hoặc từ khoá là phần đầu của đúng 1 loại ("nồi chiên" -> "Nồi chiên không dầu")
+    const prefix = topics.filter((t) => t.label.toLowerCase().startsWith(`${q} `));
+    const topic = topics.find((t) => t.label.toLowerCase() === q) ?? (prefix.length === 1 ? prefix[0] : undefined);
+    const cat = categories.find((c) => c.name.toLowerCase() === q);
+    return { q, href: topic ? `/gia/${topic.slug}` : cat ? `/danh-muc/${cat.slug}` : `/?q=${encodeURIComponent(q)}` };
+  });
 }
