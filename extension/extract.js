@@ -1,6 +1,7 @@
 /**
  * Đọc thông tin sản phẩm từ dữ liệu có cấu trúc mà chính trang công khai cho máy tìm kiếm
- * (JSON-LD schema.org/Product, thẻ meta og:/product:). Không đọc gì khác trên trang, không đọc thông tin người dùng.
+ * (JSON-LD schema.org/Product, thẻ meta og:/product:), cộng thêm giá gạch ngang (giá gốc) hiển thị ngay cạnh
+ * giá đang bán. Không đọc thông tin người dùng.
  * Chỉ trả kết quả khi dữ liệu khớp đúng sản phẩm trên thanh địa chỉ (trang một-trang có thể còn dữ liệu cũ).
  */
 (function (g) {
@@ -99,8 +100,66 @@
     return null;
   }
 
+  /** Số đầu tiên trong chuỗi giá hiển thị: "₫1.079.000" -> 1079000, "₫29.900 - ₫39.000" -> 29900 */
+  function firstVnd(text) {
+    const m = String(text || "").match(/\d[\d.,]*/);
+    return m ? money(m[0].replace(/[.,]\d{1,2}$/, "").replace(/[.,]/g, "")) : NaN;
+  }
+
+  /** Chuỗi chỉ gồm giá (₫, số, dấu chấm/phẩy, khoảng trắng, gạch nối) */
+  function priceLike(text) {
+    const t = String(text || "").trim();
+    return t.length > 0 && t.length <= 40 && /\d/.test(t) && /^[₫đ\s\d.,\-–]+$/i.test(t);
+  }
+
+  /**
+   * Giá gạch hợp lệ: lớn hơn giá bán, giảm không quá 80%. Nhiều giá gạch khác nhau quanh giá bán -> không chắc, bỏ.
+   */
+  function pickStrike(values, price) {
+    const ok = [...new Set(values.filter((v) => Number.isFinite(v) && v > price * 1.01 && v <= price * 5))];
+    return ok.length === 1 ? ok[0] : undefined;
+  }
+
+  /**
+   * Tìm giá gạch ngang cạnh giá đang bán: tìm phần tử hiển thị đúng giá bán (từ dữ liệu có cấu trúc),
+   * rồi tìm phần tử gạch ngang (text-decoration: line-through, thẻ s/del) trong vài cấp cha gần nhất.
+   * Không tìm được hoặc có lỗi -> undefined (vẫn gửi giá bán như cũ).
+   */
+  function strikeFromDocument(doc, price) {
+    try {
+      const view = doc.defaultView;
+      const struck = (el) => {
+        if (/^(S|DEL|STRIKE)$/.test(el.tagName)) return true;
+        const cs = view && view.getComputedStyle ? view.getComputedStyle(el) : null;
+        return !!cs && /line-through/.test(String(cs.textDecorationLine || cs.textDecoration || ""));
+      };
+      const all = Array.from(doc.querySelectorAll("body *")).slice(0, 20000);
+      const anchors = all.filter((el) => el.children.length === 0 && priceLike(el.textContent) && firstVnd(el.textContent) === price && !struck(el)).slice(0, 5);
+      for (const a of anchors) {
+        let box = a.parentElement;
+        for (let depth = 0; box && depth < 4; depth++, box = box.parentElement) {
+          const vals = Array.from(box.querySelectorAll("*"))
+            .filter((el) => priceLike(el.textContent) && (struck(el) || (el.parentElement && struck(el.parentElement) && box.contains(el.parentElement))))
+            .map((el) => firstVnd(el.textContent));
+          if (vals.length) return pickStrike(vals, price);
+        }
+      }
+    } catch (e) {}
+    return undefined;
+  }
+
   /** Đọc từ trang đang mở */
   function fromDocument(doc, href) {
+    const d = fromDocumentData(doc, href);
+    if (d) {
+      const original = strikeFromDocument(doc, d.price);
+      if (original) d.originalPrice = original;
+    }
+    return d;
+  }
+
+  /** Chỉ phần dữ liệu có cấu trúc */
+  function fromDocumentData(doc, href) {
     const ld = [];
     doc.querySelectorAll('script[type="application/ld+json"]').forEach((s) => {
       try { ld.push(JSON.parse(s.textContent || "")); } catch (e) {}
@@ -115,5 +174,5 @@
     return fromData(ld, meta, href, doc.title);
   }
 
-  g.SanDealExtract = { itemIdOf, money, nameMatchesTitle, fromData, fromDocument };
+  g.SanDealExtract = { itemIdOf, money, nameMatchesTitle, fromData, fromDocument, firstVnd, priceLike, pickStrike, strikeFromDocument };
 })(typeof self !== "undefined" ? self : globalThis);

@@ -1,11 +1,12 @@
 /**
  * Giá người dùng tiện ích nhìn thấy trên trang sản phẩm (chỉ khi họ bật "Góp giá").
  * Nguyên tắc:
- *  - Chỉ nhận dữ liệu công khai trên trang: tên, giá, ảnh, điểm đánh giá. Không nhận gì về người dùng;
+ *  - Chỉ nhận dữ liệu công khai trên trang: tên, giá, giá gạch ngang, ảnh, điểm đánh giá. Không nhận gì về người dùng;
  *    IP chỉ dùng dưới dạng băm để đếm số người quan sát khác nhau.
  *  - Không đè giá từ nguồn API còn mới (≤ 24 giờ).
  *  - Giá lệch quá 50% so với giá đang lưu cần ≥ 2 người quan sát khác nhau thấy cùng mức (±2%) trong 6 giờ.
  *  - Mỗi người, mỗi sản phẩm tối đa 1 lần ghi mỗi 30 phút.
+ *  - Giá gạch (giá gốc) chỉ ghi khi món CHƯA có giá gốc; đã có thì giữ nguyên, lần góp sau không cập nhật.
  */
 import { createHash } from "node:crypto";
 import { and, countDistinct, eq, gte, lte, ne } from "drizzle-orm";
@@ -16,6 +17,7 @@ import { upsertProduct } from "./ingest";
 import { parseProductUrl } from "./links";
 
 const HOUR = 3_600_000;
+const pct = (price: number, original: number) => Math.round((1 - price / original) * 100);
 
 export interface Observation {
   url: string;
@@ -23,6 +25,8 @@ export interface Observation {
   price: number;
   image?: string;
   rating?: number;
+  /** Giá gạch ngang hiển thị cạnh giá bán */
+  originalPrice?: number;
 }
 
 export type ObserveStatus = "created" | "updated" | "ignored" | "pending" | "dup" | "invalid";
@@ -51,7 +55,10 @@ export function cleanObservation(o: Observation) {
     if (u.protocol === "https:" && IMAGE_HOSTS[ref.platform].test(u.hostname)) image = u.toString();
   } catch {}
   const rating = Number(o.rating);
-  return { ref, price, name: name.length >= 3 ? name : null, image, rating: rating > 0 && rating <= 5 ? Math.round(rating * 10) / 10 : undefined };
+  // Giá gốc hợp lệ: lớn hơn giá bán, giảm không quá 80%
+  const orig = Math.round(Number(o.originalPrice));
+  const originalPrice = Number.isFinite(orig) && orig > price * 1.01 && orig <= price * 5 ? orig : undefined;
+  return { ref, price, name: name.length >= 3 ? name : null, image, rating: rating > 0 && rating <= 5 ? Math.round(rating * 10) / 10 : undefined, originalPrice };
 }
 
 async function nameTakenElsewhere(platform: string, name: string, externalId: string) {
@@ -108,7 +115,8 @@ export async function recordObservation(o: Observation, ip: string, now = new Da
       name: c.name,
       imageUrl: c.image,
       price,
-      discountPct: 0,
+      originalPrice: c.originalPrice,
+      discountPct: c.originalPrice ? pct(price, c.originalPrice) : 0,
       rating: c.rating,
       affiliateUrl: ref.url,
     };
@@ -121,6 +129,15 @@ export async function recordObservation(o: Observation, ip: string, now = new Da
 
   // Nguồn API còn mới: giữ nguyên, chỉ ghi lại để đối chiếu
   if (existing.priceSource !== "ext" && now.getTime() - existing.lastSeenAt.getTime() < 24 * HOUR) {
+    // Món nhập từ file CSV chưa có ảnh / giá gốc: bổ sung từ trang sản phẩm (giá gốc chỉ khi giá người dùng thấy
+    // khớp giá đang lưu ±2%, để giá gạch đúng với giá bán)
+    const fill: Partial<Product> = {};
+    if (!existing.imageUrl && c.image) fill.imageUrl = c.image;
+    if (!existing.originalPrice && c.originalPrice && c.originalPrice > existing.price && Math.abs(price / existing.price - 1) <= 0.02) {
+      fill.originalPrice = c.originalPrice;
+      fill.discountPct = pct(existing.price, c.originalPrice);
+    }
+    if (Object.keys(fill).length) await db.update(products).set(fill).where(eq(products.id, existing.id));
     await log("ignored", existing.id);
     return { status: "ignored", productId: existing.id };
   }
@@ -150,15 +167,19 @@ export async function recordObservation(o: Observation, ip: string, now = new Da
       externalId: ref.externalId,
       // Tên chỉ cập nhật cho món nguồn "ext", và không đổi sang tên đang thuộc về món khác
       name: isExt && c.name && !(await nameTakenElsewhere(ref.platform, c.name, ref.externalId)) ? c.name : existing.name,
-      imageUrl: (isExt && c.image) || existing.imageUrl || undefined,
+      imageUrl: (isExt && c.image) || existing.imageUrl || c.image || undefined,
       images: existing.images ?? undefined,
       shopName: existing.shopName ?? undefined,
       shopType: (existing.shopType as ProductInput["shopType"]) ?? undefined,
       shopRating: existing.shopRating ?? undefined,
       category: existing.category ?? undefined,
       price,
-      originalPrice: existing.originalPrice ?? undefined,
-      discountPct: existing.originalPrice && existing.originalPrice > price ? Math.round((1 - price / existing.originalPrice) * 100) : 0,
+      // Giá gốc đã có thì giữ nguyên; chưa có thì lấy giá gạch người dùng thấy
+      originalPrice: existing.originalPrice ?? c.originalPrice ?? undefined,
+      discountPct: (() => {
+        const o = existing.originalPrice ?? c.originalPrice;
+        return o && o > price ? pct(price, o) : 0;
+      })(),
       rating: c.rating ?? existing.rating ?? undefined,
       sold: existing.sold ?? undefined,
       commissionRate: existing.commissionRate ?? undefined,

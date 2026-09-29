@@ -4,7 +4,7 @@ import { allow, clientIp } from "@/lib/ratelimit";
 
 /**
  * Tiện ích trình duyệt gửi giá người dùng đang thấy trên trang sản phẩm (chỉ khi họ bật "Góp giá").
- * Nhận: { url, name, price, image?, rating? }. Không nhận thông tin cá nhân.
+ * Nhận: { url, name, price, image?, rating?, originalPrice? }. Không nhận thông tin cá nhân.
  */
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
   }
   const b = (body ?? {}) as Record<string, unknown>;
   const r = await recordObservation(
-    { url: String(b.url ?? ""), name: typeof b.name === "string" ? b.name : undefined, price: Number(b.price), image: typeof b.image === "string" ? b.image : undefined, rating: Number(b.rating) || undefined },
+    { url: String(b.url ?? ""), name: typeof b.name === "string" ? b.name : undefined, price: Number(b.price), image: typeof b.image === "string" ? b.image : undefined, rating: Number(b.rating) || undefined, originalPrice: Number(b.originalPrice) || undefined },
     ip,
   );
   return NextResponse.json(r, { status: r.status === "invalid" ? 400 : 200, headers: CORS });
