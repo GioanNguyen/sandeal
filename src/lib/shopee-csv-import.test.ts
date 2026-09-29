@@ -35,5 +35,29 @@ test("nhập CSV Shopee vào DB", async () => {
   assert.equal(p2.discountPct, 33);
   const hist = await dbm.db.select().from(pricePoints).where(eq(pricePoints.productId, p1.id));
   assert.equal(hist.length, 2);
+});
+
+test("xoá dữ liệu mẫu: chỉ xoá mock, giữ dữ liệu thật", async () => {
+  const dbm = await import("./db");
+  await dbm.ensureMigrated();
+  const { products, vouchers, conversions, clicks, users } = await import("@/db/schema");
+  const { upsertProduct, upsertVoucher } = await import("./ingest");
+  const { clearMockData } = await import("./clear-mock");
+  const mockId = await upsertProduct({ platform: "shopee", externalId: "mock-shopee-1", name: "Tai nghe mẫu", price: 100_000, discountPct: 0, affiliateUrl: "https://example.com" });
+  await upsertVoucher({ source: "mock", externalId: "v1", platform: "shopee", title: "Giảm 50K", affiliateUrl: "https://example.com" });
+  await dbm.db.insert(conversions).values({ source: "mock", externalId: "mock-1-1", platform: "shopee", orderAmount: 1, commission: 1, status: "pending", purchasedAt: new Date() });
+  await dbm.db.insert(clicks).values({ productId: mockId, platform: "shopee" });
+  await dbm.db.insert(users).values({ email: "demo1@sandeal.local" });
+
+  process.env.SOURCES = "mock";
+  await assert.rejects(clearMockData(), /Nguồn mẫu vẫn đang bật/);
+  process.env.SOURCES = "none";
+  const r = await clearMockData();
+  assert.deepEqual({ ...r, searches: 0 }, { products: 1, clicks: 1, vouchers: 1, conversions: 1, users: 1, searches: 0 });
+  const left = await dbm.db.select().from(products);
+  assert.ok(left.length > 0 && left.every((p) => !p.externalId.startsWith("mock-")), "sản phẩm thật (từ CSV) còn nguyên");
+  assert.equal((await dbm.db.select().from(vouchers)).length, 0);
+  const { enabledAdapters } = await import("@/adapters");
+  assert.equal(enabledAdapters().length, 0);
   await dbm.closeDb();
 });

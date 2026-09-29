@@ -221,12 +221,14 @@ Sau đó chạy `sudo systemctl restart sandeal`. Để mở site cho mọi ngư
 
 Khi `SOURCES=mock`, site chỉ hiện sản phẩm và giá **mẫu**. Để có giá thật:
 
-1. Điền khoá API affiliate vào `/opt/sandeal/.env`, rồi đổi `SOURCES` sang nguồn thật, ví dụ `SOURCES=shopee,accesstrade`.
-2. Xoá dữ liệu mẫu còn lại trong database:
-   ```bash
-   sudo -u postgres psql sandeal -c "DELETE FROM products WHERE external_id LIKE 'mock-%' OR name LIKE '%(dữ liệu mẫu #%'; DELETE FROM vouchers WHERE source = 'mock';"
-   ```
-3. Chạy `sudo systemctl restart sandeal`. Lần khởi động này sẽ đồng bộ giá thật từ sàn.
+1. Sửa `SOURCES` trong `/opt/sandeal/.env`:
+   - Đã có khoá API affiliate: điền khoá rồi đặt nguồn thật, ví dụ `SOURCES=shopee,accesstrade`.
+   - Chưa có khoá, chỉ nhập file CSV Shopee: đặt `SOURCES=none`. (Để trống sẽ bị hiểu là `mock`.)
+2. Chạy `sudo systemctl restart sandeal`.
+3. Vào `/admin`, bấm **Xoá dữ liệu mẫu**. Nút này xoá sản phẩm, mã giảm giá, đơn hàng/hoa hồng, lượt bấm và người dùng demo của dữ liệu mẫu; dữ liệu thật giữ nguyên. Nút chỉ hiện khi còn dữ liệu mẫu, và sẽ từ chối nếu `SOURCES` vẫn còn `mock`.
+4. Nhập dữ liệu thật: nút **Nhập CSV Shopee**, hoặc **Đồng bộ ngay** nếu đã có khoá API.
+
+Trên máy dev (PGlite): đặt `SOURCES="none"` trong `.env`, tắt `npm run dev`, chạy `npm run db:clear-mock`.
 
 Trên server thật, nguồn mẫu không tự tạo sản phẩm giả khi có người dán link hay dùng tiện ích. Nếu muốn thử tính năng này bằng dữ liệu mẫu, đặt `MOCK_LOOKUP=1`.
 

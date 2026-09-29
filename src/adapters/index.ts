@@ -13,7 +13,9 @@ const ALL: Record<string, SourceAdapter> = {
   accesstrade: accesstradeAdapter,
 };
 
+/** SOURCES="none": không đồng bộ nguồn nào (chỉ nhập file CSV / tiện ích góp giá). Để trống = "mock". */
 export function enabledAdapters(): SourceAdapter[] {
+  if ((process.env.SOURCES ?? "").trim() === "none") return [];
   return (process.env.SOURCES || "mock")
     .split(",")
     .map((s) => s.trim())

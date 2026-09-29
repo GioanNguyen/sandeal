@@ -10,6 +10,7 @@ import { BarChart } from "@/components/BarChart";
 import { PlatformBadge } from "@/components/PlatformBadge";
 import { SyncButton } from "@/components/SyncButton";
 import { CsvImport } from "@/components/CsvImport";
+import { ClearMockButton } from "@/components/ClearMockButton";
 
 export const metadata = { title: "Thống kê", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -77,6 +78,7 @@ export default async function AdminPage() {
     .from(priceObservations)
     .where(gte(priceObservations.createdAt, new Date(Date.now() - 86_400_000)));
   const [{ extProducts }] = await db.select({ extProducts: count() }).from(products).where(eq(products.priceSource, "ext"));
+  const [{ mockProducts }] = await db.select({ mockProducts: count() }).from(products).where(sql`${products.externalId} like 'mock-%'`);
 
   const days = Array.from({ length: DAYS }, (_, i) => {
     const d = new Date(Date.now() - (DAYS - 1 - i) * 86_400_000);
@@ -100,6 +102,7 @@ export default async function AdminPage() {
           <p className="page-sub">Lượt bấm ghi qua link /go, đơn hàng và hoa hồng lấy từ báo cáo của mạng affiliate.</p>
         </div>
         <div className="row" style={{ gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          {Number(mockProducts) > 0 && <ClearMockButton count={Number(mockProducts)} />}
           <CsvImport />
           <SyncButton />
         </div>
