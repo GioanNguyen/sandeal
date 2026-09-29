@@ -1,7 +1,7 @@
 /**
  * Đọc thông tin sản phẩm từ dữ liệu có cấu trúc mà chính trang công khai cho máy tìm kiếm
- * (JSON-LD schema.org/Product, thẻ meta og:/product:), cộng thêm giá gạch ngang (giá gốc) hiển thị ngay cạnh
- * giá đang bán. Không đọc thông tin người dùng.
+ * (JSON-LD schema.org/Product + BreadcrumbList, thẻ meta og:/product:): tên, giá, ảnh, số sao, danh mục;
+ * cộng thêm giá gạch ngang (giá gốc) hiển thị ngay cạnh giá đang bán. Không đọc thông tin người dùng.
  * Chỉ trả kết quả khi dữ liệu khớp đúng sản phẩm trên thanh địa chỉ (trang một-trang có thể còn dữ liệu cũ).
  */
 (function (g) {
@@ -54,6 +54,37 @@
     return out;
   }
 
+  /** Tất cả ảnh (tối đa 5) */
+  function allImages(img) {
+    const out = [];
+    for (const i of [].concat(img || [])) {
+      const u = typeof i === "string" ? i : i && (i.url || i.contentUrl);
+      if (u && !out.includes(u)) out.push(u);
+    }
+    return out.slice(0, 5);
+  }
+
+  /** Danh mục cấp 1 từ BreadcrumbList (bỏ "Shopee"/"Trang chủ" đầu và tên sản phẩm cuối) */
+  function categoryOf(ldBlocks, productName) {
+    const lists = [];
+    (function find(n) {
+      if (!n || typeof n !== "object") return;
+      if (Array.isArray(n)) return n.forEach(find);
+      if (n["@type"] === "BreadcrumbList") lists.push(n);
+      if (n["@graph"]) find(n["@graph"]);
+    })(ldBlocks);
+    for (const l of lists) {
+      const names = [].concat(l.itemListElement || [])
+        .slice()
+        .sort((a, b) => Number(a && a.position) - Number(b && b.position))
+        .map((e) => String((e && (e.name || (e.item && e.item.name))) || "").trim())
+        .filter(Boolean);
+      const cats = names.filter((n, i) => !(i === 0 && /^(shopee|lazada|tiktok|trang chủ|home)/i.test(n)) && norm(n) !== norm(productName));
+      if (cats[0]) return cats[0];
+    }
+    return undefined;
+  }
+
   function firstImage(img) {
     if (!img) return undefined;
     if (typeof img === "string") return img;
@@ -87,7 +118,15 @@
       }
       if (!Number.isFinite(price) || price <= 0 || (currency && currency.toUpperCase() !== "VND")) continue;
       const rating = p.aggregateRating ? Number(p.aggregateRating.ratingValue) : undefined;
-      return { name: String(p.name || "").trim(), price, image: firstImage(p.image), rating: rating > 0 ? rating : undefined };
+      const images = allImages(p.image);
+      return {
+        name: String(p.name || "").trim(),
+        price,
+        image: firstImage(p.image),
+        rating: rating > 0 ? rating : undefined,
+        ...(images.length > 1 ? { images: images.slice(1) } : {}),
+        ...(categoryOf(ldBlocks, p.name) ? { category: categoryOf(ldBlocks, p.name) } : {}),
+      };
     }
 
     // Dự phòng: thẻ meta sản phẩm (địa chỉ og/canonical đúng mã VÀ tên khớp tiêu đề tab)
@@ -174,5 +213,5 @@
     return fromData(ld, meta, href, doc.title);
   }
 
-  g.SanDealExtract = { itemIdOf, money, nameMatchesTitle, fromData, fromDocument, firstVnd, priceLike, pickStrike, strikeFromDocument };
+  g.SanDealExtract = { itemIdOf, money, nameMatchesTitle, fromData, categoryOf, fromDocument, firstVnd, priceLike, pickStrike, strikeFromDocument };
 })(typeof self !== "undefined" ? self : globalThis);

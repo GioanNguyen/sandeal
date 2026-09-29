@@ -14,6 +14,7 @@ const X = (globalThis as unknown as {
     firstVnd: (t: string) => number;
     pickStrike: (v: number[], p: number) => number | undefined;
     strikeFromDocument: (doc: unknown, price: number) => number | undefined;
+    fromData: (ld: unknown[], meta: Record<string, string>, href: string, title?: string) => Record<string, unknown> | null;
   };
 }).SanDealExtract;
 
@@ -58,6 +59,23 @@ test("tiện ích: đọc giá gạch cạnh giá bán", () => {
   assert.equal(X.strikeFromDocument({ querySelectorAll: () => { throw new Error("x"); } }, 1000), undefined);
 });
 
+test("tiện ích: đọc ảnh phụ, số sao, danh mục cấp 1", () => {
+  const URL0 = "https://shopee.vn/Vot-pickleball-i.1286901283.28407466123";
+  const ld = [
+    { "@type": "BreadcrumbList", itemListElement: [
+      { position: 3, name: "Pickleball" }, { position: 1, name: "Shopee" }, { position: 2, name: "Thể Thao & Du Lịch" },
+      { position: 4, name: "Vợt pickleball Facolos" } ] },
+    { "@type": "Product", name: "Vợt pickleball Facolos", url: URL0,
+      image: ["https://down-vn.img.susercontent.com/file/a", "https://down-vn.img.susercontent.com/file/b", "https://down-vn.img.susercontent.com/file/a"],
+      offers: { price: "1079000", priceCurrency: "VND" }, aggregateRating: { ratingValue: "4.9", ratingCount: "812" } },
+  ];
+  const d = X.fromData(ld, {}, URL0, "Vợt pickleball Facolos | Shopee Việt Nam")!;
+  assert.equal(d.image, "https://down-vn.img.susercontent.com/file/a");
+  assert.deepEqual(d.images, ["https://down-vn.img.susercontent.com/file/b"]);
+  assert.equal(d.rating, 4.9);
+  assert.equal(d.category, "Thể Thao & Du Lịch");
+});
+
 test("máy chủ: giá gạch chỉ ghi lần đầu", async () => {
   const dbm = await import("./db");
   await dbm.ensureMigrated();
@@ -93,6 +111,16 @@ test("máy chủ: giá gạch chỉ ghi lần đầu", async () => {
   assert.equal(c.discountPct, 49);
   assert.equal(c.imageUrl, "https://down-vn.img.susercontent.com/file/k");
   assert.equal(c.price, 29_900, "không đè giá nguồn còn mới");
+  // Món CSV: bổ sung danh mục, ảnh phụ, số sao; danh mục đã có thì giữ, số sao cập nhật
+  await recordObservation({ url: URL2, name: "Kính cường lực", price: 29_900, rating: 4.8, category: "Điện Thoại & Phụ Kiện", images: ["https://down-vn.img.susercontent.com/file/k2", "https://evil.com/x.png"] }, "7.7.7.7", new Date(t0.getTime() + 2 * H));
+  c = (await q.getProduct(csvId))!;
+  assert.equal(c.category, "Điện Thoại & Phụ Kiện");
+  assert.deepEqual(c.images, ["https://down-vn.img.susercontent.com/file/k2"]);
+  assert.equal(c.rating, 4.8);
+  await recordObservation({ url: URL2, name: "Kính cường lực", price: 29_900, rating: 4.7, category: "Khác" }, "8.8.8.8", new Date(t0.getTime() + 2 * H));
+  c = (await q.getProduct(csvId))!;
+  assert.equal(c.category, "Điện Thoại & Phụ Kiện");
+  assert.equal(c.rating, 4.7);
   // Đã có giá gốc: lần góp sau không đổi
   await recordObservation({ url: URL2, name: "Kính cường lực", price: 29_900, originalPrice: 45_000 }, "4.4.4.4", new Date(t0.getTime() + 2 * H));
   c = (await q.getProduct(csvId))!;
