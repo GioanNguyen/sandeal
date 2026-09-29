@@ -46,6 +46,15 @@ Bật trong `SOURCES` (vd `"shopee,lazada,tiktok,accesstrade"`) và điền key 
 | TikTok Shop – Affiliate Creator | `src/adapters/tiktok.ts` | Sản phẩm open collaboration |
 | AccessTrade | `src/adapters/accesstrade.ts` | Mã giảm giá của cả 3 sàn |
 
+### Chưa có Shopee Open API: nhập file CSV
+
+Trên affiliate.shopee.vn, chọn sản phẩm rồi bấm **Lấy link hàng loạt** để tải file CSV (cột: Mã sản phẩm, Tên, Giá, Doanh thu, Tên cửa hàng, Tỉ lệ hoa hồng, Hoa hồng, Link sản phẩm, Link ưu đãi). Rồi nhập bằng một trong hai cách:
+
+- `/admin` → nút **Nhập CSV Shopee** (chọn được nhiều file; dùng được cả khi web đang chạy và trên VPS).
+- Dòng lệnh: `npm run import:csv -- .data/import/file.csv` (PGlite: tắt `npm run dev` trước).
+
+Link ưu đãi `s.shopee.vn` được dùng làm link affiliate. Giá trong file bị rút gọn (“1,1tr”), web suy ra giá đúng từ hoa hồng ÷ tỉ lệ khi khớp. File **không có ảnh, giá gốc, danh mục**: món đã có thì giữ nguyên các thông tin này, món mới thì hiện ảnh giữ chỗ cho tới khi có người dùng tiện ích xem trang sản phẩm đó (tiện ích bổ sung ảnh). Món không có trong lần nhập mới quá `PRODUCT_STALE_DAYS` ngày sẽ bị ẩn khỏi danh sách deal, nên hãy nhập file mới định kỳ; mỗi lần nhập giá mới được ghi vào lịch sử giá.
+
 **Lưu ý:** chữ ký request đã có test, nhưng tên endpoint/trường của Lazada và TikTok Shop cần đối chiếu lại tài liệu sau khi app được duyệt (đường dẫn chỉnh được qua `LAZADA_FEED_PATH`, `TIKTOK_SEARCH_PATH`). Thêm nguồn mới: tạo adapter theo `SourceAdapter` trong `src/adapters/types.ts` và đăng ký ở `src/adapters/index.ts`.
 
 ## Triển khai lên VPS (Docker)

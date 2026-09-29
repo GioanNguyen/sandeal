@@ -11,6 +11,7 @@
     "db:reset": "tsx src/db/reset.ts",
     "seed": "tsx src/worker/seed.ts",
     "sync": "tsx src/worker/sync.ts",
+    "import:csv": "tsx src/worker/import-csv.ts",
     "worker": "tsx src/worker/index.ts",
     "test": "tsx --test src/lib/*.test.ts src/adapters/*.test.ts",
     "typecheck": "tsc --noEmit",

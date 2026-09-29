@@ -9,6 +9,7 @@ import { productPath } from "@/lib/slug";
 import { BarChart } from "@/components/BarChart";
 import { PlatformBadge } from "@/components/PlatformBadge";
 import { SyncButton } from "@/components/SyncButton";
+import { CsvImport } from "@/components/CsvImport";
 
 export const metadata = { title: "Thống kê", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -98,7 +99,10 @@ export default async function AdminPage() {
           <h1 className="page-title">Thống kê {DAYS} ngày</h1>
           <p className="page-sub">Lượt bấm ghi qua link /go, đơn hàng và hoa hồng lấy từ báo cáo của mạng affiliate.</p>
         </div>
-        <SyncButton />
+        <div className="row" style={{ gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <CsvImport />
+          <SyncButton />
+        </div>
       </div>
 
       <div className="kpis kpis-4">
