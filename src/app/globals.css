@@ -211,7 +211,13 @@ html[data-theme="dark"] .lowest-tag { color: #0b1f16; }
 .crumbs [aria-current="page"] { color: var(--text); max-width: 60ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .detail { display: grid; grid-template-columns: minmax(280px, 420px) 1fr; gap: 32px; align-items: start; }
 .detail-media { position: sticky; top: 84px; border-radius: 20px; overflow: hidden; border: 1px solid var(--border); background: var(--surface); }
-.detail-media img { width: 100%; aspect-ratio: 1; object-fit: cover; }
+/* height:auto để thuộc tính height="600" của thẻ img không kéo dài ảnh (khung dọc làm ảnh vuông bị cắt 2 bên);
+   contain: ảnh không vuông vẫn hiện trọn, không cắt chữ/khuyến mãi in trên ảnh */
+.detail-media > img { width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; background: #fff; }
+.detail-thumbs { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--border); overflow-x: auto; }
+.detail-thumbs button { flex: none; padding: 0; border: 2px solid transparent; border-radius: 10px; overflow: hidden; background: #fff; cursor: pointer; }
+.detail-thumbs button.on { border-color: var(--primary); }
+.detail-thumbs img { width: 56px; height: 56px; object-fit: contain; }
 .detail h1 { font-size: clamp(22px, 3vw, 30px); line-height: 1.25; letter-spacing: -0.02em; margin: 10px 0 12px; }
 .detail .price { font-size: 36px; }
 .verdict { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: var(--radius); margin: 16px 0; font-size: 15px; }

@@ -154,7 +154,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
       <Breadcrumbs items={[...(p.category ? [{ name: p.category, href: `/danh-muc/${slugify(p.category)}` }] : []), { name: p.name }]} />
       <div className="detail">
         <div className="detail-media">
-          <ProductImage src={p.imageUrl} alt={p.name} />
+          <ProductImage src={p.imageUrl} images={p.images} alt={p.name} />
         </div>
         <div>
           <div className="buy-row" style={{ margin: 0 }}>
