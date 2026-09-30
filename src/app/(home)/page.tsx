@@ -42,8 +42,10 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
   if (sp.q && /(shopee|shope\.ee|shp\.ee|lazada|tiktok)\./i.test(sp.q)) redirect(`/kiem-tra-gia?url=${encodeURIComponent(sp.q)}`);
   const page = Math.max(1, Number(sp.page) || 1);
   const now = new Date();
-  const isLanding = !sp.q && !sp.platform && !sp.category && !sp.min && !sp.max && !sp.shop && !sp.fresh && !sp.vc && page === 1;
-  const filter: DealFilter = { ...filterFromParams((k) => sp[k]), page, pageSize: PAGE_SIZE };
+  const isLanding = !sp.q && !sp.platform && !sp.category && !sp.min && !sp.max && !sp.shop && !sp.fresh && !sp.vc && !sp.all && page === 1;
+  // Danh sách deal chỉ gồm món đang giảm giá; tìm kiếm hoặc "Xem tất cả" (?all=1) thì hiện mọi món
+  const dealsOnly = !sp.q && sp.all !== "1";
+  const filter: DealFilter = { ...filterFromParams((k) => sp[k]), discounted: dealsOnly, page, pageSize: PAGE_SIZE };
 
   // Chip lọc nhanh: bật/tắt 1 tham số, giữ nguyên các bộ lọc khác; số đếm = kết quả nếu bấm chip
   const QUICK: { key: string; label: string; icon: QuickChip["icon"]; param: string; value: string; patch: Partial<DealFilter> }[] = [
@@ -63,6 +65,8 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
     isLanding ? spotlightDeals(5) : Promise.resolve([]),
     Promise.all(QUICK.map((c) => (sp[c.param] === c.value ? Promise.resolve(0) : countDeals({ ...filter, ...c.patch })))),
   ]);
+  // Số món khi bỏ lọc "đang giảm" (cho nút "Xem tất cả sản phẩm")
+  const allCount = dealsOnly ? await countDeals({ ...filter, discounted: false }) : total;
   if (sp.q && page === 1) logSearch(sp.q, total).catch(() => {});
   const [mystery, tops, trending] = await Promise.all([
     isLanding ? mysteryDeal(spotlight.map((d) => d.id), now) : Promise.resolve(null),
@@ -71,7 +75,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
   ]);
   const pages = Math.ceil(total / PAGE_SIZE);
   // Query cho "tải thêm" (giữ bộ lọc hiện tại, bỏ page)
-  const moreQuery = new URLSearchParams(Object.entries({ q: sp.q, platform: sp.platform, category: sp.category, min: sp.min, max: sp.max, shop: sp.shop, fresh: sp.fresh, vc: sp.vc, sort: sp.sort }).filter(([, v]) => v) as [string, string][]).toString();
+  const moreQuery = new URLSearchParams(Object.entries({ q: sp.q, platform: sp.platform, category: sp.category, min: sp.min, max: sp.max, shop: sp.shop, fresh: sp.fresh, vc: sp.vc, sort: sp.sort, deal: dealsOnly ? "1" : undefined }).filter(([, v]) => v) as [string, string][]).toString();
   const href = (patch: Record<string, string | undefined>) => {
     const q = new URLSearchParams();
     for (const [k, v] of Object.entries({ ...sp, page: undefined, ...patch })) if (v) q.set(k, v);
@@ -292,6 +296,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
           {sp.shop && <input type="hidden" name="shop" value={sp.shop} />}
           {sp.fresh && <input type="hidden" name="fresh" value={sp.fresh} />}
           {sp.vc && <input type="hidden" name="vc" value={sp.vc} />}
+          {sp.all && <input type="hidden" name="all" value={sp.all} />}
           <div className="toolbar-fields">
             <div className="field">
               <label htmlFor="category">Danh mục</label>
@@ -334,9 +339,22 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
 
         <QuickChips chips={chips} />
         <div className="results-bar">
-          <p className="result-count">{total.toLocaleString("vi-VN")} sản phẩm</p>
+          <p className="result-count">
+            {dealsOnly ? `${total.toLocaleString("vi-VN")} món đang giảm giá` : `${total.toLocaleString("vi-VN")} sản phẩm`}
+            {dealsOnly && allCount > total && (
+              <> · <Link href={`${href({ all: "1" })}#deals`}>Xem tất cả {allCount.toLocaleString("vi-VN")} sản phẩm</Link></>
+            )}
+            {!sp.q && sp.all === "1" && <> · <Link href={`${href({ all: undefined })}#deals`}>Chỉ xem món đang giảm</Link></>}
+          </p>
           <ViewToggle />
         </div>
+        {dealsOnly && total === 0 && (
+          <p className="muted" role="status" style={{ margin: "8px 0 16px" }}>
+            {allCount > 0
+              ? <>Chưa có món nào đang giảm giá với bộ lọc này. Săn Deal cần vài ngày theo dõi giá để biết món nào giảm thật. <Link href={`${href({ all: "1" })}#deals`}>Xem {allCount.toLocaleString("vi-VN")} sản phẩm đang theo dõi</Link></>
+              : <>Chưa có sản phẩm nào khớp bộ lọc này.</>}
+          </p>
+        )}
         <LoadMore key={`${moreQuery}|${page}`} initial={items} query={moreQuery} startPage={page + 1} hasMore={page < pages} nextHref={href({ page: String(page + 1) })} />
       </section>
     </>

@@ -25,6 +25,8 @@ export interface DealFilter {
   fresh?: boolean;
   /** Có mã giảm toàn sàn áp được thêm */
   withVoucher?: boolean;
+  /** Chỉ món đang giảm giá (xem discountedSql) */
+  discounted?: boolean;
   sort?: string;
   page?: number;
   pageSize?: number;
@@ -50,6 +52,7 @@ function dealWhere(f: DealFilter) {
   if (f.excludeIds?.length) conds.push(notInArray(products.id, f.excludeIds));
   if (f.mall) conds.push(eq(products.shopType, "mall"));
   if (f.fresh) conds.push(sql`${droppedAtSql} > now() - interval '24 hours'`);
+  if (f.discounted) conds.push(discountedSql);
   if (f.withVoucher)
     conds.push(sql`exists (select 1 from vouchers v where v.platform = "products"."platform"
       and (v.end_at is null or v.end_at >= now()) and v.discount_type in ('percent', 'fixed')
@@ -213,6 +216,14 @@ export async function enrichDeals(rows: Product[]): Promise<DealRow[]> {
     };
   });
 }
+
+/**
+ * Món đang giảm giá: giảm thật ≥5% so với giá thường ngày, HOẶC mới theo dõi (< 7 ngày, chưa đủ lịch sử để tính
+ * giảm thật) nhưng đang có giá gạch và giảm ≥5%. Món theo dõi đủ lâu mà chỉ có giá gạch (giảm ảo) thì không tính.
+ */
+const discountedSql = sql`(${products.realDropPct} >= 5 or (${products.discountPct} >= 5
+  and ${products.originalPrice} > ${products.price}
+  and coalesce((select min(pp.captured_at) from price_points pp where pp.product_id = "products"."id"), now()) > now() - interval '7 days'))`;
 
 /** Lần gần nhất giá giảm ≥5% so với mức trước đó (chỉ số thật từ lịch sử giá) */
 const droppedAtSql = sql<string | null>`(select max(t.captured_at) from (

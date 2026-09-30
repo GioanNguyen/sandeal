@@ -19,6 +19,7 @@ export function filterFromParams(get: (k: string) => string | null | undefined):
     mall: get("shop") === "mall" || base.mall,
     fresh: get("fresh") === "1" || base.fresh,
     withVoucher: get("vc") === "1" || base.withVoucher,
+    discounted: get("deal") === "1" || base.discounted,
     page: Math.max(1, Number(get("page")) || 1),
   };
   const cats = strs(get("cats"));
