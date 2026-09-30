@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { vnd } from "@/lib/format";
 import { button, escapeHtml, layout, sendMail, siteUrl } from "@/lib/mail";
 import { sendPush } from "@/lib/push";
+import { notifyZalo } from "@/lib/zalo";
 import { availableSql } from "@/lib/availability";
 
 const DAY = 86_400_000;
@@ -41,6 +42,7 @@ export async function notifyRestock(productId: number, now = new Date()): Promis
       image: product.imageUrl?.startsWith("http") ? product.imageUrl : undefined,
       tag: `restock-${watch.id}`,
     });
+    await notifyZalo(watch.userId, `🔔 Đã có lại trên sàn: ${product.name}\nGiá ${vnd(product.price)} (mức bạn đặt: ${vnd(watch.targetPrice)})\n${site}/go/${product.id}`, now);
     // Đã báo hôm nay: không gửi thêm mail "giảm giá" trong 24 giờ
     if (hit) await db.update(watches).set({ lastNotifiedAt: now }).where(eq(watches.id, watch.id));
   }
@@ -81,6 +83,7 @@ export async function notifyWatchers(now = new Date()): Promise<number> {
       image: product.imageUrl?.startsWith("http") ? product.imageUrl : undefined,
       tag: `watch-${watch.id}`,
     });
+    await notifyZalo(watch.userId, `📉 Giảm giá: ${product.name}\nCòn ${vnd(product.price)} – đã chạm mức bạn muốn (${vnd(watch.targetPrice)})\nMua: ${site}/go/${product.id}\nLịch sử giá: ${site}${productPath(product)}`, now);
     await db.update(watches).set({ lastNotifiedAt: now }).where(eq(watches.id, watch.id));
   }
   return due.length;

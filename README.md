@@ -33,6 +33,10 @@ Kiểm thử: `npm test` (chạy trên Postgres trong RAM) · `npm run typecheck
 | Link `/go/[id]` | Ghi lượt bấm rồi chuyển sang link affiliate |
 | Thống kê `/admin` | Lượt bấm, đơn, doanh số, hoa hồng theo ngày/sàn; nút đồng bộ |
 | Telegram | Tự đăng deal hot lên kênh (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`) |
+| Báo giá qua Zalo OA | Liên kết bằng mã trong `/account/so-thich`; gửi khi còn trong khung 7 ngày Zalo cho phép – xem `docs/zalo-oa.md` |
+| Dự kiến giá ngày sale | Ô "Nên mua ngay hay chờ?" ước tính giá ở đợt sale lớn ≤ 21 ngày tới (theo đợt trước của món hoặc trung vị danh mục) |
+| Ai nâng giá trước sale | `/nang-gia/[đợt]`: % món tăng giá 14 ngày trước sale, theo shop và danh mục, có ảnh chia sẻ |
+| Giá theo đơn vị | "≈ 87.700đ/lít", "≈ 2.400đ/đôi" đọc từ tên sản phẩm; bảng rẻ nhất theo đơn vị ở `/gia/[loại]` |
 | SEO | `sitemap.xml`, `robots.txt`, title/description/OG từng trang |
 
 ## Nguồn dữ liệu

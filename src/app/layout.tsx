@@ -22,7 +22,7 @@ import "@fontsource/be-vietnam-pro/700.css";
 import "@fontsource/be-vietnam-pro/800.css";
 import "./globals.css";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   metadataBase: new URL(siteUrl()),
   title: { default: "Săn Deal – Deal giảm thật & mã giảm giá Shopee, Lazada, TikTok Shop", template: "%s | Săn Deal" },
   openGraph: { siteName: "Săn Deal", locale: "vi_VN", type: "website" },
@@ -40,6 +40,12 @@ export const metadata: Metadata = {
   },
   description: "Chỉ hiện deal giảm thật so với giá 30 ngày, kèm mã giảm giá còn hạn từ Shopee, Lazada, TikTok Shop.",
 };
+
+/** Đọc biến môi trường lúc chạy (không phải lúc build): mã xác thực tên miền của Zalo */
+export function generateMetadata(): Metadata {
+  const zalo = process.env.ZALO_VERIFY_META;
+  return zalo ? { ...baseMetadata, other: { "zalo-platform-site-verification": zalo } } : baseMetadata;
+}
 
 export const viewport: Viewport = {
   width: "device-width",

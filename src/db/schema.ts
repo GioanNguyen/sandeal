@@ -207,6 +207,12 @@ export const subscriptions = pgTable("subscriptions", {
   lastWeeklyAt: ts("last_weekly_at"),
   telegramChatId: text("telegram_chat_id"),
   telegramLinkCode: text("telegram_link_code"),
+  /** Zalo OA: id người dùng theo OA (sau khi gửi mã liên kết), mã liên kết đang chờ, lần tương tác gần nhất */
+  zaloUserId: text("zalo_user_id"),
+  zaloLinkCode: text("zalo_link_code"),
+  zaloLastSeenAt: ts("zalo_last_seen_at"),
+  /** Nhận báo giá (theo dõi giá, có hàng lại, sale bắt đầu) qua Zalo */
+  zaloAlerts: boolean("zalo_alerts").notNull().default(true),
   lastDigestAt: ts("last_digest_at"),
   lastSaleReminderKey: text("last_sale_reminder_key"),
   updatedAt: ts("updated_at").notNull().defaultNow(),
@@ -344,3 +350,10 @@ export type Product = typeof products.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type Voucher = typeof vouchers.$inferSelect;
 export type PricePoint = typeof pricePoints.$inferSelect;
+
+/** Cặp khoá–giá trị cho cấu hình máy chủ cần lưu lại (vd token Zalo OA xoay vòng) */
+export const kvStore = pgTable("kv_store", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});

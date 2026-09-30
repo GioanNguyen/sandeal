@@ -10,6 +10,7 @@ import { PLATFORMS, vnd } from "@/lib/format";
 import { thumbUrl } from "@/lib/images";
 import { button, escapeHtml, layout, sendMail, siteUrl } from "@/lib/mail";
 import { sendPush } from "@/lib/push";
+import { notifyZalo } from "@/lib/zalo";
 import { upcomingSales, vnParts, type SaleEvent } from "@/lib/sales";
 import { productPath } from "@/lib/slug";
 import { sendTelegram } from "@/lib/telegram";
@@ -119,6 +120,10 @@ export async function runSaleStartAlerts(now = new Date()): Promise<number> {
     if (chat) {
       const site = siteUrl();
       await sendTelegram(chat, [`<b>${escapeHtml(name)} đã bắt đầu!</b>`, ...rows.map((r) => `• <a href="${site}/go/${r.id}">${escapeHtml(r.name)}</a>: <b>${vnd(r.price)}</b>`)].join("\n"));
+    }
+    {
+      const site = siteUrl();
+      await notifyZalo(userId, [`⏰ ${name} đã bắt đầu! Giá mới của món bạn chờ:`, ...rows.slice(0, 5).map((r) => `• ${r.name}: ${vnd(r.price)}\n  ${site}/go/${r.id}`), ...(rows.length > 5 ? [`… và ${rows.length - 5} món nữa: ${site}/da-luu`] : [])].join("\n"), now);
     }
     await db.update(saleAlerts).set({ sentAt: now }).where(inArray(saleAlerts.id, rows.map((r) => r.alertId)));
     sent++;
