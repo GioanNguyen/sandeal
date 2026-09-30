@@ -3,7 +3,8 @@ import { eq, inArray } from "drizzle-orm";
 import { products, socialPosts } from "@/db/schema";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { channels, postDeal, postFacebookDigest } from "@/worker/social";
+import { siteUrl } from "@/lib/mail";
+import { channels, postDeal, postFacebookDigest, postFacebookDraft } from "@/worker/social";
 
 const MANUAL = ["zalo", "tiktok", "facebook-group"];
 
@@ -13,6 +14,25 @@ export async function POST(req: Request) {
   if (!user || !isAdmin(user.email)) return NextResponse.json({ error: "Không có quyền" }, { status: 403 });
   const body = await req.json().catch(() => null);
   const channel = String(body?.channel ?? "");
+  // Bài soạn theo mẫu: đăng ĐÚNG nội dung admin đã sửa (thân bài + bình luận đầu)
+  if (body?.draft) {
+    if (channel !== "facebook" || !(channels() as string[]).includes("facebook")) return NextResponse.json({ error: "Trang Facebook chưa được cấu hình" }, { status: 400 });
+    const d = body.draft as { body?: unknown; comment?: unknown; image?: unknown; productIds?: unknown };
+    const text = String(d.body ?? "").trim();
+    const comment = String(d.comment ?? "").trim();
+    const image = String(d.image ?? "");
+    if (!text || !comment || !image.startsWith(siteUrl())) return NextResponse.json({ error: "Thiếu nội dung hoặc ảnh không hợp lệ" }, { status: 400 });
+    const ids = (Array.isArray(d.productIds) ? d.productIds : []).map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 10);
+    let externalId: string | null = null;
+    let error: string | null = null;
+    try {
+      externalId = await postFacebookDraft({ body: text.slice(0, 5000), comment: comment.slice(0, 3000), image });
+    } catch (err) {
+      error = (err as Error).message.slice(0, 300);
+    }
+    if (ids.length) await db.insert(socialPosts).values(ids.map((productId) => ({ channel: "facebook", productId, externalId, error })));
+    return error ? NextResponse.json({ error }, { status: 502 }) : NextResponse.json({ ok: true, id: externalId });
+  }
   // Bài tổng hợp nhiều deal lên Trang Facebook
   if (Array.isArray(body?.productIds)) {
     if (channel !== "facebook" || !(channels() as string[]).includes("facebook")) return NextResponse.json({ error: "Trang Facebook chưa được cấu hình" }, { status: 400 });

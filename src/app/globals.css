@@ -1598,3 +1598,10 @@ html[data-theme="dark"] .raise-big b { color: #fb7185; }
 .unit-price { display: block; font-size: 12.5px; color: var(--muted); margin-top: -2px; font-variant-numeric: tabular-nums; }
 .unit-price.lg { font-size: 14px; margin: -4px 0 8px; color: var(--text); }
 .zalo-code { font-size: 28px; font-weight: 800; letter-spacing: .18em; font-variant-numeric: tabular-nums; margin: 4px 0 12px; padding: 8px 14px; border-radius: 12px; background: var(--surface-2); display: inline-block; user-select: all; }
+
+/* Soạn bài Facebook theo mẫu */
+.post-composer { gap: 0; }
+.post-composer .post-title { font-size: 15px; margin: 0; padding: 12px 12px 4px; line-height: 1.35; }
+.post-composer .chips { padding: 6px 12px 10px; gap: 6px; }
+.post-composer .chip { font-size: 13px; }
+.post-composer .field-label { font-size: 13px; font-weight: 700; margin-bottom: -4px; }
