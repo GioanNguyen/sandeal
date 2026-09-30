@@ -7,6 +7,7 @@ import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { db, ensureMigrated } from "@/lib/db";
 import { POST_KINDS, type PostDraft } from "@/lib/fbposts";
 import { productPath } from "@/lib/slug";
+import { siteUrl } from "@/lib/mail";
 import { Icon } from "@/components/Icon";
 import { PostComposer } from "@/components/PostComposer";
 import { channels, draftsForProduct, pickDeals, raiseDraft, roundupDraft } from "@/worker/social";
@@ -61,6 +62,13 @@ export default async function SocialAdmin({ searchParams }: { searchParams: Prom
       <p className="muted" style={{ fontSize: 14 }}>
         10 mẫu: {POST_KINDS.map((k) => `${k.label}${counts.get(k.kind) ? ` (${counts.get(k.kind)})` : ""}`).join(" · ")}. Mẫu chỉ hiện khi món có đủ số liệu thật.
       </p>
+
+      {!/^https:\/\/[^/]+\.[a-z]{2,}/i.test(siteUrl()) && (
+        <p className="form-msg" role="alert">
+          <b>Link trong bài đang dùng {siteUrl()}</b> – Facebook chỉ biến thành link bấm được khi là tên miền thật (vd https://sandealgiare.com).
+          Đang chạy trên máy thì hãy soạn bài ở trang quản trị của web thật; trên VPS kiểm tra <code>SITE_URL</code> trong <code>/opt/sandeal/.env</code>.
+        </p>
+      )}
 
       <form className="row" style={{ gap: 8, margin: "12px 0 20px", flexWrap: "wrap" }} action="/admin/dang-bai">
         <label className="sr-only" htmlFor="pick">Mã sản phẩm hoặc link trang sản phẩm Săn Deal</label>

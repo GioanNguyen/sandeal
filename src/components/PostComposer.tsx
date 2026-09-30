@@ -57,6 +57,11 @@ export function PostComposer({ drafts, canPost, title }: { drafts: PostDraft[]; 
         <label className="field-label" htmlFor={`c-${d.kind}-${d.productIds[0]}`}>Bình luận đầu <small className="muted">(link, mã giảm)</small></label>
         <textarea id={`c-${d.kind}-${d.productIds[0]}`} className="input" rows={5} value={cur.comment} onChange={(e) => set("comment", e.target.value)} />
         {/(https?:\/\/|www\.)/i.test(cur.body) && <p className="form-msg" role="alert" style={{ margin: 0 }}>Thân bài đang có link – nên chuyển link xuống bình luận đầu.</p>}
+        {/https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|[^/\s.]+[:/])/i.test(cur.comment) && (
+          <p className="form-msg" role="alert" style={{ margin: 0 }}>
+            Link đang là địa chỉ máy nội bộ (localhost) – Facebook không cho bấm và người khác không mở được. Hãy soạn bài trên web thật (tên miền của bạn), hoặc đặt <code>SITE_URL</code> đúng tên miền.
+          </p>
+        )}
         <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => copy(cur.body, "thân bài")}><Icon name="copy" size={14} /> Chép thân bài</button>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => copy(cur.comment, "bình luận đầu")}><Icon name="copy" size={14} /> Chép bình luận đầu</button>
