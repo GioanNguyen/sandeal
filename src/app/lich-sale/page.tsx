@@ -59,6 +59,7 @@ export default async function SaleCalendar() {
         <div className="hero-actions">
           <Link href="/account/so-thich" className="btn btn-light"><Icon name="bell" size={16} /> Nhắc tôi tối hôm trước</Link>
           <Link href="/kiem-tra-gia" className="btn btn-outline"><Icon name="link" size={16} /> Kiểm tra giá trước ngày sale</Link>
+          <Link href="/nang-gia" className="btn btn-outline"><Icon name="alert" size={16} /> Ai đang nâng giá trước sale?</Link>
         </div>
       </section>
 

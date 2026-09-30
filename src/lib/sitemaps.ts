@@ -102,6 +102,7 @@ export async function sitemapUrls(name: string): Promise<Url[] | null> {
       ...COLLECTIONS.map((c) => ({ loc: `${base}/bo-suu-tap/${c.slug}`, changefreq: "daily", priority: 0.7 })),
       ...GUIDES.map((g) => ({ loc: `${base}/huong-dan/${g.slug}`, lastmod: new Date(`${g.updated}T00:00:00+07:00`), changefreq: "monthly", priority: 0.6 })),
       ...salePages().map((p) => ({ loc: `${base}/sale/${p.slug}`, changefreq: p.state === "past" ? "monthly" : "daily", priority: p.state === "past" ? 0.5 : 0.8 })),
+      ...salePages().map((p) => ({ loc: `${base}/nang-gia/${p.slug}`, changefreq: p.state === "past" ? "monthly" : "daily", priority: 0.6 })),
     ];
   }
   if (name === "categories.xml") {

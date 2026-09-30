@@ -19,6 +19,7 @@ export function SiteFooter({ loggedIn }: { loggedIn: boolean }) {
         { href: "/", label: "Deal hot" },
         { href: "/vouchers", label: "Mã giảm giá" },
         { href: "/lich-sale", label: "Lịch sale" },
+        { href: "/nang-gia", label: "Ai nâng giá trước sale?" },
         { href: "/top", label: "Top deal tuần này" },
         { href: "/bo-suu-tap", label: "Bộ sưu tập deal" },
         { href: "/gia", label: "Giá hôm nay" },

@@ -110,6 +110,7 @@ export default async function SalePage({ params }: Props) {
               </div>
               {report.real.length > 0 && (<><h3>Giảm thật nhiều nhất</h3><Rows rows={report.real.slice(0, 10)} mode="real" /></>)}
               {report.fake.length > 0 && (<><h3 style={{ marginTop: 24 }}>Tăng giá trước sale</h3><Rows rows={report.fake.slice(0, 10)} mode="fake" /></>)}
+              <p style={{ marginTop: 16 }}><Link href={`/nang-gia/${s.slug}`}>Ai đã nâng giá trước {t}? Xem theo shop, danh mục <Icon name="arrowRight" size={14} /></Link></p>
             </>
           )}
         </section>
@@ -120,7 +121,7 @@ export default async function SalePage({ params }: Props) {
           {rising.length > 0 && (
             <section className="section" aria-labelledby="rs-head">
               <div className="section-head"><h2 id="rs-head"><Icon name="alert" size={20} /> Đang tăng giá trước sale – nên chờ</h2></div>
-              <p className="muted">Các món này đắt hơn giá 10–40 ngày trước ít nhất 8%. Nếu “giảm” trong ngày sale, hãy so với giá cũ ở đây trước khi mua.</p>
+              <p className="muted">Các món này đắt hơn giá 10–40 ngày trước ít nhất 8%. Nếu “giảm” trong ngày sale, hãy so với giá cũ ở đây trước khi mua. <Link href={`/nang-gia/${s.slug}`}>Xem tỉ lệ nâng giá theo shop, danh mục</Link></p>
               <Rows rows={rising} mode="rising" />
             </section>
           )}

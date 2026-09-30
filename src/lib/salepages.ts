@@ -116,3 +116,96 @@ export async function risingBeforeSale(now = new Date(), limit = 10) {
   }
   return out.sort((a, b) => b.low / b.base - a.low / a.base).slice(0, limit);
 }
+
+// ---------------- "Ai nâng giá trước sale?" (/nang-gia/[slug]) ----------------
+
+/** Ngưỡng "nâng giá": giá cao nhất 14 ngày trước sale cao hơn giá thường ngày từ 8% */
+export const RAISE_PCT = 0.08;
+/** Số món tối thiểu của 1 shop / danh mục để tính tỉ lệ (tránh kết luận từ 1–2 món) */
+export const GROUP_MIN = 3;
+
+export interface RaiseRow {
+  product: Product;
+  /** Giá thường ngày: trung vị giá mỗi ngày 30→14 ngày trước mốc */
+  base: number;
+  /** Giá cao nhất trong 14 ngày trước mốc */
+  peak: number;
+  raised: boolean;
+  /** Đợt sale đã qua: giá thấp nhất trong ngày sale */
+  saleLow: number | null;
+}
+
+/** Phân loại 1 món theo lịch sử giá; null khi không đủ dữ liệu (cần giá từ ≥ 20 ngày trước mốc) */
+export function classifyRaise(pts: Pt[], ref: number, saleEnd: number | null): Omit<RaiseRow, "product"> | null {
+  if (!pts.length || pts[0].at > ref - 20 * DAY) return null;
+  const baseDays = dailyPrices(pts, ref - 30 * DAY, ref - 14 * DAY);
+  const before = dailyPrices(pts, ref - 14 * DAY, ref);
+  if (baseDays.length < 5 || !before.length) return null;
+  const base = median(baseDays);
+  const peak = Math.max(...before);
+  let saleLow: number | null = null;
+  if (saleEnd != null) {
+    const during = pts.filter((x) => x.at >= ref && x.at <= saleEnd).map((x) => x.price);
+    const atStart = priceAt(pts, ref);
+    const all = [...during, ...(atStart != null ? [atStart] : [])];
+    saleLow = all.length ? Math.min(...all) : null;
+  }
+  return { base, peak, raised: peak >= base * (1 + RAISE_PCT), saleLow };
+}
+
+export interface GroupRate {
+  key: string;
+  label: string;
+  platform?: string;
+  total: number;
+  raised: number;
+  rate: number;
+}
+
+/** Tỉ lệ món nâng giá theo nhóm (shop / danh mục), chỉ nhóm có ≥ GROUP_MIN món */
+export function groupRates(rows: RaiseRow[], keyOf: (p: Product) => { key: string; label: string; platform?: string } | null, min = GROUP_MIN): GroupRate[] {
+  const m = new Map<string, GroupRate>();
+  for (const r of rows) {
+    const k = keyOf(r.product);
+    if (!k) continue;
+    const g = m.get(k.key) ?? m.set(k.key, { ...k, total: 0, raised: 0, rate: 0 }).get(k.key)!;
+    g.total++;
+    if (r.raised) g.raised++;
+  }
+  return [...m.values()]
+    .filter((g) => g.total >= min)
+    .map((g) => ({ ...g, rate: g.raised / g.total }))
+    .sort((a, b) => b.rate - a.rate || b.raised - a.raised || b.total - a.total);
+}
+
+/**
+ * Thống kê nâng giá trước 1 đợt sale. Sale chưa tới: mốc là hôm nay (14 ngày qua); đã/đang diễn ra: mốc là giờ mở sale.
+ */
+export async function raiseReport(e: SaleEvent, now = new Date()) {
+  await ensureMigrated();
+  const ref = Math.min(now.getTime(), e.start.getTime());
+  const past = e.start.getTime() <= now.getTime();
+  const all = (await db.select().from(products)) as Product[];
+  const hist = await history(all.map((p) => p.id));
+  const rows: RaiseRow[] = [];
+  for (const p of all) {
+    const c = classifyRaise(hist.get(p.id) ?? [], ref, past ? Math.min(e.end.getTime(), now.getTime()) : null);
+    if (c) rows.push({ product: p, ...c });
+  }
+  const raised = rows.filter((r) => r.raised).sort((a, b) => b.peak / b.base - a.peak / a.base);
+  return {
+    ref: new Date(ref),
+    past,
+    total: rows.length,
+    raised,
+    rate: rows.length ? raised.length / rows.length : 0,
+    byShop: groupRates(rows, (p) => (p.shopName ? { key: `${p.platform}|${p.shopName}`, label: p.shopName, platform: p.platform } : null)),
+    byCategory: groupRates(rows, (p) => (p.category ? { key: p.category, label: p.category } : null)),
+  };
+}
+
+/** Đợt sale mặc định cho /nang-gia: đang diễn ra hoặc sắp tới gần nhất, không có thì đợt vừa qua */
+export function currentRaisePage(now = new Date()) {
+  const pages = salePages(now);
+  return pages.find((p) => p.state === "live") ?? pages.find((p) => p.state === "upcoming") ?? pages[pages.length - 1];
+}
