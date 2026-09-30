@@ -12,6 +12,7 @@ import { PwaInstall } from "@/components/Pwa";
 import { SavedProvider, SavedNavLink } from "@/components/Saved";
 import { NavProgress } from "@/components/NavProgress";
 import { Suspense } from "react";
+import { headers } from "next/headers";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { siteUrl } from "@/lib/mail";
 // Font tự host (không gọi Google Fonts): 1 file CSS/độ đậm, trình duyệt chỉ tải bộ ký tự cần (latin / tiếng Việt)
@@ -58,11 +59,17 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser().catch(() => null);
+  // og:url = địa chỉ chính thức (không tham số) của trang đang xem; fb:app_id nếu có
+  const path = (await headers()).get("x-pathname");
+  const ogUrl = path ? `${siteUrl()}${path === "/" ? "/" : path.replace(/\/$/, "")}` : null;
+  const fbAppId = process.env.FB_APP_ID?.trim();
   return (
     <html lang="vi" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: BOOT_SCRIPT }} />
         {IMAGE_ORIGINS.map((o) => <link key={o} rel="preconnect" href={o} />)}
+        {ogUrl && <meta property="og:url" content={ogUrl} />}
+        {fbAppId && <meta property="fb:app_id" content={fbAppId} />}
       </head>
       <body>
         <Suspense fallback={null}>

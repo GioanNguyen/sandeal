@@ -61,7 +61,10 @@ export function middleware(req: NextRequest) {
   // Đường dẫn sản phẩm cũ chỉ có số (/product/12) -> chuyển 301 sang đường dẫn có tên (xử lý ở /api/p/12)
   const m = req.nextUrl.pathname.match(/^\/product\/(\d+)\/?$/);
   if (!m) {
-    const res = NextResponse.next();
+    // Truyền đường dẫn cho layout để in thẻ og:url (Facebook yêu cầu)
+    const headers = new Headers(req.headers);
+    headers.set("x-pathname", req.nextUrl.pathname);
+    const res = NextResponse.next({ request: { headers } });
     if (noindex) res.headers.set("X-Robots-Tag", "noindex, follow");
     return res;
   }
