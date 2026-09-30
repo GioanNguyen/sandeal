@@ -2,7 +2,7 @@ import { productPath } from "@/lib/slug";
 import { comparable, versusPath } from "@/lib/versus";
 import Link from "next/link";
 import type { DealRow } from "@/lib/queries";
-import { PLATFORMS, vnd } from "@/lib/format";
+import { PLATFORMS, vnd, soldText } from "@/lib/format";
 import { CardImage } from "./CardImage";
 import { Icon } from "./Icon";
 
@@ -13,7 +13,7 @@ const ROWS: Row[] = [
   { label: "Giá sau mã", get: (p) => p.withVoucher?.price ?? p.price, show: (p) => (p.withVoucher ? vnd(p.withVoucher.price) : <span className="muted">Không có mã</span>), better: "low" },
   { label: "Giảm thật (so với 30 ngày)", get: (p) => (p.realDropPct >= 1 ? p.realDropPct : 0), show: (p) => (p.realDropPct >= 1 ? `−${Math.round(p.realDropPct)}%` : <span className="muted">Không giảm</span>), better: "high" },
   { label: "Đánh giá", get: (p) => p.rating ?? null, show: (p) => (p.rating ? <><Icon name="star" size={13} /> {p.rating.toFixed(1)}</> : "—"), better: "high" },
-  { label: "Đã bán", get: (p) => p.sold ?? null, show: (p) => (p.sold ? p.sold.toLocaleString("vi-VN") : "—"), better: "high" },
+  { label: "Đã bán", get: (p) => p.sold ?? null, show: (p) => (p.sold ? soldText(p.sold) : "—"), better: "high" },
   { label: "Điểm deal", get: (p) => Math.round(p.dealScore), show: (p) => `${Math.round(p.dealScore)}/100`, better: "high" },
 ];
 

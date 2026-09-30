@@ -1,5 +1,5 @@
 import type { Product } from "@/db/schema";
-import { PLATFORMS, vnd } from "./format";
+import { PLATFORMS, vnd, soldText } from "./format";
 import { productPath, slugify } from "./slug";
 
 const round1k = (n: number) => Math.round(n / 1000) * 1000;
@@ -50,7 +50,7 @@ export function buildCaption(p: Product, link: string, opts: { variant?: number;
 
   const name = p.name.length > 90 ? `${p.name.slice(0, 88).trim()}…` : p.name;
   const at = (opts.at ?? new Date()).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", timeZone: "Asia/Ho_Chi_Minh" });
-  const social = [p.rating ? `⭐ ${p.rating.toFixed(1)}` : "", p.sold ? `🛒 ${p.sold >= 1000 ? `${(p.sold / 1000).toFixed(1).replace(".0", "").replace(".", ",")}k` : p.sold} đã bán` : ""].filter(Boolean).join(" · ");
+  const social = [p.rating ? `⭐ ${p.rating.toFixed(1)}` : "", p.sold ? `🛒 ${soldText(p.sold)} đã bán` : ""].filter(Boolean).join(" · ");
   const tags = ["#SănDeal", `#${plat.replace(/\s+/g, "")}`, p.category ? `#${slugify(p.category).replace(/-/g, "")}` : ""].filter(Boolean).join(" ");
 
   return [

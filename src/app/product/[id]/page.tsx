@@ -30,7 +30,7 @@ import { ShareButtons } from "@/components/ShareButtons";
 import { Freshness, ShopBadge } from "@/components/Trust";
 import { productIdFromParam, productPath, slugify } from "@/lib/slug";
 import { DealGrid } from "@/components/DealGrid";
-import { PLATFORMS, vnd } from "@/lib/format";
+import { PLATFORMS, vnd, soldText } from "@/lib/format";
 import { Icon } from "@/components/Icon";
 import { PlatformBadge } from "@/components/PlatformBadge";
 import { PriceChart } from "@/components/PriceChart";
@@ -162,7 +162,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
             <ShopBadge type={p.shopType} />
             {p.shopName && <span className="muted">{shopHref ? <Link href={shopHref}>{p.shopName}</Link> : p.shopName}{p.shopRating ? ` · shop ${p.shopRating.toFixed(1)}/5` : ""}</span>}
             {p.rating ? <span className="rating muted"><Icon name="star" size={14} />{p.rating.toFixed(1)}</span> : null}
-            {p.sold ? <span className="muted">· Đã bán {p.sold.toLocaleString("vi-VN")}</span> : null}
+            {p.sold ? <span className="muted">· Đã bán {soldText(p.sold)}</span> : null}
           </div>
           <h1>{p.name}</h1>
           <div className="price-row">

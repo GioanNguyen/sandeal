@@ -1,7 +1,7 @@
 import { productPath } from "@/lib/slug";
 import Link from "next/link";
 import type { DealRow } from "@/lib/queries";
-import { PLATFORMS, vnd } from "@/lib/format";
+import { PLATFORMS, vnd, soldText } from "@/lib/format";
 import { VIEWERS_MIN_CARD } from "@/lib/viewers";
 import { AnimatedPrice } from "./AnimatedPrice";
 import { CardImage } from "./CardImage";
@@ -147,7 +147,7 @@ export function DealCard({ p, priority = false }: { p: DealRow; isLowest?: boole
           <div className="deal-foot">
             <span className="rating">
               {p.rating ? <><Icon name="star" size={13} />{p.rating.toFixed(1)}</> : null}
-              {p.sold ? <span>{p.rating ? " · " : ""}{p.sold >= 1000 ? `${(p.sold / 1000).toFixed(1).replace(".0", "")}k` : p.sold} đã bán</span> : null}
+              {p.sold ? <span>{p.rating ? " · " : ""}{soldText(p.sold)} đã bán</span> : null}
             </span>
             {label && !(label.icon === "scale" && p.offers) && (
               <span className={`deal-label ${label.tone}`} title={`Điểm deal ${score}/100`}>

@@ -5,7 +5,7 @@
 import { and, desc, eq, gte, ilike, isNotNull, lte, type SQL } from "drizzle-orm";
 import { products, type Product } from "@/db/schema";
 import { db, ensureMigrated } from "./db";
-import { vnd } from "./format";
+import { vnd, soldText } from "./format";
 import { enrichDeals, type DealRow } from "./queries";
 import { availableSql } from "./availability";
 import { slugify } from "./slug";
@@ -118,7 +118,7 @@ export function reasonsFor(d: DealRow): string[] {
   else if (d.low30 != null && d.price <= d.low30 && (d.trackedDays ?? 0) >= 7) out.push("Thấp nhất 30 ngày qua");
   if (d.cheapestAcross && d.cheapestAcross >= 2) out.push(`Rẻ nhất trong ${d.cheapestAcross} sàn`);
   if (d.withVoucher) out.push(`Còn ${vnd(d.withVoucher.price)}${d.withVoucher.code ? ` với mã ${d.withVoucher.code}` : " khi áp mã sàn"}`);
-  const social = [d.rating ? `${d.rating.toFixed(1)}★` : "", d.sold ? `${d.sold >= 1000 ? `${(d.sold / 1000).toFixed(1).replace(".0", "")}k` : d.sold} đã bán` : ""].filter(Boolean).join(" · ");
+  const social = [d.rating ? `${d.rating.toFixed(1)}★` : "", d.sold ? `${soldText(d.sold)} đã bán` : ""].filter(Boolean).join(" · ");
   if (social) out.push(social);
   return out.slice(0, 4);
 }

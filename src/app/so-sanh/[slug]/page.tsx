@@ -7,7 +7,7 @@ import { Icon } from "@/components/Icon";
 import { JsonLd } from "@/components/JsonLd";
 import { PriceChart } from "@/components/PriceChart";
 import { alternativesFor } from "@/lib/discovery";
-import { PLATFORMS, vnd } from "@/lib/format";
+import { PLATFORMS, vnd, soldText } from "@/lib/format";
 import { siteUrl } from "@/lib/mail";
 import { vnDateLabel } from "@/lib/pricehist";
 import { productPath, slugify } from "@/lib/slug";
@@ -54,7 +54,7 @@ const ROWS: Row[] = [
   },
   { label: "Thấp nhất từng ghi nhận", val: () => null, show: (s) => <>{vnd(s.advice.low)}{s.advice.lowAt ? <small className="muted"> · {vnDateLabel(s.advice.lowAt.getTime()).slice(0, 5)}</small> : null}</> },
   { label: "Đánh giá trên sàn", val: (s) => s.deal.rating ?? null, show: (s) => (s.deal.rating ? `${s.deal.rating.toFixed(1)}/5` : "—"), better: "high" },
-  { label: "Đã bán", val: (s) => s.deal.sold ?? null, show: (s) => (s.deal.sold ? s.deal.sold.toLocaleString("vi-VN") : "—"), better: "high" },
+  { label: "Đã bán", val: (s) => s.deal.sold ?? null, show: (s) => (s.deal.sold ? soldText(s.deal.sold) : "—"), better: "high" },
   { label: "Nên mua ngay hay chờ?", val: () => null, show: (s) => (s.gone ? <span className="muted">Không còn thấy trên sàn</span> : s.advice.title) },
   { label: "Đã theo dõi giá", val: () => null, show: (s) => `${Math.floor(s.advice.trackedDays)} ngày` },
 ];
