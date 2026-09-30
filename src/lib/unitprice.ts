@@ -30,6 +30,14 @@ const PIECES = ["đôi", "cái", "chiếc", "miếng", "viên", "cuộn", "tờ"
 const PACKS = ["gói", "bịch", "hộp", "chai", "lọ", "tuýp", "túi", "lon", "hũ", "can", "bình", "thùng"];
 const num = (s: string) => Number(s.replace(",", "."));
 
+/**
+ * Đồ đựng / thiết bị: số ml, lít, kg trong tên là DUNG TÍCH hoặc TẢI TRỌNG, không phải lượng hàng
+ * ("Bình giữ nhiệt 750ml", "Nồi chiên 8L", "Máy giặt 9kg", "Cân điện tử 5kg") -> không tính giá theo dung tích/khối lượng.
+ */
+const CONTAINER = new RegExp(
+  `(?:^|[^${L}])(máy|nồi|chảo|ấm|bình giữ nhiệt|bình nước|bình đựng|bình sữa|ly|cốc|tủ|hộp đựng|hộp cơm|thùng rác|thùng đựng|vali|balo|ba lô|túi đựng|xe|quạt|lò|bếp|cân|tạ|bồn|chậu|thau|xô|can nhựa|khay|hũ thủy tinh|hũ đựng|lọ đựng|chai rỗng|chai nhựa rỗng|bể|hồ)(?![${L}])`,
+);
+
 function measures(t: string) {
   const out: { qty: number; kind: "volume" | "weight"; raw: string }[] = [];
   const re = new RegExp(`${NUM}\\s*(ml|lít|lit|l|kg|gram|gr|g)${NOT_LETTER}`, "g");
@@ -62,14 +70,14 @@ export function parseUnit(name: string): UnitInfo | null {
   if (/(combo|set|bộ)\s*\d+\s*[,/-]\s*\d+/.test(t) || /\d+\s*[,/-]\s*\d+\s*(đôi|cái|chiếc|miếng)/.test(t)) return null;
 
   // "500ml x 3", "3 x 500ml": nhân rõ ràng
-  const mul = t.match(new RegExp(`${NUM}\\s*(ml|l|lít|kg|g|gr)\\s*[x×*]\\s*(\\d{1,3})${NOT_LETTER}|(\\d{1,3})\\s*[x×*]\\s*${NUM}\\s*(ml|l|lít|kg|g|gr)${NOT_LETTER}`));
+  const mul = CONTAINER.test(t) ? null : t.match(new RegExp(`${NUM}\\s*(ml|l|lít|kg|g|gr)\\s*[x×*]\\s*(\\d{1,3})${NOT_LETTER}|(\\d{1,3})\\s*[x×*]\\s*${NUM}\\s*(ml|l|lít|kg|g|gr)${NOT_LETTER}`));
   if (mul) {
     const m = measures(mul[0])[0];
     const k = Number(mul[3] ?? mul[4]);
     if (m && k >= 1) return { qty: m.qty * k, kind: m.kind };
   }
 
-  const ms = measures(t);
+  const ms = CONTAINER.test(t) ? [] : measures(t);
   const distinctM = [...new Set(ms.map((m) => `${m.kind}:${m.qty}`))];
   const cs = counts(t);
   const distinctC = [...new Set(cs.map((c) => c.n))];
@@ -106,11 +114,14 @@ export function unitPrice(name: string, price: number): UnitPrice | null {
     return { per: price / u.qty, label: noun, qtyText: `${u.qty} ${noun}`, compareKey: `count:${noun}` };
   }
   const big = u.qty >= 1000;
+  const small = u.qty <= 100;
   if (u.kind === "volume") {
+    if (small) return { per: price / u.qty, label: "ml", qtyText: `${fmtQty(u.qty)}ml`, compareKey: "volume" };
     return big
       ? { per: price / (u.qty / 1000), label: "lít", qtyText: `${fmtQty(u.qty / 1000)} lít`, compareKey: "volume" }
       : { per: price / (u.qty / 100), label: "100ml", qtyText: `${fmtQty(u.qty)}ml`, compareKey: "volume" };
   }
+  if (small) return { per: price / u.qty, label: "g", qtyText: `${fmtQty(u.qty)}g`, compareKey: "weight" };
   return big
     ? { per: price / (u.qty / 1000), label: "kg", qtyText: `${fmtQty(u.qty / 1000)}kg`, compareKey: "weight" }
     : { per: price / (u.qty / 100), label: "100g", qtyText: `${fmtQty(u.qty)}g`, compareKey: "weight" };
@@ -120,6 +131,7 @@ export function unitPrice(name: string, price: number): UnitPrice | null {
 export function perBase(u: UnitPrice) {
   if (u.label === "lít" || u.label === "kg") return u.per / 1000;
   if (u.label === "100ml" || u.label === "100g") return u.per / 100;
+  if (u.label === "ml" || u.label === "g") return u.per;
   return u.per;
 }
 

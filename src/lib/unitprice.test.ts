@@ -30,4 +30,11 @@ test("dạng khác", () => {
   assert.equal(txt("Dầu ăn Simply 1,5L", 90_000), "≈ 60.000đ/lít (1,5 lít)");
   assert.equal(parseUnit("Tủ lạnh 180L"), null, "dung tích tủ không phải lượng hàng");
   assert.equal(txt("Khăn giấy 1 cuộn", 10_000), null, "1 cái: không có ích");
+  assert.equal(txt("Serum Vitamin C 30ml", 281_000), "≈ 9.400đ/ml (30ml)");
+  // Dung tích / tải trọng của đồ đựng, thiết bị: không phải lượng hàng
+  assert.equal(txt("Bình giữ nhiệt 750ml", 216_000), null);
+  assert.equal(txt("Nồi chiên không dầu cỡ lớn 8L", 1_089_000), null);
+  assert.equal(txt("Máy giặt cửa trước 9kg", 7_990_000), null);
+  assert.equal(txt("Cân điện tử nhà bếp 5kg", 99_000), null);
+  assert.equal(txt("Ly thủy tinh 350ml combo 6 cái", 120_000), "≈ 20.000đ/cái (6 cái)", "đồ đựng vẫn tính theo cái");
 });
