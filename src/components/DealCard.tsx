@@ -1,4 +1,5 @@
 import { productPath } from "@/lib/slug";
+import { unitPrice, unitPriceText } from "@/lib/unitprice";
 import Link from "next/link";
 import type { DealRow } from "@/lib/queries";
 import { PLATFORMS, vnd, soldText } from "@/lib/format";
@@ -88,6 +89,10 @@ export function DealCard({ p, priority = false }: { p: DealRow; isLowest?: boole
             {p.discountPct >= 5 && <span className="pct">-{Math.round(p.discountPct)}%</span>}
             {p.originalPrice && p.originalPrice > p.price ? <span className="strike">{vnd(p.originalPrice)}</span> : null}
           </div>
+          {(() => {
+            const u = unitPrice(p.name, p.price);
+            return u ? <span className="unit-price" title={`Tính theo ${u.qtyText} đọc từ tên sản phẩm`}>{unitPriceText(u)}</span> : null;
+          })()}
 
           {p.withVoucher && (
             <span className="voucher-line" title={`Mã toàn sàn “${p.withVoucher.title}” – áp dụng khi đơn đủ điều kiện, giá cuối cùng hiển thị lúc thanh toán trên sàn`}>

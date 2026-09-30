@@ -13,6 +13,7 @@ import { calcVouchers, compareOffers, dealsByIds, getProduct, similarDeals, soon
 import { alsoViewed, alternativesFor, cheaperSimilar, recentViewers, VIEWERS_MIN_PAGE } from "@/lib/discovery";
 import { buyAdvice } from "@/lib/advice";
 import { categorySaleDrop } from "@/lib/saleforecast";
+import { unitPrice, unitPriceText } from "@/lib/unitprice";
 import { hasSaleAlert, setSaleAlert, targetSale } from "@/worker/alerts";
 import { SaleAlertButton } from "@/components/SaleAlertButton";
 import { eq } from "drizzle-orm";
@@ -178,6 +179,10 @@ export default async function ProductPage({ params, searchParams }: Props) {
               </>
             ) : null}
           </div>
+          {(() => {
+            const u = unitPrice(p.name, p.price);
+            return u ? <p className="unit-price lg">{unitPriceText(u)} <span className="muted">· tính theo {u.qtyText} ghi trong tên sản phẩm</span></p> : null;
+          })()}
 
           {sp.moi && (
             <p className="form-msg save" role="status"><Icon name="check" size={16} /> Đã thêm sản phẩm vào danh sách theo dõi giá.</p>

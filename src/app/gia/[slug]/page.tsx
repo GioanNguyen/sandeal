@@ -11,6 +11,7 @@ import { siteUrl } from "@/lib/mail";
 import { getPriceTopic, priceTopics, topicName } from "@/lib/pricepages";
 import { nextSale } from "@/lib/sales";
 import { productPath } from "@/lib/slug";
+import { perBase, unitPrice, unitPriceText } from "@/lib/unitprice";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,12 @@ export default async function PriceTopicPage({ params }: Props) {
   const d = await getPriceTopic((await params).slug);
   if (!d) notFound();
   const name = topicName(d.topic);
+  // So theo đơn vị: chỉ các món đọc được số lượng, cùng loại đơn vị với nhóm đông nhất
+  const withUnit = d.cheapest.map((p) => ({ p, u: unitPrice(p.name, p.price) })).filter((x): x is { p: typeof x.p; u: NonNullable<typeof x.u> } => !!x.u);
+  const keyCount = new Map<string, number>();
+  for (const x of withUnit) keyCount.set(x.u.compareKey, (keyCount.get(x.u.compareKey) ?? 0) + 1);
+  const topKey = [...keyCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const unitRows = withUnit.filter((x) => x.u.compareKey === topKey).sort((a, b) => perBase(a.u) - perBase(b.u));
   const sale = nextSale(new Date(), true);
   const saleDays = Math.ceil((sale.start.getTime() - Date.now()) / 86_400_000);
   const cheapest = d.cheapest[0];
@@ -96,6 +103,25 @@ export default async function PriceTopicPage({ params }: Props) {
         )}
         <p className="muted" style={{ fontSize: 13 }}>Mỗi điểm là giá thấp nhất trong {d.topic.count} mẫu vào cuối ngày đó (giờ Việt Nam).</p>
       </section>
+
+      {unitRows.length >= 2 && (
+        <section className="section" aria-labelledby="unit-head">
+          <div className="section-head"><h2 id="unit-head">Rẻ nhất theo {unitRows[0].u.label === "lít" || unitRows[0].u.label === "100ml" ? "dung tích" : unitRows[0].u.label === "kg" || unitRows[0].u.label === "100g" ? "khối lượng" : `từng ${unitRows[0].u.label}`}</h2></div>
+          <p className="muted" style={{ fontSize: 14 }}>Giá mua ít chưa chắc rẻ: so theo đơn vị ghi trong tên sản phẩm (chỉ các món đọc được chắc chắn).</p>
+          <table className="table">
+            <thead><tr><th>Sản phẩm</th><th className="num">Giá</th><th className="num">Theo đơn vị</th></tr></thead>
+            <tbody>
+              {unitRows.slice(0, 8).map(({ p, u }, i) => (
+                <tr key={p.id}>
+                  <td><Link href={productPath(p)}>{p.name}</Link> <span className="muted">· {u.qtyText}</span></td>
+                  <td className="num">{vnd(p.price)}</td>
+                  <td className="num">{i === 0 ? <b className="save">{unitPriceText(u)}</b> : unitPriceText(u)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <section className="section" aria-labelledby="list-head">
         <div className="section-head"><h2 id="list-head">{name.charAt(0).toUpperCase() + name.slice(1)} giá tốt nhất lúc này</h2></div>
