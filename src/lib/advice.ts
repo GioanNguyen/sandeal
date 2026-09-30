@@ -4,6 +4,7 @@
  */
 import { salesBetween, upcomingSales, type SaleEvent } from "./sales";
 import { timeWeightedMedian } from "./score";
+import { saleDrop, saleForecast, saleShort, type CategoryDrop, type SaleForecast } from "./saleforecast";
 
 export type AdviceVerdict = "buy" | "consider" | "wait" | "new";
 
@@ -31,6 +32,8 @@ export interface Advice {
   trackedDays: number;
   sales: SaleMark[];
   nextSale: (SaleEvent & { days: number; pastLow: number | null }) | null;
+  /** Ước tính giá ở đợt sale lớn sắp tới (≤ 21 ngày) – null khi không đủ dữ liệu */
+  forecast: SaleForecast | null;
 }
 
 type Pt = { price: number; capturedAt: Date };
@@ -60,7 +63,7 @@ function shareHigher(hist: Pt[], price: number, now: Date) {
   return total ? (hi / total) * 100 : 0;
 }
 
-export function buyAdvice(history: Pt[], price: number, now = new Date()): Advice {
+export function buyAdvice(history: Pt[], price: number, now = new Date(), opts: { category?: { name: string; drop: CategoryDrop | null } } = {}): Advice {
   const hist = [...history].sort((a, b) => a.capturedAt.getTime() - b.capturedAt.getTime());
   const trackedDays = hist.length ? (now.getTime() - hist[0].capturedAt.getTime()) / DAY : 0;
   const all = [...hist.map((h) => h.price), price];
@@ -79,7 +82,13 @@ export function buyAdvice(history: Pt[], price: number, now = new Date()): Advic
   const days = up ? Math.ceil((up.start.getTime() - now.getTime()) / DAY) : Infinity;
   const nextSale = up && days <= 21 ? { ...up, days, pastLow: pastSaleLow } : null;
 
-  const base = { usual, low, high, lowAt: lowPt?.capturedAt ?? null, cheaperThanPct, belowUsualPct, trackedDays, sales, nextSale };
+  const ownDrops = salesBetween(from, now)
+    .filter((e) => e.end < now)
+    .map((e) => ({ ref: saleShort(e), drop: saleDrop(hist, e) }))
+    .filter((d): d is { ref: string; drop: number } => d.drop != null)
+    .slice(-3);
+  const forecast = saleForecast({ price, usual: trackedDays >= 7 ? usual : price, nextSale, ownDrops, category: opts.category });
+  const base = { usual, low, high, lowAt: lowPt?.capturedAt ?? null, cheaperThanPct, belowUsualPct, trackedDays, sales, nextSale, forecast };
 
   if (trackedDays < 7) {
     return {

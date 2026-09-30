@@ -5,6 +5,8 @@ import { isSampleProduct } from "./sample";
 import { calcVouchers, compareOffers, getProduct } from "./queries";
 import { timeWeightedMedian } from "./score";
 import { bestPlan } from "./voucher";
+import { buyAdvice } from "./advice";
+import { categorySaleDrop } from "./saleforecast";
 
 export type Verdict = "good" | "wait" | "new";
 
@@ -19,6 +21,9 @@ export async function productSummary(id: number) {
   const verdict: Verdict = trackedDays < 7 ? "new" : p.price <= low || p.realDropPct >= 10 ? "good" : "wait";
   const [offers, vs] = await Promise.all([compareOffers(p as Product), calcVouchers(p.platform)]);
   const plan = bestPlan({ platform: p.platform, subtotal: p.price, shipping: 30_000 }, vs);
+  const forecast = buyAdvice(p.prices, p.price, new Date(), {
+    category: p.category ? { name: p.category, drop: await categorySaleDrop(p.category) } : undefined,
+  }).forecast;
   const site = siteUrl();
   return {
     product: {
@@ -40,6 +45,8 @@ export async function productSummary(id: number) {
       history: p.prices.map((x) => [x.capturedAt.getTime(), x.price] as [number, number]),
       afterCodes: p.price - plan.discount - plan.cashback,
       codes: plan.vouchers.map((v) => v.code ?? v.title),
+      /** Ước tính giá ở đợt sale lớn sắp tới (null khi không đủ dữ liệu) */
+      forecast,
       /** Lần cuối Săn Deal cập nhật giá sản phẩm này (ms) */
       priceAt: p.lastSeenAt.getTime(),
       /** Dữ liệu mẫu (SOURCES=mock) – không phải giá thật trên sàn */

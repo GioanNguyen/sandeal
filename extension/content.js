@@ -112,6 +112,9 @@
         <div class="kpis"><div class="kpi"><span>Hiện tại</span><b>${vnd(p.price)}</b></div><div class="kpi"><span>Thấp nhất</span><b>${vnd(p.low90)}</b></div><div class="kpi"><span>Thường ngày</span><b>${vnd(p.usual)}</b></div></div>
         <div class="muted">Giá Săn Deal cập nhật ${ago}. Giá trên trang có thể khác theo phân loại bạn chọn hoặc voucher của shop.</div>
         ${spark(p.history, p.price)}
+        ${p.forecast ? (p.forecast.pct >= 3
+          ? `<div class="muted">📅 Dự kiến ${esc(p.forecast.sale)} (còn ${p.forecast.days} ngày): <b>~${vnd(p.forecast.expected)}</b> · chờ có thể rẻ hơn ~${vnd(p.forecast.save)}. <small>Ước tính từ ${esc(p.forecast.basisText)}.</small></div>`
+          : `<div class="muted">📅 ${esc(p.forecast.sale)} (còn ${p.forecast.days} ngày): các đợt trước giá gần như không giảm thêm.</div>`) : ""}
         ${p.afterCodes < p.price ? `<div class="muted">Sau mã giảm tốt nhất: <b>${vnd(p.afterCodes)}</b> · <a target="_blank" href="${esc(links.calc)}">cách áp mã</a></div>` : ""}
         ${offers.length > 1 ? `<div class="offers">${offers.map((o, i) => `<a class="offer${i === 0 ? " best" : ""}" target="_blank" href="${esc(o.detail)}"><span>${LABEL[o.platform] || o.platform}${o.id === p.id ? " (đang xem)" : ""}</span><b>${vnd(o.price)}</b></a>`).join("")}</div>` : ""}
         ${cheaper ? `<div class="verdict wait" style="font-weight:600">${LABEL[cheaper.platform]} đang rẻ hơn ${vnd(p.price - cheaper.price)}</div>` : ""}

@@ -51,6 +51,24 @@ export function AdviceBox({ a, price, buyHref, buyLabel, cheaperElsewhere }: {
         </div>
       )}
 
+      {a.forecast && (
+        <div className="advice-forecast">
+          <Icon name="calendar" size={18} />
+          {a.forecast.pct >= 3 ? (
+            <p>
+              <b>Dự kiến {a.forecast.sale} (còn {a.forecast.days} ngày): ~{vnd(a.forecast.expected)}</b>
+              <span> · chờ có thể rẻ hơn ~{vnd(a.forecast.save)} ({a.forecast.pct}%)</span>
+              <small>Ước tính từ {a.forecast.basisText}. Không phải cam kết giá của sàn.</small>
+            </p>
+          ) : (
+            <p>
+              <b>{a.forecast.sale} (còn {a.forecast.days} ngày): nhiều khả năng không rẻ hơn đáng kể</b>
+              <small>Dựa trên {a.forecast.basisText}, đợt sale trước giá gần như không giảm thêm so với hiện tại.</small>
+            </p>
+          )}
+        </div>
+      )}
+
       <ul className="advice-reasons">
         {a.reasons.map((r) => <li key={r}>{r}</li>)}
         {cheaperElsewhere && (

@@ -1297,6 +1297,10 @@ html[data-view="list"] .deal-grid .fresh-tag .pulse-dot { margin-top: 3px; flex:
 }
 html[data-theme="dark"] .advice.consider { --a: #fbbf24; }
 html[data-theme="dark"] .advice.wait { --a: #fb7185; --a-soft: #3b1418; }
+.advice-forecast { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0 4px; padding: 10px 12px; border-radius: 12px; background: var(--surface); border: 1px dashed color-mix(in srgb, var(--a) 45%, var(--border)); }
+.advice-forecast svg { flex: none; margin-top: 2px; color: var(--a); }
+.advice-forecast p { margin: 0; font-size: 14px; line-height: 1.45; }
+.advice-forecast small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
 .advice-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .advice-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: #fff; background: var(--a); }
 .advice.new .advice-icon { background: var(--muted); }

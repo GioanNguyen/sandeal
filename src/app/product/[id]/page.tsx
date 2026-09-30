@@ -12,6 +12,7 @@ import { siteUrl } from "@/lib/mail";
 import { calcVouchers, compareOffers, dealsByIds, getProduct, similarDeals, soonestVoucher } from "@/lib/queries";
 import { alsoViewed, alternativesFor, cheaperSimilar, recentViewers, VIEWERS_MIN_PAGE } from "@/lib/discovery";
 import { buyAdvice } from "@/lib/advice";
+import { categorySaleDrop } from "@/lib/saleforecast";
 import { hasSaleAlert, setSaleAlert, targetSale } from "@/worker/alerts";
 import { SaleAlertButton } from "@/components/SaleAlertButton";
 import { eq } from "drizzle-orm";
@@ -109,7 +110,9 @@ export default async function ProductPage({ params, searchParams }: Props) {
         .then(([r]) => (Number(r.n) >= SHOP_MIN_PRODUCTS ? shopPath(p) : null))
     : null;
 
-  const advice = buyAdvice(p.prices, p.price);
+  const advice = buyAdvice(p.prices, p.price, new Date(), {
+    category: p.category ? { name: p.category, drop: await categorySaleDrop(p.category) } : undefined,
+  });
   const viewers = (await recentViewers([p.id])).get(p.id) ?? 0;
   // Nhắc khi sale bắt đầu: vừa đăng nhập từ nút "Nhắc tôi" (?nhacsale=1) thì bật luôn
   const sale = targetSale();
