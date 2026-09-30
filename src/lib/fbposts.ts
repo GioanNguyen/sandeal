@@ -56,7 +56,8 @@ export interface PostCtx {
 
 const LABEL = Object.fromEntries(POST_KINDS.map((k) => [k.kind, k.label])) as Record<PostKind, string>;
 const plat = (p: { platform: string }) => PLATFORMS[p.platform]?.label ?? p.platform;
-const short = (name: string, n = 70) => (name.length > n ? `${name.slice(0, n - 2).trim()}…` : name);
+/** Tên sản phẩm đầy đủ (không cắt “…”), chỉ gọn khoảng trắng */
+const fullName = (name: string) => name.replace(/\s+/g, " ").trim();
 const hhmm = (d: Date) => d.toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", timeZone: "Asia/Ho_Chi_Minh" });
 const dm = (d: Date) => d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", timeZone: "Asia/Ho_Chi_Minh" });
 const tags = (p?: Product) => ["#SănDeal", p ? `#${plat(p).replace(/\s+/g, "")}` : "#DealGiảmThật", "#GiáThật"].join(" ");
@@ -105,7 +106,7 @@ export function thatHayAo(ctx: PostCtx): PostDraft | null {
       : real >= 10
         ? `🔍 Shop ghi −${claim}%, thực tế rẻ hơn giá thường ngày ${real}% – vẫn là giá tốt 👍`
         : `🔍 Shop ghi −${claim}%… nhưng giảm thật chỉ ${real}% 🤔`,
-    `🛍 ${short(p.name)}`,
+    `🛍 ${fullName(p.name)}`,
     `🏷 Giá gạch trên sàn: ${priceK(p.originalPrice)} → ${priceK(p.price)}`,
     `📊 Giá thường ngày ${Math.floor(a.trackedDays)} ngày qua: ${priceK(a.usual)} · thấp nhất ${priceK(a.low)}`,
     `👉 Kết luận: ${verdict}`,
@@ -120,7 +121,7 @@ export function muaHayCho(ctx: PostCtx): PostDraft | null {
   return single(ctx, "mua-hay-cho", f.pct >= 3
     ? [
         `⏳ Có nên chờ ${f.sale}? Món này dự kiến rẻ thêm ~${priceK(f.save)}`,
-        `🛍 ${short(p.name)}`,
+        `🛍 ${fullName(p.name)}`,
         `💰 Giá hôm nay: ${priceK(p.price)}`,
         `📅 Dự kiến ${f.sale} (còn ${f.days} ngày): ~${priceK(f.expected)} (−${f.pct}%)`,
         `📊 Dựa trên ${f.basisText}. Chỉ là ước tính từ lịch sử giá, không phải cam kết.`,
@@ -128,7 +129,7 @@ export function muaHayCho(ctx: PostCtx): PostDraft | null {
       ]
     : [
         `✅ Không cần chờ ${f.sale}: món này đang ở giá tốt`,
-        `🛍 ${short(p.name)}`,
+        `🛍 ${fullName(p.name)}`,
         `💰 Giá hôm nay: ${priceK(p.price)}`,
         `📊 Dựa trên ${f.basisText}: đợt sale trước giá gần như không rẻ hơn mức này.`,
         social(p) && `👥 ${social(p)}`,
@@ -144,9 +145,9 @@ export function donVi(ctx: PostCtx): PostDraft | null {
   const cheaperPct = peer ? Math.round((1 - perBase(u) / perBase(peer.u)) * 100) : 0;
   return single(ctx, "don-vi", [
     peer ? `🧮 Mua cái nào lợi hơn? Tính theo ${u.label} mới biết` : `🧮 ${priceK(p.price)} cho ${u.qtyText} = ${unitPriceText(u)}`,
-    `🛍 ${short(p.name)}`,
+    `🛍 ${fullName(p.name)}`,
     `💰 ${priceK(p.price)} · ${u.qtyText} → ${unitPriceText(u)}`,
-    peer && `🆚 ${short(peer.p.name, 60)}: ${priceK(peer.p.price)} · ${peer.u.qtyText} → ${unitPriceText(peer.u)}`,
+    peer && `🆚 ${fullName(peer.p.name)}: ${priceK(peer.p.price)} · ${peer.u.qtyText} → ${unitPriceText(peer.u)}`,
     peer && `👉 Món đầu rẻ hơn ${cheaperPct}% tính theo ${u.label}.`,
     !peer && social(p) && `👥 ${social(p)}`,
   ], peer ? [`🆚 Món so sánh: ${shareUrl(ctx.site, peer.p, "facebook")}`] : []);
@@ -167,7 +168,7 @@ export function doanGia(ctx: PostCtx): PostDraft | null {
   const letter = "ABC"[shown.indexOf(truth)];
   const draft = single(ctx, "doan-gia", [
     `🤔 ĐOÁN GIÁ: giá THẤP NHẤT ${Math.floor(a.trackedDays)} ngày qua của món này là bao nhiêu?`,
-    `🛍 ${short(p.name)}`,
+    `🛍 ${fullName(p.name)}`,
     `💰 Giá hôm nay: ${priceK(p.price)}`,
     "",
     ...shown.map((x, i) => `${"ABC"[i]}. ${priceK(x)}`),
@@ -185,7 +186,7 @@ export function kyLuc(ctx: PostCtx): PostDraft | null {
   const save = a.usual - p.price;
   return single(ctx, "ky-luc", [
     `🏆 GIÁ THẤP NHẤT ${Math.floor(a.trackedDays)} NGÀY – ${plat(p).toUpperCase()}`,
-    `🛍 ${short(p.name)}`,
+    `🛍 ${fullName(p.name)}`,
     `💰 ${priceK(p.price)}${save >= 1000 ? ` · rẻ hơn giá thường ngày ${priceK(save)}` : ""}`,
     `📊 Săn Deal theo dõi giá món này ${Math.floor(a.trackedDays)} ngày, chưa lần nào thấp hơn mức này.`,
     social(p) && `👥 ${social(p)}`,
@@ -203,7 +204,7 @@ export function soSan(ctx: PostCtx): PostDraft | null {
   const { p } = ctx;
   const draft = single(ctx, "so-san", [
     `⚖️ Cùng một món, ${plat(best)} rẻ hơn ${plat(worst)} ${priceK(diff)}`,
-    `🛍 ${short(p.name)}`,
+    `🛍 ${fullName(p.name)}`,
     ...offers.map((o) => `${o === best ? "✅" : "▫️"} ${plat(o)}: ${priceK(o.price)}`),
     "👉 Trước khi bấm mua, so giá các sàn mất 10 giây mà tiết kiệm được kha khá.",
   ]);
@@ -218,7 +219,7 @@ export function sauMa(ctx: PostCtx): PostDraft | null {
   if (!v || v.price >= p.price - 1000) return null;
   return single(ctx, "sau-ma", [
     `🎟 ${priceK(p.price)} → chỉ còn ${priceK(v.price)} khi áp mã`,
-    `🛍 ${short(p.name)}`,
+    `🛍 ${fullName(p.name)}`,
     `💸 Bớt thêm ${priceK(p.price - v.price)} nhờ mã ${v.code ? "giảm giá" : "của sàn"} đang còn hạn`,
     social(p) && `👥 ${social(p)}`,
     "🔑 Mã ở bình luận đầu – mã thường hết lượt nhanh.",
@@ -232,7 +233,7 @@ export function vuaGiam(ctx: PostCtx): PostDraft | null {
   const pct = Math.round((ctx.droppedBy / (p.price + ctx.droppedBy)) * 100);
   return single(ctx, "vua-giam", [
     `📉 VỪA GIẢM ${priceK(ctx.droppedBy)} (−${pct}%) lúc ${hhmm(ctx.droppedAt)}`,
-    `🛍 ${short(p.name)}`,
+    `🛍 ${fullName(p.name)}`,
     `💰 ${priceK(p.price + ctx.droppedBy)} → ${priceK(p.price)}`,
     `📊 Giá thường ngày: ${priceK(ctx.advice.usual)}`,
     "⚡ Giá vừa đổi thường không giữ lâu.",
@@ -251,7 +252,7 @@ export function tongHop(items: Product[], opts: { site: string; now: Date; budge
     body: [
       opts.title ?? `💸 ${list.length} món dưới ${priceK(opts.budget ?? Math.max(...list.map((p) => p.price)))} đang giảm thật`,
       "",
-      ...list.map((p, i) => `${i + 1}. ${short(p.name, 55)} – ${priceK(p.price)}${p.realDropPct >= 5 ? ` (giảm thật ${Math.round(p.realDropPct)}%)` : ""}`),
+      ...list.map((p, i) => `${i + 1}. ${fullName(p.name)} – ${priceK(p.price)}${p.realDropPct >= 5 ? ` (giảm thật ${Math.round(p.realDropPct)}%)` : ""}`),
       "",
       "Giảm thật = rẻ hơn giá thường ngày 30 ngày qua, không tính % shop tự ghi.",
       `👇 Link từng món ở bình luận đầu (đánh số 1–${list.length})`,
@@ -278,7 +279,7 @@ export function nangGia(r: { total: number; rate: number; raised: { product: Pro
       `(${r.raised.length}/${r.total} món tăng từ 8% trở lên so với giá thường ngày)`,
       "",
       "Ví dụ:",
-      ...top.map((x) => `• ${short(x.product.name, 50)}: ${priceK(x.base)} → ${priceK(x.peak)} (+${Math.round((x.peak / x.base - 1) * 100)}%)`),
+      ...top.map((x) => `• ${fullName(x.product.name)}: ${priceK(x.base)} → ${priceK(x.peak)} (+${Math.round((x.peak / x.base - 1) * 100)}%)`),
       "",
       opts.upcoming ? `👉 Ngày ${opts.sale} thấy “giảm 50%” thì so với giá cũ trước đã nhé.` : "👉 Lần sale sau nhớ so giá trước khi mua.",
       "👇 Bảng đầy đủ theo shop, danh mục ở bình luận đầu",

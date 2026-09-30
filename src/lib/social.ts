@@ -48,7 +48,7 @@ export function buildCaption(p: Product, link: string, opts: { variant?: number;
       : [`🔥 DEAL HOT ${PLAT}`, `✨ GIÁ ĐẸP HÔM NAY · ${PLAT}`, `🛒 SĂN NGAY TRÊN ${PLAT}`];
   const header = headers[(opts.variant ?? 0) % headers.length];
 
-  const name = p.name.length > 90 ? `${p.name.slice(0, 88).trim()}…` : p.name;
+  const name = p.name.replace(/\s+/g, " ").trim();
   const at = (opts.at ?? new Date()).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", timeZone: "Asia/Ho_Chi_Minh" });
   const social = [p.rating ? `⭐ ${p.rating.toFixed(1)}` : "", p.sold ? `🛒 ${soldText(p.sold)} đã bán` : ""].filter(Boolean).join(" · ");
   const tags = ["#SănDeal", `#${plat.replace(/\s+/g, "")}`, p.category ? `#${slugify(p.category).replace(/-/g, "")}` : ""].filter(Boolean).join(" ");
@@ -91,7 +91,7 @@ export function buildDigestCaption(items: DigestItem[], opts: { pageName?: strin
   const vn = new Date((opts.at ?? oldest ?? new Date()).getTime() + 7 * 3_600_000).toISOString();
   const at = `${vn.slice(11, 16)} ${vn.slice(8, 10)}/${vn.slice(5, 7)}`;
   const blocks = items.map(({ product: p, link, voucher }) => {
-    const name = p.name.length > 80 ? `${p.name.slice(0, 78).trim()}…` : p.name;
+    const name = p.name.replace(/\s+/g, " ").trim();
     const drop = Math.round(p.realDropPct);
     return [
       `🛍️ ${name}`,

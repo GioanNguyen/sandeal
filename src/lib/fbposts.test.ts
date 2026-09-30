@@ -20,6 +20,18 @@ const noLink = (s: string) => assert.doesNotMatch(s, /https?:\/\//, "thân bài 
 
 test("đủ 10 mẫu", () => assert.equal(POST_KINDS.length, 10));
 
+test("tên sản phẩm trong thân bài không bị cắt", () => {
+  const long = "Nước giặt D-nee cho trẻ sơ sinh, mềm dịu, thơm nhẹ, không hư hại quần áo - Can 3000ml - 4 Hương thơm Organic Aloe Vera";
+  const all = singleDrafts(ctx(mk({ name: long }), hist([120_000, 110_000, 100_000, 95_000, 90_000, 82_000]), { withVoucher: { code: null, title: "Mã sàn", price: 70_000 } }));
+  assert.ok(all.length >= 3);
+  for (const d of all) {
+    assert.ok(d.body.includes(long), d.kind);
+    assert.doesNotMatch(d.body, /…/);
+  }
+  const t = tongHop([1, 2, 3].map((i) => mk({ id: i, name: `${long} ${i}` })), { site: SITE, now, budget: 100_000 })!;
+  assert.ok(t.body.includes(`${long} 3`));
+});
+
 test("giảm thật hay ảo", () => {
   const real = thatHayAo(ctx(mk({ originalPrice: 160_000, discountPct: 49 }), hist([160_000, 160_000, 160_000, 82_000])))!;
   noLink(real.body);
