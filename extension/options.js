@@ -15,10 +15,10 @@
   };
   const box = document.getElementById("contribute");
   const cmsg = document.getElementById("cmsg");
-  const { contribute } = await chrome.storage.sync.get("contribute");
-  box.checked = contribute === true;
+  const { contribute, contributeV } = await chrome.storage.sync.get(["contribute", "contributeV"]);
+  box.checked = contribute === true && contributeV === 2;
   box.onchange = async () => {
-    await chrome.storage.sync.set({ contribute: box.checked });
+    await chrome.storage.sync.set({ contribute: box.checked, contributeV: 2 });
     cmsg.textContent = box.checked ? "Đã bật góp giá. Cảm ơn bạn!" : "Đã tắt góp giá.";
   };
 })();

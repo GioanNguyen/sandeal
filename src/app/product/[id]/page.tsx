@@ -43,6 +43,8 @@ import { SHOP_MIN_PRODUCTS, shopPath } from "@/lib/shops";
 import { and, count } from "drizzle-orm";
 import { products } from "@/db/schema";
 import { isUnavailable, platformLatest } from "@/lib/availability";
+import { productInsight } from "@/lib/reviews";
+import { ReviewPanel, RiskAlert } from "@/components/ReviewInsight";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +117,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
     category: p.category ? { name: p.category, drop: await categorySaleDrop(p.category) } : undefined,
   });
   const viewers = (await recentViewers([p.id])).get(p.id) ?? 0;
+  const insight = await productInsight(p);
   // Nhắc khi sale bắt đầu: vừa đăng nhập từ nút "Nhắc tôi" (?nhacsale=1) thì bật luôn
   const sale = targetSale();
   if (user && sale && !sale.live && sp.nhacsale) {
@@ -183,6 +186,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
             const u = unitPrice(p.name, p.price);
             return u ? <p className="unit-price lg">{unitPriceText(u)} <span className="muted">· tính theo {u.qtyText} ghi trong tên sản phẩm</span></p> : null;
           })()}
+
+          {!gone && <RiskAlert risk={insight.risk} />}
 
           {sp.moi && (
             <p className="form-msg save" role="status"><Icon name="check" size={16} /> Đã thêm sản phẩm vào danh sách theo dõi giá.</p>
@@ -293,6 +298,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
               </p>
             )}
           </section>
+          <ReviewPanel insight={insight} platform={p.platform} />
           <section className="panel" id="theo-doi">
             <h2><Icon name="bell" /> {gone ? "Báo tôi khi món này có lại" : "Báo tôi khi giá giảm"}</h2>
             <p className="muted" style={{ margin: 0 }}>

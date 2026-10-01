@@ -11,6 +11,8 @@
     return false;
   }
 
+  /** Phiên bản nội dung đồng ý góp dữ liệu (2 = giá + đánh giá) */
+  const CONSENT_V = 2;
   const LABEL = { shopee: "Shopee", lazada: "Lazada", tiktok: "TikTok Shop" };
   const vnd = (n) => new Intl.NumberFormat("vi-VN").format(Math.round(n)) + " ₫";
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -55,13 +57,15 @@
     .consent .row { display: flex; gap: 6px; margin-top: 6px; }
     .consent button { flex: 1; min-height: 32px; border-radius: 999px; border: 1.5px solid #f1e3da; background: transparent; color: inherit; font-weight: 700; cursor: pointer; font-size: 12.5px; }
     .consent button.yes { background: #d0390f; border-color: #d0390f; color: #fff; }
+    a.verdict.risk { display: block; text-decoration: none; }
+    .rv { font-size: 12.5px; background: #fff7f2; border-radius: 10px; padding: 8px 10px; }
     .pill { display: inline-flex; align-items: center; gap: 8px; background: #d0390f; color: #fff; font-weight: 800; padding: 10px 14px; border-radius: 999px; border: 0; cursor: pointer; box-shadow: 0 8px 24px rgb(0 0 0 / 25%); font-size: 13px; }
     @media (prefers-color-scheme: dark) {
       .card { background: #1b1d22; color: #f2f3f5; border-color: #2d3139; }
       .kpi { background: #23262d; } .kpi span, .muted { color: #a1a7b3; }
       .btn { color: #f2f3f5; border-color: #2d3139; } .offer:hover { background: #23262d; }
       .verdict small { color: #f2f3f5; } .good { background: #12301f; color: #34d399; } .wait { background: #3a2c0c; color: #fbbf24; } .new { background: #1e1b4b; color: #a5b4fc; } .warn { background: #3b1414; color: #fca5a5; }
-      .offer.best { background: #12301f; }
+      .offer.best { background: #12301f; } .rv { background: #23262d; }
     }`;
 
   function spark(history, current) {
@@ -78,7 +82,7 @@
   }
 
   function consentBox() {
-    return `<div class="consent" role="group" aria-label="Góp giá"><b>Góp giá ẩn danh?</b>Khi bạn xem trang sản phẩm, tiện ích gửi <b style="display:inline">tên, giá, ảnh</b> sản phẩm cho Săn Deal để xây lịch sử giá cho mọi người. Không gửi thông tin gì về bạn. Đổi lại được trong Tuỳ chọn.<div class="row"><button class="yes" id="c-yes">Đồng ý</button><button id="c-no">Không</button></div></div>`;
+    return `<div class="consent" role="group" aria-label="Góp giá"><b>Góp giá & đánh giá ẩn danh?</b>Khi bạn xem trang sản phẩm, tiện ích gửi <b style="display:inline">tên, giá, ảnh</b> sản phẩm và <b style="display:inline">các đánh giá đang hiện trên trang</b> (số sao, nội dung, không gồm tên người đánh giá) cho Săn Deal để xây lịch sử giá và tóm tắt đánh giá cho mọi người. Không gửi thông tin gì về bạn. Đổi lại được trong Tuỳ chọn.<div class="row"><button class="yes" id="c-yes">Đồng ý</button><button id="c-no">Không</button></div></div>`;
   }
 
   function render(state) {
@@ -108,7 +112,16 @@
         return m < 1 ? "vừa xong" : m < 60 ? `${m} phút trước` : m < 1440 ? `${Math.round(m / 60)} giờ trước` : `${Math.round(m / 1440)} ngày trước`;
       })();
       const sample = p.sample ? `<div class="verdict warn">Dữ liệu mẫu – không phải giá thật<small>Máy chủ Săn Deal đang chạy thử bằng dữ liệu mẫu, các con số bên dưới là giả.</small></div>` : "";
-      body = `${sample}${v}
+      const ins = state.data.insight;
+      const risk = ins && ins.risk && ins.risk.level !== "none"
+        ? (ins.risk.level === "low"
+          ? `<div class="muted">Lưu ý: ${esc(ins.risk.flags.map((f) => f.title).join("; "))}</div>`
+          : `<a class="verdict warn risk" target="_blank" href="${esc(links.reviews || links.detail)}">⚠ ${esc(ins.risk.label)}<small>${ins.risk.flags.filter((f) => f.level !== "low").map((f) => esc(f.title)).join("<br>")}</small></a>`)
+        : "";
+      const rv = ins && ins.reviews
+        ? `<div class="rv"><b>${ins.reviews.ai ? "✨ Tóm tắt đánh giá (AI)" : "Người mua nói gì"}</b> <span class="muted">· ${ins.reviews.count} đánh giá</span><br>${esc(ins.reviews.summary)}</div>`
+        : "";
+      body = `${sample}${risk}${v}${rv}
         <div class="kpis"><div class="kpi"><span>Hiện tại</span><b>${vnd(p.price)}</b></div><div class="kpi"><span>Thấp nhất</span><b>${vnd(p.low90)}</b></div><div class="kpi"><span>Thường ngày</span><b>${vnd(p.usual)}</b></div></div>
         <div class="muted">Giá Săn Deal cập nhật ${ago}. Giá trên trang có thể khác theo phân loại bạn chọn hoặc voucher của shop.</div>
         ${spark(p.history, p.price)}
@@ -129,7 +142,7 @@
     root.innerHTML = `${style}<div class="card" role="complementary" aria-label="Săn Deal"><div class="head">Săn Deal<button id="min" aria-label="Thu nhỏ">–</button><button id="close" aria-label="Đóng" style="margin-left:4px">×</button></div><div class="body">${body}</div></div>`;
     root.getElementById("close").onclick = unmount;
     const yes = root.getElementById("c-yes"), no = root.getElementById("c-no");
-    if (yes) yes.onclick = async () => { await chrome.storage.sync.set({ contribute: true }); render({ ...state, askConsent: false }); contribute(location.href, state); };
+    if (yes) yes.onclick = async () => { await chrome.storage.sync.set({ contribute: true, contributeV: CONSENT_V }); render({ ...state, askConsent: false }); contribute(location.href, state, true); };
     if (no) no.onclick = async () => { await chrome.storage.sync.set({ contribute: false }); render({ ...state, askConsent: false }); };
     root.getElementById("min").onclick = () => { collapsed = true; chrome.storage.local.set({ collapsed }); render(state); };
   }
@@ -138,7 +151,7 @@
    * Góp giá: đọc dữ liệu sản phẩm mà trang công khai (JSON-LD / meta), thử lại vài lần vì trang tải dần,
    * rồi gửi qua nền tiện ích. Món chưa có trên Săn Deal thì hiện dữ liệu ngay sau khi ghi nhận.
    */
-  async function contribute(href, state) {
+  async function contribute(href, state, withReviews) {
     // Trang một-trang cần chút thời gian để thay dữ liệu của sản phẩm mới
     await new Promise((ok) => setTimeout(ok, 1500));
     for (let i = 0; i < 8; i++) {
@@ -147,6 +160,7 @@
       if (d && d.price > 0) {
         const r = await chrome.runtime.sendMessage({ type: "observe", payload: { url: href, ...d } }).catch(() => null);
         if (location.href !== href) return;
+        if (withReviews) collectReviews(href);
         if (state.kind === "queued" && r?.ok && r.data?.status === "created") {
           const again = await chrome.runtime.sendMessage({ type: "lookup", url: href }).catch(() => null);
           if (location.href === href && again?.ok && again.data.status === "found") render({ kind: "found", data: again.data });
@@ -156,6 +170,31 @@
       await new Promise((ok) => setTimeout(ok, 1000));
     }
     if (state.kind === "queued" && location.href === href) render({ ...state, contributing: false });
+  }
+
+  /**
+   * Góp đánh giá: phần đánh giá trên sàn tải dần khi người dùng cuộn / chuyển trang đánh giá, nên kiểm tra lại
+   * mỗi 4 giây trong 5 phút, chỉ gửi đánh giá mới thấy. Chỉ chạy khi đã bật "Góp giá".
+   */
+  let reviewTimer = null;
+  function collectReviews(href) {
+    clearInterval(reviewTimer);
+    const sent = new Set();
+    let countsSent = false, ticks = 0;
+    const key = (r) => r.rating + "|" + String(r.text || "").slice(0, 80) + "|" + (r.approx ? "" : r.date || "");
+    const tick = async () => {
+      if (location.href !== href || ++ticks > 75) { clearInterval(reviewTimer); return; }
+      const x = self.SanDealExtract && self.SanDealExtract.reviewsFromDocument(document, href);
+      if (!x) return;
+      const fresh = x.reviews.filter((r) => !sent.has(key(r)));
+      const hasCounts = x.ratingCount !== undefined || x.starCounts;
+      if (!fresh.length && (countsSent || !hasCounts)) return;
+      fresh.forEach((r) => sent.add(key(r)));
+      countsSent = countsSent || !!hasCounts;
+      await chrome.runtime.sendMessage({ type: "reviews", payload: { url: href, ratingCount: x.ratingCount, starCounts: x.starCounts, reviews: fresh } }).catch(() => null);
+    };
+    reviewTimer = setInterval(tick, 4000);
+    tick();
   }
 
   async function check() {
@@ -168,10 +207,12 @@
     if (location.href !== href) return; // đã chuyển trang
     if (!r?.ok) return render({ kind: "error", error: r?.error || "lỗi" });
     if (r.data.status !== "found" && r.data.status !== "queued") return unmount();
-    const { contribute: consent } = await chrome.storage.sync.get("contribute");
-    const state = { kind: r.data.status, data: r.data, askConsent: consent === undefined, contributing: consent === true };
+    const { contribute: consent, contributeV } = await chrome.storage.sync.get(["contribute", "contributeV"]);
+    // Bản 1.5.0 góp thêm đánh giá: người đã đồng ý góp giá từ trước được hỏi lại với nội dung mới (vẫn góp giá như cũ)
+    const reviewsOk = consent === true && contributeV === CONSENT_V;
+    const state = { kind: r.data.status, data: r.data, askConsent: consent === undefined || (consent === true && !reviewsOk), contributing: consent === true };
     render(state);
-    if (consent === true) contribute(href, state);
+    if (consent === true) contribute(href, state, reviewsOk);
   }
 
   // Shopee/TikTok là web một trang: theo dõi thay đổi URL

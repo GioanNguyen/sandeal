@@ -35,7 +35,26 @@ async function observe(payload) {
   return data;
 }
 
+/** Gửi đánh giá công khai đang hiện trên trang (chỉ khi đã bật "Góp giá") */
+async function reviews(payload) {
+  const base = await server();
+  const res = await fetch(`${base}/api/ext/reviews`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (data.added) cache.delete(payload.url);
+  return data;
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+  if (msg?.type === "reviews") {
+    reviews(msg.payload)
+      .then((data) => reply({ ok: true, data }))
+      .catch((err) => reply({ ok: false, error: String(err.message || err) }));
+    return true;
+  }
   if (msg?.type === "lookup") {
     lookup(msg.url)
       .then((data) => reply({ ok: true, data }))

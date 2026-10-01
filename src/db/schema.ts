@@ -382,3 +382,39 @@ export const productEmbeddings = pgTable(
   },
   (t) => [index("product_embeddings_model_idx").on(t.model, t.updatedAt)],
 );
+
+/**
+ * Đánh giá công khai của người mua trên trang sản phẩm, do người dùng tiện ích (đã bật "Góp giá") gửi khi xem trang.
+ * Không lưu tên/ảnh đại diện người đánh giá. hash: chống trùng (cùng nội dung + số sao + ngày).
+ */
+export const productReviews = pgTable(
+  "product_reviews",
+  {
+    id: serial("id").primaryKey(),
+    productId: integer("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    hash: text("hash").notNull(),
+    rating: integer("rating").notNull(),
+    body: text("body").notNull(),
+    /** Phân loại người mua đã chọn (màu, size…) */
+    variant: text("variant"),
+    hasMedia: boolean("has_media").notNull().default(false),
+    postedAt: ts("posted_at"),
+    observedAt: ts("observed_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("product_reviews_hash_uq").on(t.productId, t.hash), index("product_reviews_product_idx").on(t.productId, t.observedAt)],
+);
+
+/** Số liệu đánh giá tổng của sàn + bản tóm tắt đã tính (lưu lại để trang sản phẩm không phải tính mỗi lần) */
+export const productReviewMeta = pgTable("product_review_meta", {
+  productId: integer("product_id").primaryKey().references(() => products.id, { onDelete: "cascade" }),
+  /** Tổng số lượt đánh giá sàn hiển thị */
+  ratingCount: integer("rating_count"),
+  /** Số lượt theo sao [1★, 2★, 3★, 4★, 5★] nếu trang có hiện */
+  starCounts: jsonb("star_counts").$type<number[]>(),
+  /** Tóm tắt bằng AI (null = chưa có / không bật AI) */
+  aiSummary: jsonb("ai_summary").$type<{ summary: string; pros: string[]; cons: string[]; model: string } | null>(),
+  /** Số đánh giá đã dùng cho lần tóm tắt AI gần nhất */
+  aiReviewCount: integer("ai_review_count").notNull().default(0),
+  aiAt: ts("ai_at"),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});

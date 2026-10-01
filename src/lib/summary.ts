@@ -7,6 +7,8 @@ import { timeWeightedMedian } from "./score";
 import { bestPlan } from "./voucher";
 import { buyAdvice } from "./advice";
 import { categorySaleDrop } from "./saleforecast";
+import { productInsight } from "./reviews";
+import { RISK_LABEL } from "./reviews/risk";
 
 export type Verdict = "good" | "wait" | "new";
 
@@ -25,6 +27,7 @@ export async function productSummary(id: number) {
     category: p.category ? { name: p.category, drop: await categorySaleDrop(p.category) } : undefined,
   }).forecast;
   const site = siteUrl();
+  const ins = await productInsight(p);
   return {
     product: {
       id: p.id,
@@ -52,12 +55,20 @@ export async function productSummary(id: number) {
       /** Dữ liệu mẫu (SOURCES=mock) – không phải giá thật trên sàn */
       sample: isSampleProduct(p),
     },
+    /** Cảnh báo rủi ro + tóm tắt đánh giá (gọn cho tiện ích / Xem nhanh) */
+    insight: {
+      risk: { level: ins.risk.level, label: RISK_LABEL[ins.risk.level], flags: ins.risk.flags.slice(0, 3).map((f) => ({ level: f.level, title: f.title })) },
+      reviews: ins.reviews?.count
+        ? { count: ins.reviews.count, summary: ins.ai?.summary || ins.reviews.headline, ai: !!ins.ai, pros: (ins.ai?.pros.length ? ins.ai.pros : ins.reviews.pros).slice(0, 3), cons: (ins.ai?.cons.length ? ins.ai.cons : ins.reviews.cons).slice(0, 3) }
+        : null,
+    },
     offers: offers.map((o) => ({ id: o.id, platform: o.platform, price: o.price, detail: `${site}${productPath(o)}` })),
     links: {
       detail: `${site}${productPath(p)}`,
       watch: `${site}${productPath(p)}#theo-doi`,
       calc: `${site}/tinh-gia?p=${p.id}`,
       buy: `${site}/go/${p.id}`,
+      reviews: `${site}${productPath(p)}#danh-gia`,
     },
   };
 }

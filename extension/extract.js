@@ -213,5 +213,243 @@
     return fromData(ld, meta, href, doc.title);
   }
 
-  g.SanDealExtract = { itemIdOf, money, nameMatchesTitle, fromData, categoryOf, fromDocument, firstVnd, priceLike, pickStrike, strikeFromDocument };
+  // ===================== Đánh giá người mua =====================
+  // Chỉ đọc phần đánh giá công khai đang hiện trên trang: số sao, nội dung, phân loại, ngày, có ảnh/video.
+  // KHÔNG đọc tên, ảnh đại diện người đánh giá.
+
+  /** "1,2k" -> 1200, "3,4tr" -> 3400000, "120" -> 120 */
+  function countNum(s) {
+    const m = String(s || "").trim().toLowerCase().match(/^([\d.,]+)\s*(k|tr|m)?/);
+    if (!m) return NaN;
+    let n = m[2] ? Number(m[1].replace(",", ".")) : Number(m[1].replace(/[.,]/g, ""));
+    if (m[2] === "k") n *= 1e3;
+    if (m[2] === "tr" || m[2] === "m") n *= 1e6;
+    return Math.round(n);
+  }
+
+  /** Từ JSON-LD: aggregateRating + review[] (schema.org) */
+  function reviewsFromData(ldBlocks) {
+    const products = [];
+    for (const b of ldBlocks) findProducts(b, products);
+    const out = { ratingCount: undefined, reviews: [] };
+    for (const p of products) {
+      const ar = p.aggregateRating || {};
+      const c = Number(ar.ratingCount != null ? ar.ratingCount : ar.reviewCount);
+      if (Number.isFinite(c) && c >= 0 && out.ratingCount === undefined) out.ratingCount = c;
+      for (const r of [].concat(p.review || [])) {
+        if (!r || typeof r !== "object") continue;
+        const rating = Number(r.reviewRating && r.reviewRating.ratingValue);
+        if (!(rating >= 1 && rating <= 5)) continue;
+        out.reviews.push({ rating: Math.round(rating), text: String(r.reviewBody || r.description || "").trim(), date: r.datePublished ? String(r.datePublished) : undefined });
+      }
+    }
+    return out;
+  }
+
+  const DATE_RE = /(\d{4}-\d{2}-\d{2}(?:\s+\d{1,2}:\d{2})?)|(\b\d{1,2}[-/]\d{1,2}[-/]\d{4}\b)/;
+  const VARIANT_RE = /(?:Phân loại hàng|Phân loại|Màu sắc|Kích cỡ|Kích thước|Size)\s*:\s*([^|\n]{1,80})/i;
+  const SELLER_REPLY_RE = /\n\s*(Phản hồi của người bán|Phản Hồi Của Người Bán|Seller'?s? response|Phản hồi từ người bán)[\s\S]*$/i;
+  const JUNK_LINE_RE = /^(Hữu ích\??|Thích|Báo cáo|Report|\d+|Xem thêm|Phản hồi|\d+\s*(lượt )?thích|Đã mua)$/i;
+
+  /** Số sao trong khung đánh giá: nhóm 5 biểu tượng sao liền nhau, đếm sao "đầy" */
+  function starsIn(card, before, view) {
+    const groups = Array.from(card.querySelectorAll("*")).filter((el) => {
+      const kids = Array.from(el.children);
+      return kids.length === 5 && kids.every((k) => k.tagName === kids[0].tagName) && (before ? !!(el.compareDocumentPosition(before) & 4) : true);
+    });
+    for (const gEl of groups) {
+      const kids = Array.from(gEl.children);
+      const cls = (k) => String((k.getAttribute && (k.getAttribute("class") || "")) + " " + (k.innerHTML || "").slice(0, 300)).toLowerCase();
+      if (!kids.some((k) => /star|rating|sao/.test(cls(k)) || k.tagName === "svg" || k.tagName === "SVG" || k.tagName === "IMG")) continue;
+      const full = kids.filter((k) => {
+        const c = cls(k);
+        if (/(solid|active|full|filled|--on|is-on)/.test(c) && !/(empty|outline|--off|gray|grey)/.test(c)) return true;
+        if (/(empty|outline|--off|gray|grey)/.test(c)) return false;
+        try {
+          const target = k.querySelector && (k.querySelector("path, polygon") || k);
+          const cs = view.getComputedStyle(target);
+          const col = String(cs.fill && cs.fill !== "none" ? cs.fill : cs.color);
+          const m = col.match(/(\d+),\s*(\d+),\s*(\d+)/);
+          if (m) return +m[1] > 200 && +m[2] > 100 && +m[3] < 120; // vàng/cam
+        } catch (e) {}
+        return false;
+      }).length;
+      if (full >= 1) return full;
+    }
+    return 0;
+  }
+
+  /**
+   * Đọc các khung đánh giá đang hiện. Nhận diện theo dòng ngày giờ ("2024-05-01 10:20 | Phân loại hàng: …")
+   * rồi lấy khung gần nhất chỉ chứa đúng 1 dòng ngày; nội dung là phần chữ SAU dòng ngày (bỏ tên người đánh giá ở trước),
+   * bỏ phần phản hồi của người bán.
+   */
+  function domReviews(doc) {
+    const view = doc.defaultView;
+    const out = [];
+    const seen = new Set();
+    const dateEls = Array.from(doc.querySelectorAll("body *")).slice(0, 30000).filter((el) => {
+      if (el.children.length > 2) return false;
+      const t = (el.textContent || "").trim();
+      return t.length <= 140 && DATE_RE.test(t) && !/₫|đ\b/.test(t);
+    });
+    for (const dEl of dateEls.slice(0, 80)) {
+      let card = dEl.parentElement;
+      for (let i = 0; card && i < 7; i++) {
+        const dates = ((card.innerText || card.textContent || "").match(new RegExp(DATE_RE.source, "g")) || []).length;
+        if (dates > 1) { card = null; break; }
+        if ((card.innerText || card.textContent || "").length > (dEl.textContent || "").length + 20) break;
+        card = card.parentElement;
+      }
+      if (!card || seen.has(card)) continue;
+      seen.add(card);
+      const dText = (dEl.textContent || "").trim();
+      const all = String(card.innerText || card.textContent || "").replace(SELLER_REPLY_RE, "");
+      const idx = all.indexOf(dText);
+      const after = (idx >= 0 ? all.slice(idx + dText.length) : all)
+        .split("\n").map((l) => l.trim()).filter((l) => l && !JUNK_LINE_RE.test(l)).join("\n").trim();
+      const rating = starsIn(card, dEl, view);
+      if (!rating) continue;
+      const vm = (dText + "\n" + all).match(VARIANT_RE);
+      const media = card.querySelectorAll("video").length > 0 || Array.from(card.querySelectorAll("img")).filter((im) => (im.width || 0) >= 48).length >= 2;
+      out.push({ rating, text: after.slice(0, 800), variant: vm ? vm[1].trim() : undefined, date: (dText.match(DATE_RE) || [])[0], media });
+    }
+    return out;
+  }
+
+  /** "5 Sao (1,2k)" "4 sao (120)" -> [1★..5★] */
+  function starCountsFromDocument(doc) {
+    const counts = [0, 0, 0, 0, 0];
+    let found = 0;
+    for (const el of Array.from(doc.querySelectorAll("body *")).slice(0, 30000)) {
+      if (el.children.length > 2) continue;
+      const m = (el.textContent || "").trim().match(/^([1-5])\s*(?:Sao|sao|★)\s*\(([\d.,]+\s*(?:k|tr)?)\)$/);
+      if (m && !counts[+m[1] - 1]) { counts[+m[1] - 1] = countNum(m[2]); found++; }
+    }
+    return found >= 3 ? counts : undefined;
+  }
+
+  /** "2 weeks ago", "3 ngày trước", "Hôm qua" -> ngày (ước lượng) dạng YYYY-MM-DD */
+  function relativeDate(text, now) {
+    const t = String(text || "").trim().toLowerCase();
+    const n0 = now ? now.getTime() : Date.now();
+    const iso = (ms) => new Date(ms + 7 * 3600e3).toISOString().slice(0, 10);
+    if (/^(hôm nay|today|vừa xong|just now)/.test(t) || /(giờ|phút|hour|minute)s? (trước|ago)/.test(t)) return iso(n0);
+    if (/^(hôm qua|yesterday)/.test(t)) return iso(n0 - 864e5);
+    const m = t.match(/^(\d+|a|an|một)\s*(ngày|day|tuần|week|tháng|month|năm|year)s?\s*(trước|ago)/);
+    if (!m) return undefined;
+    const k = /^\d+$/.test(m[1]) ? Number(m[1]) : 1;
+    const unit = { "ngày": 1, day: 1, "tuần": 7, week: 7, "tháng": 30, month: 30, "năm": 365, year: 365 }[m[2]];
+    return iso(n0 - k * unit * 864e5);
+  }
+
+  /**
+   * Chữ của một phần tử (xuống dòng giữa các khối div/p/li), bỏ các phần con khớp `drop` (ảnh/video…).
+   * Không dùng innerText: bản sao tách khỏi trang không có bố cục nên innerText rỗng.
+   */
+  const BLOCK = /^(DIV|P|LI|UL|OL|SECTION|ARTICLE|H\d|BR|TR|TABLE)$/;
+  function textWithout(el, drop) {
+    const c = el.cloneNode(true);
+    if (drop) c.querySelectorAll(drop).forEach((x) => x.remove());
+    let out = "";
+    (function walk(n) {
+      if (n.nodeType === 3) { out += n.nodeValue; return; }
+      if (n.nodeType !== 1 || /^(SCRIPT|STYLE|SVG|svg|NOSCRIPT)$/.test(n.tagName)) return;
+      const block = BLOCK.test(n.tagName);
+      if (block) out += "\n";
+      for (const k of Array.from(n.childNodes)) walk(k);
+      if (block) out += "\n";
+    })(c);
+    return out;
+  }
+  const tidy = (s) => String(s || "").split("\n").map((l) => l.replace(/\s+/g, " ").trim()).filter((l) => l && !JUNK_LINE_RE.test(l) && !/^\d{1,2}:\d{2}$/.test(l)).join("\n").replace(SELLER_REPLY_RE, "").trim();
+
+  /** Shopee: mỗi đánh giá là một khối [data-cmtid]; sao đầy là .icon-rating-solid; dòng "2024-05-01 10:20 | Phân loại hàng: …" */
+  function shopeeReviews(doc) {
+    const out = [];
+    doc.querySelectorAll("[data-cmtid]").forEach((card) => {
+      const rating = Math.min(5, card.querySelectorAll(".icon-rating-solid").length);
+      if (!rating) return;
+      const dEl = Array.from(card.querySelectorAll("*")).find((el) => el.children.length === 0 && /^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}/.test((el.textContent || "").trim()));
+      const dText = dEl ? dEl.textContent.trim() : "";
+      const vm = dText.match(VARIANT_RE);
+      const variant = vm ? vm[1].replace(/[\s,]+$/g, "").replace(/^[\s,]+/, "").trim() : "";
+      const all = textWithout(card, '.rating-media-list, [class*="media-list"], video, picture, img');
+      const idx = dText ? all.indexOf(dText) : -1;
+      const text = tidy(idx >= 0 ? all.slice(idx + dText.length) : all);
+      out.push({
+        rating,
+        text: text.slice(0, 800),
+        variant: variant || undefined,
+        date: (dText.match(DATE_RE) || [])[0],
+        media: !!card.querySelector('.rating-media-list img, .rating-media-list video, [class*="video-cover"]'),
+      });
+    });
+    return out;
+  }
+
+  /** Lazada: .mod-reviews .item; sao đầy có mask "half_100%"; ngày dạng "2 tuần trước" */
+  function lazadaReviews(doc, now) {
+    const out = [];
+    doc.querySelectorAll(".mod-reviews .item").forEach((card) => {
+      const stars = Array.from(card.querySelectorAll(".item-middle .i-rate-star, .review-star .i-rate-star"));
+      const rating = stars.filter((st) => {
+        const m = (st.innerHTML || "").match(/half_(\d+(?:\.\d+)?)%/);
+        return m ? Number(m[1]) >= 50 : /active|full|on\b/.test(String(st.getAttribute("class")));
+      }).length;
+      if (!(rating >= 1 && rating <= 5)) return;
+      const body = card.querySelector(".item-content-main-content-reviews");
+      const sku = Array.from(card.querySelectorAll(".skuInfo-item")).map((x) => (x.textContent || "").replace(/\s+/g, " ").trim()).filter(Boolean).join(", ");
+      const time = card.querySelector(".time");
+      const rel = time ? relativeDate(time.textContent, now) : undefined;
+      out.push({
+        rating,
+        text: tidy(body ? textWithout(body) : "").slice(0, 800),
+        variant: sku ? sku.slice(0, 80) : undefined,
+        date: rel || (time ? (time.textContent.match(DATE_RE) || [])[0] : undefined),
+        // Ngày tương đối ("2 tuần trước") đổi theo ngày xem: máy chủ không dùng để chống trùng
+        approx: !!rel,
+        media: !!card.querySelector(".item-content-main-imgs .img-item, .item-content-main-imgs video"),
+      });
+    });
+    return out;
+  }
+
+  /** Lazada: "Reviews(1212)" / "Đánh giá(1.2K)" ở tiêu đề mục đánh giá */
+  function lazadaCount(doc) {
+    const t = doc.querySelector(".pdp-mod-review-v2 .title-text, .mod-title .title-text");
+    const m = t && (t.textContent || "").match(/\(([\d.,]+\s*[KkMm]?)\)/);
+    if (!m) return undefined;
+    const raw = m[1].replace(/\s/g, "").toLowerCase();
+    return countNum(/[km]$/.test(raw) ? raw.replace(/m$/, "tr") : raw);
+  }
+
+  /** Mọi đánh giá đọc được trên trang (JSON-LD + khung đang hiện), đã bỏ trùng */
+  function reviewsFromDocument(doc, href, now) {
+    const ld = [];
+    doc.querySelectorAll('script[type="application/ld+json"]').forEach((s) => {
+      try { ld.push(JSON.parse(s.textContent || "")); } catch (e) {}
+    });
+    const id = itemIdOf(href || (doc.location && doc.location.href) || "");
+    // Shopee có thể nhúng JSON-LD của món khác (gợi ý): chỉ lấy khối nhắc đúng mã sản phẩm
+    const own = id ? ld.filter((b) => JSON.stringify(b).includes(id)) : ld;
+    const data = reviewsFromData(own);
+    const host = String((doc.location && doc.location.hostname) || (href ? new URL(href).hostname : ""));
+    let dom = [];
+    try {
+      dom = host.endsWith("shopee.vn") ? shopeeReviews(doc) : host.endsWith("lazada.vn") ? lazadaReviews(doc, now) : [];
+      if (!dom.length) dom = domReviews(doc);
+    } catch (e) {}
+    const key = (r) => r.rating + "|" + norm(r.text).slice(0, 80) + "|" + (r.approx ? "" : r.date || "");
+    const seen = new Set();
+    const reviews = [...data.reviews, ...dom].filter((r) => (seen.has(key(r)) ? false : (seen.add(key(r)), true))).slice(0, 60);
+    let starCounts;
+    try { starCounts = starCountsFromDocument(doc); } catch (e) {}
+    let ratingCount = data.ratingCount;
+    if (ratingCount === undefined && host.endsWith("lazada.vn")) ratingCount = lazadaCount(doc);
+    if (ratingCount === undefined && starCounts) ratingCount = starCounts.reduce((a, b) => a + b, 0);
+    return { ratingCount, starCounts, reviews };
+  }
+
+  g.SanDealExtract = { itemIdOf, money, nameMatchesTitle, fromData, categoryOf, fromDocument, firstVnd, priceLike, pickStrike, strikeFromDocument, countNum, reviewsFromData, reviewsFromDocument, domReviews, starCountsFromDocument, shopeeReviews, lazadaReviews, relativeDate };
 })(typeof self !== "undefined" ? self : globalThis);

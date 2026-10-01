@@ -57,9 +57,10 @@ export default function ExtensionPage() {
           <p style={{ margin: 0 }}>
             Lần đầu dùng, tiện ích hỏi bạn có muốn <b>góp giá</b> không. Nếu đồng ý, khi bạn mở trang sản phẩm, tiện ích gửi <b>tên, giá, ảnh và điểm đánh giá</b>{" "}
             mà trang công khai cho Săn Deal, để sản phẩm chưa có trên Săn Deal được bắt đầu theo dõi và lịch sử giá đầy đủ hơn cho mọi người.
+            Từ bản 1.5.0, tiện ích gửi thêm <b>các đánh giá của người mua đang hiện trên trang</b> (số sao, nội dung, phân loại, ngày) để Săn Deal tóm tắt đánh giá và cảnh báo rủi ro.
           </p>
           <ul className="tips" style={{ listStyle: "disc" }}>
-            <li>Không gửi tài khoản, lịch sử duyệt web, giỏ hàng hay bất kỳ thông tin nào về bạn.</li>
+            <li>Không gửi tài khoản, lịch sử duyệt web, giỏ hàng hay bất kỳ thông tin nào về bạn. Không gửi tên, ảnh của người viết đánh giá; số điện thoại, email, đường link trong nội dung đánh giá bị xoá trước khi lưu.</li>
             <li>Máy chủ chỉ lưu mã băm của địa chỉ IP để đếm số người khác nhau thấy cùng mức giá (giá lệch nhiều cần 2 người xác nhận).</li>
             <li>Trang sản phẩm ghi rõ khi giá đến từ người dùng tiện ích. Tắt bất cứ lúc nào trong phần Tuỳ chọn của tiện ích.</li>
           </ul>
