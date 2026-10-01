@@ -10,6 +10,8 @@ import { priceK } from "./social";
 
 /** Link ngắn cho bình luận: https://ten-mien/p/4004 (chuyển tới trang sản phẩm, tự gắn nguồn facebook) */
 export const shortLink = (site: string, p: { id: number }) => `${site}/p/${p.id}`;
+/** Link tiếp thị liên kết của món trên sàn (vd https://s.shopee.vn/…); null nếu không có link thật */
+export const affLink = (p: { affiliateUrl?: string | null }) => (p.affiliateUrl && /^https?:\/\/\S+$/i.test(p.affiliateUrl) ? p.affiliateUrl : null);
 /** Ảnh Story dọc 9:16 (1080×1920) cho mẫu bài: tối đa 4 món */
 export const storyUrl = (site: string, kind: string, ids: number[]) => `${site}/story?k=${kind}&p=${ids.slice(0, 4).join(",")}`;
 import { unitPrice, unitPriceText, perBase, type UnitPrice } from "./unitprice";
@@ -87,7 +89,8 @@ function single(ctx: PostCtx, kind: PostKind, bodyLines: (string | false | null 
     label: LABEL[kind],
     body: [...bodyLines.filter(Boolean), "", CTA, tags(p)].join("\n"),
     comment: commentFor(ctx, [
-      `🛒 Xem lịch sử giá & mua trên ${plat(p)}: ${link}`,
+      `📊 Xem lịch sử giá trên Săn Deal: ${link}`,
+      ...(affLink(p) ? [`🛒 Mua thẳng trên ${plat(p)}: ${affLink(p)}`] : []),
       ...(v ? [`🎟 ${v.code ? `Nhập mã ${v.code}` : `Dùng mã sàn "${v.title}"`} còn ${priceK(v.price)} (khi đơn đủ điều kiện)`] : []),
       ...extra,
     ], p.lastSeenAt ?? ctx.now),
@@ -252,7 +255,7 @@ export function vuaGiam(ctx: PostCtx): PostDraft | null {
 export function tongHop(items: Product[], opts: { site: string; now: Date; budget?: number; title?: string; min?: number }): PostDraft | null {
   const list = items.slice(0, 5);
   if (list.length < (opts.min ?? 3)) return null;
-  const links = list.map((p, i) => `${i + 1}. ${shortLink(opts.site, p)}`);
+  const links = list.map((p, i) => [`${i + 1}. ${shortLink(opts.site, p)}`, ...(affLink(p) ? [`   🛒 ${plat(p)}: ${affLink(p)}`] : [])].join("\n"));
   const oldest = list.reduce((m, p) => (p.lastSeenAt < m ? p.lastSeenAt : m), list[0].lastSeenAt);
   return {
     kind: "tong-hop",

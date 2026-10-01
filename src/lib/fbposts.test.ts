@@ -41,6 +41,8 @@ test("giảm thật hay ảo", () => {
   assert.match(partly.body, /Kết luận: rẻ thật/);
   assert.match(real.comment, /https:\/\/sandealgiare\.com\/p\/47$/m, "link ngắn /p/<mã>");
   assert.match(real.comment, /tiếp thị liên kết/);
+  assert.match(real.comment, /^🛒 Mua thẳng trên Shopee: https:\/\/s\.shopee\.vn\/x$/m, "link tiếp thị liên kết trên sàn");
+  assert.doesNotMatch(thatHayAo(ctx(mk({ affiliateUrl: "#" }), hist([100_000, 100_000, 100_000, 70_000])))!.comment, /Mua thẳng/, "link giả thì bỏ");
   const fake = thatHayAo(ctx(mk({ price: 82_000 }), hist([84_000, 83_000, 84_000, 82_000])))!;
   assert.match(fake.body, /giảm thật chỉ \d+% 🤔/);
   assert.equal(thatHayAo(ctx(mk({ originalPrice: null, discountPct: 0 }), hist([100_000, 82_000]))), null, "không có giá gạch");
@@ -83,7 +85,7 @@ test("tổng hợp và nâng giá: link đánh số ở bình luận", () => {
   const t = tongHop(items, { site: SITE, now, budget: 100_000 })!;
   noLink(t.body);
   assert.match(t.body, /4 món dưới 100K/);
-  assert.match(t.comment, /^1\. https:\/\/sandealgiare\.com\/p\/1$/m);
+  assert.match(t.comment, /^1\. https:\/\/sandealgiare\.com\/p\/1\n   🛒 Shopee: https:\/\/s\.shopee\.vn\/x$/m);
   assert.equal(tongHop(items.slice(0, 2), { site: SITE, now, budget: 100_000 }), null);
   const n = nangGia({ total: 40, rate: 0.35, raised: [{ product: items[0], base: 100_000, peak: 130_000 }] }, { site: SITE, now, sale: "11.11", slug: "11-11-2026", upcoming: true })!;
   noLink(n.body);

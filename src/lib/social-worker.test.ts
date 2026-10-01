@@ -46,7 +46,8 @@ test("đăng giờ vàng: chọn deal khác danh mục, gộp 1 bài Facebook, k
     assert.equal(await postGoldenHour(), 1, "chỉ còn món chưa đăng");
     assert.equal(calls.length, 4);
     assert.match(calls[2].body.caption, /GIÁ THẤP NHẤT/);
-    assert.match(calls[3].body.message, /Xem lịch sử giá & mua/);
+    assert.match(calls[3].body.message, /Xem lịch sử giá trên Săn Deal: https:\/\/sandeal\.test\/p\/\d+/);
+    assert.doesNotMatch(calls[3].body.message, /Mua thẳng/, "không có link sàn thật thì không ghi");
     assert.equal(await postGoldenHour(), 0, "không đăng lặp trong 7 ngày");
     assert.ok(!calls.some((c) => /photo_stories/.test(c.url)), "mặc định không đăng Story tự động");
     assert.equal(calls.length, 4, "lượt không còn deal thì không đăng bài rỗng");

@@ -60,7 +60,7 @@ Các kênh này không có API đăng bài phù hợp cho web nhỏ (Zalo OA c�
 - Link trong nội dung có `utm_source` theo kênh để đo hiệu quả trên trang Thống kê.
 
 ## 3. Nội dung bài đăng: 10 mẫu
-Bài Facebook = **thân bài không link** + **bình luận đầu** (link trang Săn Deal có utm, mã giảm nếu có, giờ lấy giá, dòng "Link tiếp thị liên kết, giá bạn trả không đổi"). Mẫu chỉ hiện khi món có đủ số liệu thật, không bịa số. Sửa mẫu trong `src/lib/fbposts.ts`.
+Bài Facebook = **thân bài không link** + **bình luận đầu** (link ngắn trang Săn Deal `ten-mien/p/<mã>` để xem lịch sử giá, **link tiếp thị liên kết trên sàn** (vd `s.shopee.vn/…` từ file CSV) để mua thẳng, mã giảm nếu có, giờ lấy giá, dòng "Link tiếp thị liên kết, giá bạn trả không đổi"). Mẫu chỉ hiện khi món có đủ số liệu thật, không bịa số. Sửa mẫu trong `src/lib/fbposts.ts`.
 
 | Mẫu | Khi nào có | Móc câu |
 | --- | --- | --- |
