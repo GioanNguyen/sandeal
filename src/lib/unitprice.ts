@@ -56,7 +56,9 @@ function measures(t: string) {
 function counts(t: string) {
   const out: { n: number; noun: string | null; pack: boolean }[] = [];
   const nouns = [...PIECES, ...PACKS].join("|");
-  for (const m of t.matchAll(new RegExp(`(?<![\\d.,\\-/])(\\d{1,4})\\s*(${nouns})${NOT_LETTER}`, "g")))
+  // Không dùng lookbehind (?<!…): Safari/iOS < 16.4 (trình duyệt trong app Facebook trên iPhone cũ) báo lỗi cú pháp
+  // và làm trắng cả trang. Thay bằng bắt ký tự đứng trước (hoặc đầu chuỗi).
+  for (const m of t.matchAll(new RegExp(`(?:^|[^\\d.,\\-/])(\\d{1,4})\\s*(${nouns})${NOT_LETTER}`, "g")))
     out.push({ n: Number(m[1]), noun: m[2], pack: PACKS.includes(m[2]) });
   for (const m of t.matchAll(new RegExp(`(?:combo|set|lốc|pack)\\s*(\\d{1,3})(?![\\d.,\\-/x])`, "g")))
     out.push({ n: Number(m[1]), noun: null, pack: true });
