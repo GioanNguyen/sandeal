@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, notExists, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, notExists, sql } from "drizzle-orm";
 import { products, socialPosts, type Product } from "@/db/schema";
 import { db } from "@/lib/db";
 import { siteUrl } from "@/lib/mail";
@@ -22,9 +22,25 @@ export function channels(): Channel[] {
   return list;
 }
 
+/** Không đăng lại cùng món lên cùng kênh trong N ngày (SOCIAL_REPOST_DAYS, mặc định 7) */
+export const repostDays = () => Math.max(1, Number(process.env.SOCIAL_REPOST_DAYS ?? 7) || 7);
+
+/** Lần đăng THÀNH CÔNG gần nhất của từng món lên kênh (trong N ngày) */
+export async function lastPosted(ids: number[], channel = "facebook", now = new Date(), days = repostDays()) {
+  const out = new Map<number, { at: Date; externalId: string | null }>();
+  if (!ids.length) return out;
+  const rows = await db
+    .select({ productId: socialPosts.productId, at: socialPosts.postedAt, externalId: socialPosts.externalId })
+    .from(socialPosts)
+    .where(and(eq(socialPosts.channel, channel), inArray(socialPosts.productId, ids), isNull(socialPosts.error), gte(socialPosts.postedAt, new Date(now.getTime() - days * 86_400_000))))
+    .orderBy(desc(socialPosts.postedAt));
+  for (const r of rows) if (!out.has(r.productId)) out.set(r.productId, { at: r.at, externalId: r.externalId });
+  return out;
+}
+
 /**
  * Chọn deal để đăng: điểm cao, giảm thật ≥10%, giá mới cập nhật trong 24h,
- * chưa đăng lên kênh này 7 ngày qua, mỗi danh mục tối đa 1 món mỗi lượt.
+ * chưa đăng thành công lên kênh này trong SOCIAL_REPOST_DAYS ngày (mặc định 7), mỗi danh mục tối đa 1 món mỗi lượt.
  */
 export async function pickDeals(channel: string, limit: number, now = new Date(), onePerCategory = true): Promise<Product[]> {
   const rows = await db
@@ -39,7 +55,7 @@ export async function pickDeals(channel: string, limit: number, now = new Date()
           db
             .select({ x: sql`1` })
             .from(socialPosts)
-            .where(and(eq(socialPosts.channel, channel), eq(socialPosts.productId, products.id), gte(socialPosts.postedAt, new Date(now.getTime() - 7 * 86_400_000)))),
+            .where(and(eq(socialPosts.channel, channel), eq(socialPosts.productId, products.id), isNull(socialPosts.error), gte(socialPosts.postedAt, new Date(now.getTime() - repostDays() * 86_400_000)))),
         ),
       ),
     )

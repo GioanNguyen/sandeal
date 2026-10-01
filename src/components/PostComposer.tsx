@@ -7,12 +7,14 @@ import { Icon } from "./Icon";
  * Soạn 1 bài Facebook từ các mẫu dùng được: chọn mẫu, sửa thân bài (không link) và bình luận đầu (có link),
  * chép từng phần, tải ảnh, hoặc đăng ngay lên Trang (đăng đúng nội dung đang sửa + tự bình luận đầu).
  */
-export function PostComposer({ drafts, canPost, title }: { drafts: PostDraft[]; canPost: boolean; title?: string }) {
+export function PostComposer({ drafts, canPost, title, posted }: { drafts: PostDraft[]; canPost: boolean; title?: string; posted?: { text: string; url?: string | null } | null }) {
   const [i, setI] = useState(0);
   const [edits, setEdits] = useState<Record<number, { body: string; comment: string }>>({});
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState("");
   const [withStory, setWithStory] = useState(true);
+  const [dup, setDup] = useState(false);
+  const [done, setDone] = useState<{ text: string; url?: string | null } | null>(posted ?? null);
   const d = drafts[i];
   const cur = edits[i] ?? { body: d.body, comment: d.comment };
   const set = (k: "body" | "comment", v: string) => setEdits((e) => ({ ...e, [i]: { ...cur, [k]: v } }));
@@ -25,17 +27,25 @@ export function PostComposer({ drafts, canPost, title }: { drafts: PostDraft[]; 
       setMsg("Trình duyệt không cho chép, hãy chọn và chép thủ công");
     }
   }
-  async function send(channel: string) {
+  async function send(channel: string, force = false) {
     setBusy(channel);
     setMsg("");
+    setDup(false);
     const res = await fetch("/api/admin/social", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(channel === "facebook"
-        ? { channel, withStory, draft: { body: cur.body, comment: cur.comment, image: d.image, story: d.story, productIds: d.productIds } }
+        ? { channel, withStory, force, draft: { body: cur.body, comment: cur.comment, image: d.image, story: d.story, productIds: d.productIds } }
         : { channel, productId: d.productIds[0] }),
     }).catch(() => null);
     const j = await res?.json().catch(() => ({}));
+    if (res?.status === 409 && j?.duplicate) {
+      setDup(true);
+      setMsg(`${j.error}. Đăng lại dễ làm người theo dõi thấy trùng – chọn món khác, hoặc bấm "Vẫn đăng".`);
+      setBusy("");
+      return;
+    }
+    if (res?.ok && channel === "facebook") setDone({ text: "Vừa đăng lên Trang", url: j?.id ? `https://www.facebook.com/${j.id}` : null });
     setMsg(
       !res?.ok
         ? j?.error ?? "Lỗi"
@@ -53,6 +63,12 @@ export function PostComposer({ drafts, canPost, title }: { drafts: PostDraft[]; 
   return (
     <article className="composer post-composer">
       {title && <h3 className="post-title">{title}</h3>}
+      {done && (
+        <p className="post-posted" role="note">
+          <Icon name="check" size={14} /> {done.text}
+          {done.url && <> · <a href={done.url} target="_blank" rel="noreferrer">Xem bài</a></>}
+        </p>
+      )}
       {drafts.length > 1 && (
         <div className="chips wrap" role="tablist" aria-label="Chọn mẫu bài">
           {drafts.map((x, k) => (
@@ -94,13 +110,16 @@ export function PostComposer({ drafts, canPost, title }: { drafts: PostDraft[]; 
               <Icon name="send" size={14} /> {busy === "facebook" ? "Đang đăng…" : "Đăng Trang Facebook"}
             </button>
           )}
+          {canPost && dup && (
+            <button type="button" className="btn btn-ghost btn-sm" disabled={!!busy} onClick={() => send("facebook", true)}>Vẫn đăng</button>
+          )}
           {["facebook-group", "zalo", "tiktok"].map((c) => (
             <button key={c} type="button" className="btn btn-ghost btn-sm" disabled={!!busy} onClick={() => send(c)}>
               Đã đăng {c === "zalo" ? "Zalo" : c === "tiktok" ? "TikTok" : "nhóm FB"}
             </button>
           ))}
         </div>
-        {msg && <p className="form-msg save" role="status" style={{ margin: 0 }}><Icon name="check" size={14} /> {msg}</p>}
+        {msg && <p className={dup ? "form-msg" : "form-msg save"} role="status" style={{ margin: 0 }}>{!dup && <Icon name="check" size={14} />} {msg}</p>}
       </div>
     </article>
   );

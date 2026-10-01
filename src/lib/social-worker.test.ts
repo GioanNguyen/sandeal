@@ -52,6 +52,13 @@ test("đăng giờ vàng: chọn deal khác danh mục, gộp 1 bài Facebook, k
     assert.equal(calls.length, 4, "lượt không còn deal thì không đăng bài rỗng");
     const logged = await dbm.db.select().from(schema.socialPosts);
     assert.equal(logged.length, 3);
+    // Biết món nào đã đăng (để trang Đăng bài cảnh báo trùng); lỗi không tính là đã đăng
+    const { lastPosted } = await import("@/worker/social");
+    const ids = logged.map((l) => l.productId);
+    assert.equal((await lastPosted(ids)).size, 3);
+    await dbm.db.insert(schema.socialPosts).values({ channel: "facebook", productId: ids[0], error: "x", postedAt: new Date() });
+    assert.equal((await lastPosted(ids)).get(ids[0])?.externalId, logged.find((l) => l.productId === ids[0])?.externalId, "bản ghi lỗi không thay lần đăng thành công");
+    assert.equal((await lastPosted(ids, "facebook", new Date(Date.now() + 8 * 86_400_000))).size, 0, "quá 7 ngày thì được đăng lại");
   } finally {
     globalThis.fetch = orig;
   }

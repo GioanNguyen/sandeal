@@ -37,6 +37,14 @@ Cần một **Trang** (Page), không đăng được lên trang cá nhân hay nh
 
 > Quy trình cấp quyền của Meta có thể thay đổi và ứng dụng có thể cần xét duyệt trước khi dùng thật. Kiểm tra lại tài liệu Meta khi thiết lập.
 
+### Tránh đăng trùng
+
+- Web ghi lại mọi lần đăng (bảng **Đã đăng gần đây** cuối trang Đăng bài, có nút **Xem bài** mở bài trên Facebook).
+- Đăng tự động giờ vàng **không bao giờ** đăng lại món đã đăng thành công trong `SOCIAL_REPOST_DAYS` ngày (mặc định 7). Lần đăng lỗi không tính.
+- Trang Đăng bài: mục "Từng sản phẩm" chỉ hiện món **chưa đăng**; món đã đăng gom vào mục thu gọn "Đã đăng trong 7 ngày qua", mỗi bài có nhãn xanh "Đã đăng lên Trang 2 ngày trước · Xem bài". Bài tổng hợp ghi "3/5 món đã đăng…".
+- Bấm "Đăng Trang Facebook" với món đã đăng: web chặn và báo đã đăng lúc nào; muốn đăng lại thật thì bấm **Vẫn đăng**.
+- Bài đăng tay trực tiếp trên Facebook (không qua web) thì web không biết – nên đăng qua web, hoặc bấm nút "Đã đăng nhóm FB / Zalo / TikTok" để ghi nhận.
+
 ### Story của Trang
 
 - Mỗi mẫu bài có thêm **ảnh Story dọc 9:16** (`/story?k=<mẫu>&p=<mã món>`): ảnh sản phẩm, giá, % giảm thật, dòng "Link mua ở bài viết mới nhất của Trang" và link ngắn `ten-mien/p/<mã>`. Mẫu "Đoán giá" ẩn giá.

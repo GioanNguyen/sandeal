@@ -4,7 +4,7 @@ import { products, socialPosts } from "@/db/schema";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { siteUrl } from "@/lib/mail";
-import { channels, postDeal, postFacebookDigest, postFacebookDraft, postFacebookStory } from "@/worker/social";
+import { channels, lastPosted, postDeal, postFacebookDigest, postFacebookDraft, postFacebookStory, repostDays } from "@/worker/social";
 
 const MANUAL = ["zalo", "tiktok", "facebook-group"];
 
@@ -23,6 +23,15 @@ export async function POST(req: Request) {
     const image = String(d.image ?? "");
     if (!text || !comment || !image.startsWith(siteUrl())) return NextResponse.json({ error: "Thiếu nội dung hoặc ảnh không hợp lệ" }, { status: 400 });
     const ids = (Array.isArray(d.productIds) ? d.productIds : []).map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 10);
+    // Chống đăng trùng: món đã đăng thành công lên Trang trong N ngày -> hỏi lại (gửi force: true để vẫn đăng)
+    if (!body.force) {
+      const dup = await lastPosted(ids);
+      if (dup.size) {
+        const names = new Map((await db.select({ id: products.id, name: products.name }).from(products).where(inArray(products.id, [...dup.keys()]))).map((r) => [r.id, r.name]));
+        const list = [...dup].map(([id, x]) => `${names.get(id) ?? `#${id}`} (${x.at.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })})`);
+        return NextResponse.json({ duplicate: true, error: `Đã đăng lên Trang trong ${repostDays()} ngày qua: ${list.join("; ")}` }, { status: 409 });
+      }
+    }
     let externalId: string | null = null;
     let error: string | null = null;
     try {

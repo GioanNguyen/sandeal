@@ -1605,6 +1605,7 @@ html[data-theme="dark"] .raise-big b { color: #fb7185; }
 .post-composer .chips { padding: 6px 12px 10px; gap: 6px; }
 .post-composer .chip { font-size: 13px; }
 .post-composer .field-label { font-size: 13px; font-weight: 700; margin-bottom: -4px; }
+.post-composer .post-posted { margin: 0 12px 8px; padding: 6px 10px; border-radius: 10px; font-size: 13px; font-weight: 700; background: var(--save-soft); color: var(--save); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .post-composer .post-media { display: flex; gap: 8px; align-items: center; background: var(--surface-2); border-bottom: 1px solid var(--border); padding-right: 8px; }
 .post-composer .post-media > img { flex: 1; min-width: 0; width: auto; border-bottom: 0; }
 .post-composer .post-story { flex: 0 0 auto; display: flex; }

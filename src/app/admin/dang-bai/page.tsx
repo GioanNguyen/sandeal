@@ -10,10 +10,18 @@ import { productPath } from "@/lib/slug";
 import { siteUrl } from "@/lib/mail";
 import { Icon } from "@/components/Icon";
 import { PostComposer } from "@/components/PostComposer";
-import { channels, draftsForProduct, pickDeals, raiseDraft, roundupDraft } from "@/worker/social";
+import { channels, draftsForProduct, lastPosted, pickDeals, raiseDraft, repostDays, roundupDraft } from "@/worker/social";
 
 export const metadata = { title: "Đăng bài mạng xã hội", robots: { index: false } };
 export const dynamic = "force-dynamic";
+
+/** "3 giờ trước", "2 ngày trước" */
+function ago(at: Date, now: Date) {
+  const m = Math.max(1, Math.round((now.getTime() - at.getTime()) / 60_000));
+  if (m < 60) return `${m} phút trước`;
+  const h = Math.round(m / 60);
+  return h < 24 ? `${h} giờ trước` : `${Math.round(h / 24)} ngày trước`;
+}
 
 export default async function SocialAdmin({ searchParams }: { searchParams: Promise<{ p?: string }> }) {
   const user = await getCurrentUser();
@@ -38,12 +46,28 @@ export default async function SocialAdmin({ searchParams }: { searchParams: Prom
 
   const topic = (await Promise.all([raiseDraft(now), roundupDraft(100_000, now), roundupDraft(200_000, now)])).filter((d): d is PostDraft => !!d);
 
+  // Đánh dấu món đã đăng lên Trang trong N ngày để tránh đăng trùng
+  const days = repostDays();
+  const allIds = [...new Set([...perProduct.map((x) => x.p.id), ...topic.flatMap((d) => d.productIds)])];
+  const posted = await lastPosted(allIds, "facebook", now, days);
+  const postedOf = (ids: number[]) => {
+    const hit = ids.map((id) => posted.get(id)).filter((x): x is NonNullable<typeof x> => !!x);
+    if (!hit.length) return null;
+    const last = hit.reduce((a, b) => (b.at > a.at ? b : a));
+    return {
+      text: ids.length > 1 ? `${hit.length}/${ids.length} món đã đăng lên Trang trong ${days} ngày (gần nhất ${ago(last.at, now)})` : `Đã đăng lên Trang ${ago(last.at, now)}`,
+      url: last.externalId ? `https://www.facebook.com/${last.externalId}` : null,
+    };
+  };
+  const fresh = perProduct.filter((x) => !posted.has(x.p.id) || x.p.id === wanted);
+  const done = perProduct.filter((x) => posted.has(x.p.id) && x.p.id !== wanted);
+
   const history = await db
     .select({ post: socialPosts, name: products.name })
     .from(socialPosts)
     .innerJoin(products, eq(products.id, socialPosts.productId))
     .orderBy(desc(socialPosts.postedAt))
-    .limit(20);
+    .limit(40);
   const hours = (process.env.SOCIAL_HOURS || "11,20").split(",").map((h) => `${h.trim()}h`).join(" và ");
   const counts = new Map<string, number>();
   for (const x of [...topic, ...perProduct.flatMap((y) => y.drafts)]) counts.set(x.kind, (counts.get(x.kind) ?? 0) + 1);
@@ -80,20 +104,32 @@ export default async function SocialAdmin({ searchParams }: { searchParams: Prom
         <section style={{ marginBottom: 24 }}>
           <div className="section-head"><h2>Bài theo chủ đề</h2></div>
           <div className="composers">
-            {topic.map((d) => <PostComposer key={`${d.kind}-${d.productIds.join("-")}`} drafts={[d]} canPost={canPost} title={d.label} />)}
+            {topic.map((d) => <PostComposer key={`${d.kind}-${d.productIds.join("-")}`} drafts={[d]} canPost={canPost} title={d.label} posted={postedOf(d.productIds)} />)}
           </div>
         </section>
       )}
 
-      <div className="section-head"><h2>Từng sản phẩm</h2></div>
-      {perProduct.length ? (
+      <div className="section-head"><h2>Từng sản phẩm <small className="muted">– chưa đăng lên Trang trong {days} ngày</small></h2></div>
+      {fresh.length ? (
         <div className="composers">
-          {perProduct.map(({ p, drafts }) => (
-            <PostComposer key={p.id} drafts={drafts} canPost={canPost} title={p.name} />
+          {fresh.map(({ p, drafts }) => (
+            <PostComposer key={p.id} drafts={drafts} canPost={canPost} title={p.name} posted={postedOf([p.id])} />
           ))}
         </div>
       ) : (
-        <div className="empty">Chưa có món nào đủ số liệu cho các mẫu bài (cần lịch sử giá, giá gạch, mã giảm hoặc số lượng trong tên).</div>
+        <div className="empty">
+          {perProduct.length ? `Các món gợi ý đều đã đăng trong ${days} ngày qua – dán link món khác ở ô trên để soạn bài.` : "Chưa có món nào đủ số liệu cho các mẫu bài (cần lịch sử giá, giá gạch, mã giảm hoặc số lượng trong tên)."}
+        </div>
+      )}
+      {done.length > 0 && (
+        <details className="panel" style={{ marginTop: 16 }}>
+          <summary><b>Đã đăng trong {days} ngày qua ({done.length} món)</b> – ẩn để tránh đăng trùng, bấm để xem</summary>
+          <div className="composers" style={{ marginTop: 12 }}>
+            {done.map(({ p, drafts }) => (
+              <PostComposer key={p.id} drafts={drafts} canPost={canPost} title={p.name} posted={postedOf([p.id])} />
+            ))}
+          </div>
+        </details>
       )}
 
       <section className="panel" style={{ marginTop: 24 }}>
@@ -107,7 +143,10 @@ export default async function SocialAdmin({ searchParams }: { searchParams: Prom
                   <td>{post.postedAt.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}</td>
                   <td>{post.channel}</td>
                   <td><Link href={productPath({ id: post.productId, name })}>{name}</Link></td>
-                  <td>{post.error ? <span className="status">Lỗi: {post.error}</span> : <span className="status status-completed">Đã đăng</span>}</td>
+                  <td>
+                    {post.error ? <span className="status">Lỗi: {post.error}</span> : <span className="status status-completed">Đã đăng</span>}
+                    {!post.error && post.channel === "facebook" && post.externalId && <> <a href={`https://www.facebook.com/${post.externalId}`} target="_blank" rel="noreferrer">Xem bài</a></>}
+                  </td>
                 </tr>
               ))}
             </tbody>
