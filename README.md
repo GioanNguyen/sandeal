@@ -39,6 +39,7 @@ Kiểm thử: `npm test` (chạy trên Postgres trong RAM) · `npm run typecheck
 | Giá theo đơn vị | "≈ 87.700đ/lít", "≈ 2.400đ/đôi" đọc từ tên sản phẩm; bảng rẻ nhất theo đơn vị ở `/gia/[loại]` |
 | Tìm bằng ảnh | `/tim-bang-anh` (và nút máy ảnh ở ô tìm kiếm): chọn / kéo thả / dán ảnh chụp màn hình, khoanh vùng món cần tìm → món giống đang bán kèm độ giống. Mô hình CLIP chạy trên máy chủ (`@huggingface/transformers`), ảnh người dùng không được lưu; ảnh sản phẩm được nhận diện dần mỗi 20 phút (`npm run images:index` để chạy hết một lần) |
 | Tóm tắt đánh giá & cảnh báo rủi ro | Mục "Đánh giá người mua & rủi ro" trên trang sản phẩm và trong tiện ích: điểm được khen / bị chê theo khía cạnh (chất lượng, size, giao hàng…), tỉ lệ sao, cảnh báo nghi hàng giả, khác mô tả, giao sai, nhiều 1–2★, giá nâng rồi giảm, % giảm ảo, rẻ bất thường so với shop Mall, shop điểm thấp. Đánh giá do tiện ích (1.5.0, người dùng đồng ý góp) đọc từ trang Shopee/Lazada, không lưu tên người đánh giá. Có `ANTHROPIC_API_KEY` thì thêm tóm tắt bằng AI |
+| Đóng gói tiện ích | `npm run ext:build` (tự chạy khi `npm run build`). Bản cho tên miền thật: khoá địa chỉ máy chủ (Tuỳ chọn không còn ô sửa, chỉ xin quyền đúng tên miền) và nén gọn mã JS. Bản `localhost` giữ nguyên mã, đổi được máy chủ để phát triển. `EXT_MINIFY=0` để không nén khi cần gỡ lỗi |
 | SEO | `sitemap.xml`, `robots.txt`, title/description/OG từng trang |
 
 ## Nguồn dữ liệu

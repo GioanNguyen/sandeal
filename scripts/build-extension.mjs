@@ -2,8 +2,14 @@
  * Đóng gói tiện ích Chrome: node scripts/build-extension.mjs
  * - Ghi SITE_URL (từ .env hoặc biến môi trường) làm máy chủ mặc định
  * - Xuất public/downloads/san-deal-extension.zip để trang /tien-ich cho tải về
+ * - Bản cho site thật (SITE_URL không phải localhost):
+ *     + khoá địa chỉ máy chủ (Tuỳ chọn không còn ô sửa, tiện ích bỏ qua giá trị lưu trong trình duyệt),
+ *       chỉ xin quyền đúng tên miền của site, bỏ quyền tuỳ chọn tới mọi trang;
+ *     + nén gọn (minify) mã JS: bỏ chú thích, rút gọn tên biến. EXT_MINIFY=0 để giữ nguyên khi cần gỡ lỗi.
+ *   Bản localhost (phát triển) giữ nguyên mã và cho đổi máy chủ.
  */
 import fs from "node:fs";
+import { transformSync } from "esbuild";
 import path from "node:path";
 import zlib from "node:zlib";
 
@@ -27,19 +33,35 @@ const files = [];
 const version = JSON.parse(fs.readFileSync(path.join(srcDir, "manifest.json"), "utf8")).version;
 const folder = `san-deal-extension-v${version}`;
 
+const origin = new URL(site);
+const isLocal = ["localhost", "127.0.0.1"].includes(origin.hostname);
+const locked = !isLocal;
+const minify = locked && process.env.EXT_MINIFY !== "0";
+
 const entries = files.map((full) => {
   const rel = path.relative(srcDir, full).split(path.sep).join("/");
   const name = `${folder}/${rel}`;
   let data = fs.readFileSync(full);
-  if (rel === "config.js") data = Buffer.from(`self.SAN_DEAL_DEFAULT_SERVER = ${JSON.stringify(site)};\n`);
+  if (rel === "config.js") {
+    const src = data
+      .toString()
+      .replace(/self\.SAN_DEAL_DEFAULT_SERVER = [^;]*;/, `self.SAN_DEAL_DEFAULT_SERVER = ${JSON.stringify(site)};`)
+      .replace(/self\.SAN_DEAL_LOCKED = [^;]*;/, `self.SAN_DEAL_LOCKED = ${locked};`);
+    if (!src.includes(`SAN_DEAL_LOCKED = ${locked}`)) throw new Error("config.js thiếu SAN_DEAL_LOCKED");
+    data = Buffer.from(src);
+  }
   if (rel === "manifest.json") {
     const m = JSON.parse(data.toString());
-    const origin = new URL(site);
     const own = `${origin.protocol}//${origin.host}/*`;
     // Bản cho site thật chỉ xin quyền đúng tên miền của site (bỏ localhost dùng khi phát triển)
-    const isLocal = ["localhost", "127.0.0.1"].includes(origin.hostname);
     m.host_permissions = isLocal ? [...new Set([own, ...m.host_permissions])] : [own];
+    // Máy chủ đã khoá: không cần (và không cho) xin thêm quyền tới trang khác
+    if (locked) delete m.optional_host_permissions;
     data = Buffer.from(JSON.stringify(m, null, 2));
+  }
+  if (minify && rel.endsWith(".js")) {
+    const out = transformSync(data.toString(), { loader: "js", minify: true, target: "chrome110", legalComments: "none", charset: "utf8" });
+    data = Buffer.from(`/* Săn Deal v${version} – ${origin.host} */\n${out.code}`);
   }
   return { name, data };
 });
@@ -84,4 +106,4 @@ const out = path.join(outDir, "san-deal-extension.zip");
 fs.writeFileSync(out, Buffer.concat([...locals, ...centrals, end]));
 // Thông tin phiên bản cho trang /tien-ich và để tiện ích tự kiểm tra có bản mới
 fs.writeFileSync(path.join(outDir, "san-deal-extension.json"), JSON.stringify({ version, file: `${folder}.zip`, builtAt: new Date().toISOString() }) + "\n");
-console.log(`[extension] v${version}: ${entries.length} file -> ${path.relative(root, out)} (máy chủ: ${site})`);
+console.log(`[extension] v${version}: ${entries.length} file -> ${path.relative(root, out)} (máy chủ: ${site}${locked ? ", đã khoá" : ""}${minify ? ", đã nén mã" : ""})`);

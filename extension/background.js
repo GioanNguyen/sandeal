@@ -3,10 +3,7 @@ importScripts("config.js");
 const cache = new Map(); // url -> { at, data }
 const TTL = 10 * 60 * 1000;
 
-async function server() {
-  const { server } = await chrome.storage.sync.get("server");
-  return (server || self.SAN_DEAL_DEFAULT_SERVER).replace(/\/$/, "");
-}
+const server = () => self.sanDealServer();
 
 async function lookup(url) {
   const hit = cache.get(url);

@@ -12,11 +12,14 @@
 </head>
 <body>
 <h1>Tuỳ chọn Săn Deal</h1>
+<div id="server-edit">
 <label for="server">Địa chỉ máy chủ Săn Deal</label>
 <input id="server" placeholder="https://sandeal.vn">
 <p>Mặc định là địa chỉ web khi tiện ích được đóng gói. Chỉ đổi khi bạn tự chạy máy chủ ở địa chỉ khác.</p>
 <button id="save">Lưu</button>
 <p id="msg" role="status"></p>
+</div>
+<p id="server-fixed" hidden>Máy chủ: <b id="server-name"></b></p>
 
 <h2 style="margin-top:32px;font-size:18px">Góp giá ẩn danh</h2>
 <label class="check"><input type="checkbox" id="contribute" style="width:auto;min-height:0;margin-right:8px"> Gửi giá và đánh giá sản phẩm tôi xem cho Săn Deal</label>

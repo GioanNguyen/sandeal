@@ -1,6 +1,5 @@
 (async () => {
-  const { server } = await chrome.storage.sync.get("server");
-  const base = (server || self.SAN_DEAL_DEFAULT_SERVER).replace(/\/$/, "");
+  const base = await self.sanDealServer();
   document.getElementById("home").href = base + "/";
   document.getElementById("f").onsubmit = (e) => {
     e.preventDefault();
