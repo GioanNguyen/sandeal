@@ -30,6 +30,7 @@ export function SiteFooter({ loggedIn }: { loggedIn: boolean }) {
       title: "Công cụ",
       links: [
         { href: "/kiem-tra-gia", label: "Kiểm tra giá thật" },
+        { href: "/tim-bang-anh", label: "Tìm bằng ảnh" },
         { href: "/tinh-gia", label: "Máy tính giá cuối cùng" },
         { href: "/so-sanh", label: "So sánh giá các sàn" },
         { href: "/doan-gia", label: "Đoán giá mỗi ngày" },

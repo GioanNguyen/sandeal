@@ -26,8 +26,9 @@ cp public/downloads/san-deal-extension.zip public/downloads/san-deal-extension.j
 # Không mang file bí mật / dữ liệu máy dev lên server
 rm -f "$OUT/app/.env" "$OUT/app/.env."*
 rm -rf "$OUT/app/.data"
-# Bỏ gói không dùng khi chạy (ảnh để unoptimized nên không cần sharp; config đã được nhúng sẵn nên không cần typescript)
-rm -rf "$OUT/app/node_modules/@img" "$OUT/app/node_modules/sharp" "$OUT/app/node_modules/typescript"
+# Bỏ gói không dùng khi chạy (config đã được nhúng sẵn nên không cần typescript).
+# GIỮ sharp + @img: Tìm bằng ảnh dùng để đọc ảnh.
+rm -rf "$OUT/app/node_modules/typescript"
 
 cp deploy/install.sh deploy/DEPLOY.md "$OUT/"
 cp .env.example "$OUT/env.example"

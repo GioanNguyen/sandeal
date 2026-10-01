@@ -37,6 +37,7 @@ Kiểm thử: `npm test` (chạy trên Postgres trong RAM) · `npm run typecheck
 | Dự kiến giá ngày sale | Ô "Nên mua ngay hay chờ?" ước tính giá ở đợt sale lớn ≤ 21 ngày tới (theo đợt trước của món hoặc trung vị danh mục) |
 | Ai nâng giá trước sale | `/nang-gia/[đợt]`: % món tăng giá 14 ngày trước sale, theo shop và danh mục, có ảnh chia sẻ |
 | Giá theo đơn vị | "≈ 87.700đ/lít", "≈ 2.400đ/đôi" đọc từ tên sản phẩm; bảng rẻ nhất theo đơn vị ở `/gia/[loại]` |
+| Tìm bằng ảnh | `/tim-bang-anh` (và nút máy ảnh ở ô tìm kiếm): chọn / kéo thả / dán ảnh chụp màn hình, khoanh vùng món cần tìm → món giống đang bán kèm độ giống. Mô hình CLIP chạy trên máy chủ (`@huggingface/transformers`), ảnh người dùng không được lưu; ảnh sản phẩm được nhận diện dần mỗi 20 phút (`npm run images:index` để chạy hết một lần) |
 | SEO | `sitemap.xml`, `robots.txt`, title/description/OG từng trang |
 
 ## Nguồn dữ liệu
@@ -72,9 +73,9 @@ Compose chạy: `db` (Postgres 16), `migrate` (tạo bảng), `web` (Next.js), `
 ## Cấu trúc
 
 ```
-src/db/schema.ts        Bảng: products, price_points, vouchers, users, sessions, login_tokens, watches, clicks, conversions, rate_limits
+src/db/schema.ts        Bảng: products, price_points, vouchers, users, sessions, login_tokens, watches, clicks, conversions, rate_limits, product_embeddings (vector ảnh)
 drizzle/                Migration SQL (tạo mới: sửa schema rồi `npm run db:generate`)
-src/lib/                db, auth, mail, queries, score, ratelimit
+src/lib/                db, auth, mail, queries, score, ratelimit, imagesearch/ (Tìm bằng ảnh)
 src/adapters/           Nguồn dữ liệu
 src/worker/             sync, notify (email), telegram, conversions, scheduler
 src/app/                Trang & API

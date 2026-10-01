@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { checkLink } from "@/lib/lookup";
 import { PLATFORMS } from "@/lib/format";
 import { allow } from "@/lib/ratelimit";
@@ -51,6 +52,9 @@ export default async function CheckPage({ searchParams }: { searchParams: Promis
           </div>
         </div>
       )}
+      <p className="muted" style={{ marginTop: 12 }}>
+        Không có link, chỉ có ảnh chụp màn hình? <Link href="/tim-bang-anh" style={{ color: "var(--primary)", fontWeight: 600 }}>Tìm bằng ảnh</Link>
+      </p>
       <ol className="steps">
         <li><b>Mở sản phẩm</b> trên app hoặc web Shopee, Lazada, TikTok Shop</li>
         <li><b>Chia sẻ → Sao chép liên kết</b> (link rút gọn cũng được)</li>

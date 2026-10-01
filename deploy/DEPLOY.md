@@ -94,6 +94,7 @@ Sửa file `/opt/sandeal/.env` (`sudo nano /opt/sandeal/.env`), sau đó chạy 
 | `MAIL_FROM` | Địa chỉ gửi đi |
 | `ADMIN_EMAILS` | Các email được vào /admin, cách nhau dấu phẩy |
 | `TELEGRAM_*` | Tuỳ chọn: bot Telegram |
+| `IMAGE_SEARCH` | Tìm bằng ảnh, bật sẵn. Lần đầu tự tải mô hình ~90 MB vào `/opt/sandeal/models` và dùng thêm ~400 MB RAM. VPS 1 GB RAM thì đặt `IMAGE_SEARCH=0` để tắt |
 
 Khi chưa có SMTP, link đăng nhập được ghi vào log. Xem bằng `sudo journalctl -u sandeal -n 50`.
 

@@ -3,6 +3,7 @@ import { pollTelegram, runDigests, runSaleReminders } from "./digest";
 import { postGoldenHour } from "./social";
 import { runSync } from "./sync";
 import { runSaleStartAlerts, runWeeklySummary } from "./alerts";
+import { runImageIndex } from "./image-index";
 
 const g = globalThis as unknown as { __sanDealCron?: boolean };
 
@@ -68,6 +69,10 @@ export function startScheduler({ runNow = false } = {}) {
     },
     { timezone: "Asia/Ho_Chi_Minh" },
   );
+
+  // Tìm bằng ảnh: nhận diện ảnh các món mới/đổi ảnh mỗi 20 phút; lần đầu chạy sau khi web khởi động 1 phút
+  cron.schedule("*/20 * * * *", () => void runImageIndex(), { timezone: "Asia/Ho_Chi_Minh" });
+  setTimeout(() => void runImageIndex(), 60_000).unref?.();
 
   // Liên kết Telegram cá nhân: đọc tin nhắn gửi tới bot mỗi 20 giây
   if (process.env.TELEGRAM_BOT_TOKEN) {

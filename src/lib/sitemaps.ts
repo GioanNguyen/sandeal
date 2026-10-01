@@ -85,6 +85,7 @@ export async function sitemapUrls(name: string): Promise<Url[] | null> {
       ["/top", "daily", 0.8],
       ["/bo-suu-tap", "daily", 0.8],
       ["/kiem-tra-gia", "monthly", 0.6],
+      ["/tim-bang-anh", "monthly", 0.6],
       ["/so-sanh", "monthly", 0.5],
       ["/tinh-gia", "monthly", 0.5],
       ["/doan-gia", "daily", 0.5],

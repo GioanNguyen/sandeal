@@ -31,6 +31,8 @@ services:
     environment:
       <<: *dbenv
       RUN_WORKER_IN_WEB: "0"
+    volumes:
+      - models:/models
     depends_on:
       migrate: { condition: service_completed_successfully }
     ports:
@@ -42,6 +44,8 @@ services:
     env_file: .env
     environment: *dbenv
     command: ["npm", "run", "worker"]
+    volumes:
+      - models:/models
     depends_on:
       migrate: { condition: service_completed_successfully }
 
@@ -61,4 +65,5 @@ services:
 
 volumes:
   pgdata:
+  models:
   caddy_data:

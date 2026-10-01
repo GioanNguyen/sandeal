@@ -94,6 +94,9 @@ export function SearchBox() {
         aria-autocomplete="list"
         aria-activedescendant={active >= 0 ? `${id}-o${active}` : undefined}
       />
+      <Link href="/tim-bang-anh" className="search-cam" aria-label="Tìm bằng ảnh" title="Tìm bằng ảnh">
+        <Icon name="camera" size={18} />
+      </Link>
       {show && (
         <div className="suggest" id={`${id}-list`} role="listbox" ref={list} onMouseDown={(e) => e.preventDefault()} onClick={() => setOpen(false)}>
           {term.length < 2 && data.trending.length > 0 && (

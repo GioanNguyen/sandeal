@@ -92,6 +92,13 @@
       "when": 1790760806281,
       "tag": "0012_zalo",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790836935904,
+      "tag": "0013_image_search",
+      "breakpoints": true
     }
   ]
 }

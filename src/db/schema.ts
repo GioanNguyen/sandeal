@@ -1,5 +1,5 @@
 import {
-  boolean, doublePrecision, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex,
+  boolean, customType, doublePrecision, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
@@ -357,3 +357,28 @@ export const kvStore = pgTable("kv_store", {
   value: text("value").notNull(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
+
+/** Dữ liệu nhị phân (Postgres bytea): pg trả Buffer, PGlite trả Uint8Array */
+const bytea = customType<{ data: Uint8Array; driverData: Uint8Array }>({
+  dataType: () => "bytea",
+  toDriver: (v) => (Buffer.isBuffer(v) ? v : Buffer.from(v.buffer, v.byteOffset, v.byteLength)),
+});
+
+/**
+ * "Dấu vân tay" hình ảnh của từng sản phẩm (vector CLIP) cho tính năng Tìm bằng ảnh.
+ * vec: vector đã chuẩn hoá, nén int8 (mỗi số × scale/127). vec null = tải/đọc ảnh lỗi (failures đếm số lần).
+ */
+export const productEmbeddings = pgTable(
+  "product_embeddings",
+  {
+    productId: integer("product_id").primaryKey().references(() => products.id, { onDelete: "cascade" }),
+    /** Ảnh đã dùng để tính – ảnh sản phẩm đổi thì tính lại */
+    imageUrl: text("image_url").notNull(),
+    model: text("model").notNull(),
+    vec: bytea("vec"),
+    scale: doublePrecision("scale"),
+    failures: integer("failures").notNull().default(0),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("product_embeddings_model_idx").on(t.model, t.updatedAt)],
+);

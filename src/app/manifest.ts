@@ -17,6 +17,7 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     shortcuts: [
       { name: "Kiểm tra giá", url: "/kiem-tra-gia", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
+      { name: "Tìm bằng ảnh", url: "/tim-bang-anh", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
       { name: "Mã giảm giá", url: "/vouchers", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
       { name: "Lịch sale", url: "/lich-sale", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
     ],

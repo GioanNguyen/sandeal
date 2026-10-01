@@ -114,7 +114,9 @@ ok "PostgreSQL $(su - postgres -c "psql -qtAc 'show server_version'" | cut -d' '
 # -----------------------------------------------------------------------------
 step "3/6 Người dùng, thư mục, cấu hình .env"
 id "$APP_USER" >/dev/null 2>&1 || useradd --system --home-dir "$BASE" --shell /usr/sbin/nologin "$APP_USER"
-mkdir -p "$BASE/releases"
+mkdir -p "$BASE/releases" "$BASE/models"
+# Mô hình nhận diện ảnh (Tìm bằng ảnh, ~90 MB) tải 1 lần, dùng chung cho mọi bản phát hành
+chown "$APP_USER:$APP_USER" "$BASE/models"
 ENV_FILE="$BASE/.env"
 
 if [ ! -f "$ENV_FILE" ]; then
@@ -225,6 +227,7 @@ Type=simple
 User=$APP_USER
 Group=$APP_USER
 WorkingDirectory=$BASE/current
+Environment=IMAGE_MODEL_DIR=$BASE/models
 EnvironmentFile=$ENV_FILE
 ExecStart=$NODE_BIN server.js
 Restart=always
