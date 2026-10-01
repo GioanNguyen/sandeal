@@ -84,7 +84,7 @@ export default async function SocialAdmin({ searchParams }: { searchParams: Prom
         {canPost ? ` Tự động đăng lên Trang lúc ${hours} mỗi ngày; nút “Đăng Trang Facebook” đăng ảnh + thân bài rồi tự bình luận đầu.` : " Chưa kết nối Trang Facebook: chép thân bài, tải ảnh, đăng tay rồi dán bình luận đầu."}
       </p>
       <p className="muted" style={{ fontSize: 14 }}>
-        10 mẫu: {POST_KINDS.map((k) => `${k.label}${counts.get(k.kind) ? ` (${counts.get(k.kind)})` : ""}`).join(" · ")}. Mẫu chỉ hiện khi món có đủ số liệu thật.
+        {POST_KINDS.length} mẫu: {POST_KINDS.map((k) => `${k.label}${counts.get(k.kind) ? ` (${counts.get(k.kind)})` : ""}`).join(" · ")}. Mẫu chỉ hiện khi món có đủ số liệu thật.
       </p>
 
       {!/^https:\/\/[^/]+\.[a-z]{2,}/i.test(siteUrl()) && (

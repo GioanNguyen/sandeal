@@ -18,7 +18,30 @@ const ctx = (p: Product, h: { price: number; capturedAt: Date }[], extra: Partia
 
 const noLink = (s: string) => assert.doesNotMatch(s, /https?:\/\//, "thân bài không được có link");
 
-test("đủ 10 mẫu", () => assert.equal(POST_KINDS.length, 10));
+test("đủ 11 mẫu", () => assert.equal(POST_KINDS.length, 11));
+
+test("món mới chưa đủ số liệu (vd nhập từ CSV): vẫn có mẫu \"Giới thiệu deal\" để đăng, không bịa số", () => {
+  // 1 điểm giá, không giá gốc, không mã, không đơn vị, 1 sàn -> trước đây không có mẫu nào ("Không có mẫu bài phù hợp")
+  const p = mk({ name: "Balo cầu lông thể thao NATOLI", originalPrice: null, discountPct: 0, realDropPct: 0, rating: null, sold: 10_000, shopType: "mall", shopName: "Natoli Official Store" });
+  const all = singleDrafts(ctx(p, hist([509_000])));
+  assert.equal(all.length, 1);
+  const d = all[0];
+  assert.equal(d.kind, "gioi-thieu");
+  noLink(d.body);
+  assert.match(d.body, /Deal đáng chú ý trên Shopee/);
+  assert.match(d.body, /Balo cầu lông thể thao NATOLI/);
+  assert.match(d.body, /Shop Mall chính hãng: Natoli Official Store/);
+  assert.match(d.body, /vừa bắt đầu theo dõi giá/);
+  assert.doesNotMatch(d.body, /thường ngày|kỷ lục/, "chưa có lịch sử thì không nêu giá thường ngày");
+  assert.match(d.comment, /\/p\/47$/m);
+  // Có giá gạch của shop: nêu rõ là do shop ghi
+  const g = singleDrafts(ctx(mk({ name: "Tai nghe bluetooth X1", originalPrice: 100_000, price: 82_000 }), hist([82_000])))[0];
+  assert.equal(g.kind, "gioi-thieu");
+  assert.match(g.body, /đang ghi giảm 18%/);
+  assert.match(g.body, /giá gạch do shop ghi/);
+  // Món đủ số liệu cho mẫu khác thì không dùng mẫu dự phòng
+  assert.ok(!singleDrafts(ctx(mk({}), hist([120_000, 110_000, 100_000, 95_000, 90_000, 82_000]))).some((x) => x.kind === "gioi-thieu"));
+});
 
 test("tên sản phẩm trong thân bài không bị cắt", () => {
   const long = "Nước giặt D-nee cho trẻ sơ sinh, mềm dịu, thơm nhẹ, không hư hại quần áo - Can 3000ml - 4 Hương thơm Organic Aloe Vera";

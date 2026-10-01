@@ -1,5 +1,5 @@
 /**
- * 10 mẫu bài Facebook dựa trên số liệu thật của Săn Deal.
+ * Các mẫu bài Facebook dựa trên số liệu thật của Săn Deal.
  * Mỗi bài gồm THÂN BÀI (không có link – bài có link ngoài thường bị giảm tiếp cận) và BÌNH LUẬN ĐẦU (link, mã giảm,
  * giờ lấy giá, ghi chú tiếp thị liên kết). Mẫu nào thiếu dữ liệu thì không tạo (trả null) – không bịa số.
  */
@@ -18,7 +18,7 @@ import { unitPrice, unitPriceText, perBase, type UnitPrice } from "./unitprice";
 
 export type PostKind =
   | "that-hay-ao" | "mua-hay-cho" | "don-vi" | "doan-gia" | "ky-luc"
-  | "so-san" | "sau-ma" | "vua-giam" | "tong-hop" | "nang-gia";
+  | "so-san" | "sau-ma" | "vua-giam" | "tong-hop" | "nang-gia" | "gioi-thieu";
 
 export const POST_KINDS: { kind: PostKind; label: string; hint: string }[] = [
   { kind: "that-hay-ao", label: "Giảm thật hay ảo?", hint: "So % shop ghi với giá thường ngày" },
@@ -31,6 +31,7 @@ export const POST_KINDS: { kind: PostKind; label: string; hint: string }[] = [
   { kind: "vua-giam", label: "Vừa giảm hôm nay", hint: "Giảm ≥5% trong 24 giờ" },
   { kind: "tong-hop", label: "Tổng hợp theo ngân sách", hint: "Nhiều món dưới 1 mức giá" },
   { kind: "nang-gia", label: "Ai nâng giá trước sale?", hint: "Số liệu trang /nang-gia" },
+  { kind: "gioi-thieu", label: "Giới thiệu deal", hint: "Dự phòng khi món chưa đủ số liệu cho mẫu khác" },
 ];
 
 export interface PostDraft {
@@ -305,7 +306,36 @@ export function nangGia(r: { total: number; rate: number; raised: { product: Pro
   };
 }
 
-/** Tất cả mẫu đơn (1 sản phẩm) dùng được cho sản phẩm này, theo thứ tự ưu tiên đăng tự động */
+/**
+ * 11. Giới thiệu deal – mẫu dự phòng, luôn tạo được: chỉ dùng thông tin chắc chắn có (tên, giá, giá gạch sàn hiển thị,
+ * điểm sao, lượt bán, shop). Dùng khi món chưa đủ lịch sử giá cho các mẫu khác (vd món mới nhập từ file CSV).
+ */
+export function gioiThieu(ctx: PostCtx): PostDraft {
+  const { p, advice: a } = ctx;
+  const tracked = a.trackedDays >= 7;
+  const listed = p.originalPrice && p.originalPrice > p.price ? Math.round((1 - p.price / p.originalPrice) * 100) : 0;
+  const head = tracked && p.realDropPct >= 5
+    ? `💥 Rẻ hơn giá thường ngày ${Math.round(p.realDropPct)}% trên ${plat(p)}`
+    : listed >= 5
+      ? `🏷 ${plat(p)} đang ghi giảm ${listed}%`
+      : `🔥 Deal đáng chú ý trên ${plat(p)}`;
+  return single(ctx, "gioi-thieu", [
+    head,
+    `🛍 ${fullName(p.name)}`,
+    `💰 ${listed >= 5 ? `${priceK(p.originalPrice!)} → ` : ""}${priceK(p.price)}${listed >= 5 && !tracked ? " (giá gạch do shop ghi)" : ""}`,
+    social(p) && `👥 ${social(p)}`,
+    p.shopName && `🏪 ${p.shopType === "mall" ? "Shop Mall chính hãng: " : "Shop: "}${p.shopName}`,
+    tracked
+      ? `📊 Giá thường ngày ${Math.floor(a.trackedDays)} ngày qua: ${priceK(a.usual)} · thấp nhất ${priceK(a.low)}`
+      : "📊 Săn Deal vừa bắt đầu theo dõi giá món này – bấm “Báo khi giảm” để được nhắc khi rẻ hơn.",
+  ]);
+}
+
+/**
+ * Tất cả mẫu đơn (1 sản phẩm) dùng được cho sản phẩm này, theo thứ tự ưu tiên đăng tự động.
+ * Không mẫu nào đủ số liệu thì dùng mẫu "Giới thiệu deal" để luôn đăng được.
+ */
 export function singleDrafts(ctx: PostCtx): PostDraft[] {
-  return [kyLuc, vuaGiam, thatHayAo, muaHayCho, sauMa, soSan, donVi, doanGia].map((f) => f(ctx)).filter((d): d is PostDraft => !!d);
+  const list = [kyLuc, vuaGiam, thatHayAo, muaHayCho, sauMa, soSan, donVi, doanGia].map((f) => f(ctx)).filter((d): d is PostDraft => !!d);
+  return list.length ? list : [gioiThieu(ctx)];
 }
