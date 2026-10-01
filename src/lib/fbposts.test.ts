@@ -39,7 +39,7 @@ test("giảm thật hay ảo", () => {
   const partly = thatHayAo(ctx(mk({}), hist([100_000, 100_000, 100_000, 82_000])))!;
   assert.match(partly.body, /rẻ hơn giá thường ngày 18% – vẫn là giá tốt/);
   assert.match(partly.body, /Kết luận: rẻ thật/);
-  assert.match(real.comment, /sandealgiare\.com\/product\/.*utm_source=facebook/);
+  assert.match(real.comment, /https:\/\/sandealgiare\.com\/p\/47$/m, "link ngắn /p/<mã>");
   assert.match(real.comment, /tiếp thị liên kết/);
   const fake = thatHayAo(ctx(mk({ price: 82_000 }), hist([84_000, 83_000, 84_000, 82_000])))!;
   assert.match(fake.body, /giảm thật chỉ \d+% 🤔/);
@@ -73,7 +73,7 @@ test("các mẫu còn lại chỉ tạo khi có số liệu", () => {
   assert.match(vuaGiam(ctx(p, hist([100_000, 82_000]), { droppedAt: new Date(now.getTime() - 3_600_000), droppedBy: 18_000 }))!.body, /VỪA GIẢM 18K/);
   const s = soSan(ctx(p, [], { offers: [{ platform: "shopee", price: 82_000, id: 47 }, { platform: "lazada", price: 99_000, id: 50, name: "Tất" }] }))!;
   assert.match(s.body, /Shopee rẻ hơn Lazada 17K/);
-  assert.match(s.comment, /Lazada: https/);
+  assert.match(s.comment, /Lazada: https:\/\/sandealgiare\.com\/p\/50$/m);
   const f = muaHayCho(ctx(p, [{ price: 82_000, capturedAt: new Date(now.getTime() - DAY) }]));
   assert.equal(f, null, "chưa có số liệu sale -> không đoán");
 });
@@ -83,7 +83,7 @@ test("tổng hợp và nâng giá: link đánh số ở bình luận", () => {
   const t = tongHop(items, { site: SITE, now, budget: 100_000 })!;
   noLink(t.body);
   assert.match(t.body, /4 món dưới 100K/);
-  assert.match(t.comment, /^1\. https/m);
+  assert.match(t.comment, /^1\. https:\/\/sandealgiare\.com\/p\/1$/m);
   assert.equal(tongHop(items.slice(0, 2), { site: SITE, now, budget: 100_000 }), null);
   const n = nangGia({ total: 40, rate: 0.35, raised: [{ product: items[0], base: 100_000, peak: 130_000 }] }, { site: SITE, now, sale: "11.11", slug: "11-11-2026", upcoming: true })!;
   noLink(n.body);
@@ -96,6 +96,7 @@ test("singleDrafts: mọi mẫu đều tách link ra bình luận", () => {
   assert.ok(all.length >= 3);
   for (const d of all) {
     noLink(d.body);
-    assert.match(d.comment, /https:\/\/sandealgiare\.com/);
+    assert.match(d.comment, /https:\/\/sandealgiare\.com\/p\/\d+/);
+    assert.doesNotMatch(d.comment, /\/product\/|utm_/, "bình luận chỉ dùng link ngắn");
   }
 });

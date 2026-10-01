@@ -6,7 +6,10 @@
 import type { Product } from "@/db/schema";
 import type { Advice } from "./advice";
 import { PLATFORMS, soldText } from "./format";
-import { priceK, shareUrl } from "./social";
+import { priceK } from "./social";
+
+/** Link ngắn cho bình luận: https://ten-mien/p/4004 (chuyển tới trang sản phẩm, tự gắn nguồn facebook) */
+export const shortLink = (site: string, p: { id: number }) => `${site}/p/${p.id}`;
 import { unitPrice, unitPriceText, perBase, type UnitPrice } from "./unitprice";
 
 export type PostKind =
@@ -73,7 +76,7 @@ function commentFor(ctx: { site: string; now: Date }, lines: string[], at: Date)
 
 function single(ctx: PostCtx, kind: PostKind, bodyLines: (string | false | null | undefined)[], extra: string[] = []): PostDraft {
   const { p, site } = ctx;
-  const link = shareUrl(site, p, "facebook");
+  const link = shortLink(site, p);
   const v = ctx.withVoucher && ctx.withVoucher.price < p.price ? ctx.withVoucher : null;
   return {
     kind,
@@ -150,7 +153,7 @@ export function donVi(ctx: PostCtx): PostDraft | null {
     peer && `🆚 ${fullName(peer.p.name)}: ${priceK(peer.p.price)} · ${peer.u.qtyText} → ${unitPriceText(peer.u)}`,
     peer && `👉 Món đầu rẻ hơn ${cheaperPct}% tính theo ${u.label}.`,
     !peer && social(p) && `👥 ${social(p)}`,
-  ], peer ? [`🆚 Món so sánh: ${shareUrl(ctx.site, peer.p, "facebook")}`] : []);
+  ], peer ? [`🆚 Món so sánh: ${shortLink(ctx.site, peer.p)}`] : []);
 }
 
 /** 4. Đoán giá: hỏi giá thấp nhất, 3 lựa chọn, đáp án ở bình luận */
@@ -208,7 +211,7 @@ export function soSan(ctx: PostCtx): PostDraft | null {
     ...offers.map((o) => `${o === best ? "✅" : "▫️"} ${plat(o)}: ${priceK(o.price)}`),
     "👉 Trước khi bấm mua, so giá các sàn mất 10 giây mà tiết kiệm được kha khá.",
   ]);
-  draft.comment = offers.map((o) => `${plat(o)}: ${shareUrl(ctx.site, { id: o.id, name: o.name ?? p.name }, "facebook")}`).join("\n") + "\n" + draft.comment.split("\n").slice(1).join("\n");
+  draft.comment = offers.map((o) => `${plat(o)}: ${shortLink(ctx.site, o)}`).join("\n") + "\n" + draft.comment.split("\n").slice(1).join("\n");
   return draft;
 }
 
@@ -244,7 +247,7 @@ export function vuaGiam(ctx: PostCtx): PostDraft | null {
 export function tongHop(items: Product[], opts: { site: string; now: Date; budget?: number; title?: string; min?: number }): PostDraft | null {
   const list = items.slice(0, 5);
   if (list.length < (opts.min ?? 3)) return null;
-  const links = list.map((p, i) => `${i + 1}. ${shareUrl(opts.site, p, "facebook")}`);
+  const links = list.map((p, i) => `${i + 1}. ${shortLink(opts.site, p)}`);
   const oldest = list.reduce((m, p) => (p.lastSeenAt < m ? p.lastSeenAt : m), list[0].lastSeenAt);
   return {
     kind: "tong-hop",
@@ -260,7 +263,7 @@ export function tongHop(items: Product[], opts: { site: string; now: Date; budge
     ].join("\n"),
     comment: commentFor(opts, links, oldest),
     image: `${opts.site}/product/${list[0].id}/opengraph-image`,
-    link: shareUrl(opts.site, list[0], "facebook"),
+    link: shortLink(opts.site, list[0]),
     productIds: list.map((p) => p.id),
   };
 }

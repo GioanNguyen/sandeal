@@ -40,7 +40,7 @@ test("đăng giờ vàng: chọn deal khác danh mục, gộp 1 bài Facebook, k
     assert.doesNotMatch(msg, /https?:\/\//, "thân bài không có link");
     assert.ok(msg.includes("Serum C"), "mỗi danh mục 1 món");
     assert.match(calls[1].url, /\/post_1\/comments$/);
-    assert.match(calls[1].body.message, /^1\. https:\/\/sandeal\.test\/product\/.*utm_source=facebook/m);
+    assert.match(calls[1].body.message, /^1\. https:\/\/sandeal\.test\/p\/\d+$/m);
     assert.match(calls[1].body.message, /^2\. https/m);
     // Lượt sau còn 1 món: bài đơn theo mẫu (giá thấp kỷ lục) + bình luận đầu
     assert.equal(await postGoldenHour(), 1, "chỉ còn món chưa đăng");
@@ -77,6 +77,14 @@ test("FB_LINK_IN_COMMENT=0: đăng kiểu cũ (link trong bài)", async () => {
   } finally {
     globalThis.fetch = orig;
     delete process.env.FB_LINK_IN_COMMENT;
+    // Link ngắn /p/<mã>: chuyển tới trang sản phẩm, tự gắn nguồn facebook
+    const { GET } = await import("@/app/p/[id]/route");
+    const [d] = await dbm.db.select().from((await import("@/db/schema")).products).limit(1);
+    const res = await GET(new Request(`https://sandeal.test/p/${d.id}`), { params: Promise.resolve({ id: String(d.id) }) });
+    assert.equal(res.status, 302);
+    assert.match(res.headers.get("location") ?? "", new RegExp(`/product/.+-${d.id}\\?utm_source=facebook&utm_medium=social&utm_content=comment$`));
+    const bad = await GET(new Request("https://sandeal.test/p/999999"), { params: Promise.resolve({ id: "999999" }) });
+    assert.match(bad.headers.get("location") ?? "", /\/$/);
     await dbm.closeDb();
   }
 });
