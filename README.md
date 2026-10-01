@@ -40,6 +40,7 @@ Kiểm thử: `npm test` (chạy trên Postgres trong RAM) · `npm run typecheck
 | Tìm bằng ảnh | `/tim-bang-anh` (và nút máy ảnh ở ô tìm kiếm): chọn / kéo thả / dán ảnh chụp màn hình, khoanh vùng món cần tìm → món giống đang bán kèm độ giống. Mô hình CLIP chạy trên máy chủ (`@huggingface/transformers`), ảnh người dùng không được lưu; ảnh sản phẩm được nhận diện dần mỗi 20 phút (`npm run images:index` để chạy hết một lần) |
 | Tóm tắt đánh giá & cảnh báo rủi ro | Mục "Đánh giá người mua & rủi ro" trên trang sản phẩm và trong tiện ích: điểm được khen / bị chê theo khía cạnh (chất lượng, size, giao hàng…), tỉ lệ sao, cảnh báo nghi hàng giả, khác mô tả, giao sai, nhiều 1–2★, giá nâng rồi giảm, % giảm ảo, rẻ bất thường so với shop Mall, shop điểm thấp. Đánh giá do tiện ích (1.5.0, người dùng đồng ý góp) đọc từ trang Shopee/Lazada, không lưu tên người đánh giá. Có `ANTHROPIC_API_KEY` thì thêm tóm tắt bằng AI |
 | Đóng gói tiện ích | `npm run ext:build` (tự chạy khi `npm run build`). Bản cho tên miền thật: khoá địa chỉ máy chủ (Tuỳ chọn không còn ô sửa, chỉ xin quyền đúng tên miền) và nén gọn mã JS. Bản `localhost` giữ nguyên mã, đổi được máy chủ để phát triển. `EXT_MINIFY=0` để không nén khi cần gỡ lỗi |
+| Giá theo phân loại | Tiện ích (1.6.0) ghi giá của phân loại người dùng đang chọn (màu, size, dung tích…) trên Shopee/Lazada; trang sản phẩm có bảng "Giá theo phân loại" (giá hiện tại, thấp nhất 90 ngày, biểu đồ nhỏ) và "Báo giá" riêng cho từng phân loại (chỉ báo khi giá phân loại được cập nhật trong 7 ngày). Chống dữ liệu sai như góp giá: 1 lần/30 phút mỗi người, giá nhảy > 50% cần 2 người xác nhận |
 | SEO | `sitemap.xml`, `robots.txt`, title/description/OG từng trang |
 
 ## Nguồn dữ liệu
@@ -75,7 +76,7 @@ Compose chạy: `db` (Postgres 16), `migrate` (tạo bảng), `web` (Next.js), `
 ## Cấu trúc
 
 ```
-src/db/schema.ts        Bảng: products, price_points, vouchers, users, sessions, login_tokens, watches, clicks, conversions, rate_limits, product_embeddings (vector ảnh), product_reviews, product_review_meta
+src/db/schema.ts        Bảng: products, price_points, vouchers, users, sessions, login_tokens, watches, clicks, conversions, rate_limits, product_embeddings (vector ảnh), product_reviews, product_review_meta, product_variants, variant_price_points
 drizzle/                Migration SQL (tạo mới: sửa schema rồi `npm run db:generate`)
 src/lib/                db, auth, mail, queries, score, ratelimit, imagesearch/ (Tìm bằng ảnh)
 src/adapters/           Nguồn dữ liệu

@@ -10,6 +10,8 @@ export interface WatchItem {
   id: number;
   targetPrice: number;
   product: { id: number; name: string; price: number; imageUrl: string | null; platform: string };
+  /** Theo dõi riêng một phân loại */
+  variant?: { name: string | null; price: number | null } | null;
 }
 
 export function WatchList({ initial }: { initial: WatchItem[] }) {
@@ -43,15 +45,17 @@ export function WatchList({ initial }: { initial: WatchItem[] }) {
       {error && <p className="form-msg warn" role="alert"><Icon name="alert" size={16} /> {error}</p>}
       <ul className="watch-list">
         {items.map((w) => {
-          const reached = w.product.price <= w.targetPrice;
+          const now = w.variant?.price ?? w.product.price;
+          const reached = now <= w.targetPrice;
           return (
             <li key={w.id} className="watch-item">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={thumbUrl(w.product.imageUrl) ?? ""} alt="" width={64} height={64} loading="lazy" decoding="async" />
               <div className="watch-main">
                 <Link href={productPath(w.product)} className="watch-name">{w.product.name}</Link>
+                {w.variant?.name && <span className="watch-variant muted">Phân loại: {w.variant.name}</span>}
                 <div className="watch-prices">
-                  <span>Hiện tại <b>{vnd(w.product.price)}</b></span>
+                  <span>Hiện tại <b>{vnd(now)}</b></span>
                   {editing === w.id ? (
                     <form
                       className="inline-edit"

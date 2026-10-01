@@ -1,6 +1,6 @@
 import { productPath } from "@/lib/slug";
-import { and, eq, isNull, lt, lte, or } from "drizzle-orm";
-import { products, users, watches } from "@/db/schema";
+import { and, eq, gte, isNotNull, isNull, lt, lte, or } from "drizzle-orm";
+import { products, productVariants, users, watches } from "@/db/schema";
 import { unsubscribeUrl } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { vnd } from "@/lib/format";
@@ -49,41 +49,60 @@ export async function notifyRestock(productId: number, now = new Date()): Promis
   return rows.length;
 }
 
-/** Gửi email khi giá ≤ giá mục tiêu; tối đa 1 email/ngày cho mỗi lượt theo dõi */
+/** Giá phân loại (do người dùng tiện ích ghi nhận) cũ hơn số ngày này thì không dùng để báo giảm giá */
+const VARIANT_FRESH_DAYS = 7;
+
+/**
+ * Gửi email khi giá ≤ giá mục tiêu; tối đa 1 email/ngày cho mỗi lượt theo dõi.
+ * Lượt theo dõi một phân loại: so với giá của chính phân loại đó (còn mới trong 7 ngày).
+ */
 export async function notifyWatchers(now = new Date()): Promise<number> {
   const due = await db
-    .select({ watch: watches, product: products, email: users.email })
+    .select({ watch: watches, product: products, email: users.email, variant: productVariants })
     .from(watches)
     .innerJoin(products, eq(products.id, watches.productId))
     .innerJoin(users, eq(users.id, watches.userId))
+    .leftJoin(productVariants, eq(productVariants.id, watches.variantId))
     .where(
       and(
-        lte(products.price, watches.targetPrice),
-        // Món không còn thấy trên sàn: giá cũ không phải giá đang bán, không báo "giảm giá"
-        availableSql(),
+        or(
+          and(
+            isNull(watches.variantId),
+            lte(products.price, watches.targetPrice),
+            // Món không còn thấy trên sàn: giá cũ không phải giá đang bán, không báo "giảm giá"
+            availableSql(),
+          ),
+          and(
+            isNotNull(watches.variantId),
+            lte(productVariants.price, watches.targetPrice),
+            gte(productVariants.lastSeenAt, new Date(now.getTime() - VARIANT_FRESH_DAYS * DAY)),
+          ),
+        ),
         or(isNull(watches.lastNotifiedAt), lt(watches.lastNotifiedAt, new Date(now.getTime() - DAY))),
       ),
     );
 
-  for (const { watch, product, email } of due) {
+  for (const { watch, product: base, email, variant } of due) {
     const site = siteUrl();
+    // Theo dõi phân loại: báo theo giá và tên phân loại
+    const product = variant ? { ...base, price: variant.price, name: `${base.name} (${variant.name})` } : base;
     await sendMail(
       email,
       `Giảm giá: ${product.name} còn ${vnd(product.price)}`,
       layout(`<p><b>${escapeHtml(product.name)}</b> đang có giá <b style="color:#d0390f">${vnd(product.price)}</b>
         (mục tiêu của bạn: ${vnd(watch.targetPrice)}).</p>
-        <p>${button(`${site}/go/${product.id}`, "Mua ngay")} &nbsp; <a href="${site}${productPath(product)}">Xem lịch sử giá</a></p>
+        <p>${button(`${site}/go/${product.id}`, "Mua ngay")} &nbsp; <a href="${site}${productPath(base)}">Xem lịch sử giá</a></p>
         <p style="font-size:13px"><a href="${unsubscribeUrl(watch.id)}" style="color:#5b6170">Huỷ theo dõi sản phẩm này</a> ·
         <a href="${site}/account" style="color:#5b6170">Quản lý theo dõi</a></p>`),
     );
     await sendPush(watch.userId, {
       title: `Giảm giá: còn ${vnd(product.price)}`,
       body: `${product.name} đã chạm mức bạn muốn (${vnd(watch.targetPrice)}).`,
-      url: productPath(product),
+      url: productPath(base),
       image: product.imageUrl?.startsWith("http") ? product.imageUrl : undefined,
       tag: `watch-${watch.id}`,
     });
-    await notifyZalo(watch.userId, `📉 Giảm giá: ${product.name}\nCòn ${vnd(product.price)} – đã chạm mức bạn muốn (${vnd(watch.targetPrice)})\nMua: ${site}/go/${product.id}\nLịch sử giá: ${site}${productPath(product)}`, now);
+    await notifyZalo(watch.userId, `📉 Giảm giá: ${product.name}\nCòn ${vnd(product.price)} – đã chạm mức bạn muốn (${vnd(watch.targetPrice)})\nMua: ${site}/go/${product.id}\nLịch sử giá: ${site}${productPath(base)}`, now);
     await db.update(watches).set({ lastNotifiedAt: now }).where(eq(watches.id, watch.id));
   }
   return due.length;

@@ -26,7 +26,7 @@ export const safeNext = (n: unknown) => (typeof n === "string" && /^\/(?!\/)/.te
 
 export async function sendLoginLink(
   email: string,
-  pendingWatch?: { productId: number; targetPrice: number; productName?: string },
+  pendingWatch?: { productId: number; targetPrice: number; productName?: string; variantId?: number | null },
   next?: string,
 ) {
   await ensureMigrated();
@@ -35,7 +35,7 @@ export async function sendLoginLink(
     tokenHash: sha256(token),
     email,
     expiresAt: new Date(Date.now() + LOGIN_TTL_MIN * 60_000),
-    pendingWatch: pendingWatch ? { productId: pendingWatch.productId, targetPrice: pendingWatch.targetPrice } : null,
+    pendingWatch: pendingWatch ? { productId: pendingWatch.productId, targetPrice: pendingWatch.targetPrice, variantId: pendingWatch.variantId ?? null } : null,
   });
   const n = safeNext(next);
   const url = `${siteUrl()}/auth/verify?token=${token}${n ? `&next=${encodeURIComponent(n)}` : ""}`;
@@ -70,7 +70,7 @@ export async function consumeLoginToken(token: string) {
 
   let addedProductId: number | undefined;
   if (row.pendingWatch) {
-    await upsertWatch(user.id, row.pendingWatch.productId, row.pendingWatch.targetPrice);
+    await upsertWatch(user.id, row.pendingWatch.productId, row.pendingWatch.targetPrice, row.pendingWatch.variantId ?? null);
     addedProductId = row.pendingWatch.productId;
   }
   const sessionToken = await createSession(user.id);
@@ -79,11 +79,12 @@ export async function consumeLoginToken(token: string) {
   return { user, sessionToken, addedProductId };
 }
 
-export async function upsertWatch(userId: number, productId: number, targetPrice: number) {
+/** variantId: theo dõi riêng một phân loại; null = giá chung. Mỗi người mỗi sản phẩm 1 lượt theo dõi (đặt lại thì thay). */
+export async function upsertWatch(userId: number, productId: number, targetPrice: number, variantId: number | null = null) {
   await db
     .insert(watches)
-    .values({ userId, productId, targetPrice })
-    .onConflictDoUpdate({ target: [watches.userId, watches.productId], set: { targetPrice, lastNotifiedAt: null } });
+    .values({ userId, productId, targetPrice, variantId })
+    .onConflictDoUpdate({ target: [watches.userId, watches.productId], set: { targetPrice, variantId, lastNotifiedAt: null } });
 }
 
 async function createSession(userId: number) {

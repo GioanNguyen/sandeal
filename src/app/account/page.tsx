@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { products, users, watches } from "@/db/schema";
+import { products, productVariants, users, watches } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Icon } from "@/components/Icon";
@@ -20,9 +20,11 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       id: watches.id,
       targetPrice: watches.targetPrice,
       product: { id: products.id, name: products.name, price: products.price, imageUrl: products.imageUrl, platform: products.platform },
+      variant: { name: productVariants.name, price: productVariants.price },
     })
     .from(watches)
     .innerJoin(products, eq(products.id, watches.productId))
+    .leftJoin(productVariants, eq(productVariants.id, watches.variantId))
     .where(eq(watches.userId, user.id))
     .orderBy(desc(watches.createdAt));
 

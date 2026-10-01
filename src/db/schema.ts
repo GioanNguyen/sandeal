@@ -1,5 +1,5 @@
 import {
-  boolean, customType, doublePrecision, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex,
+  type AnyPgColumn, boolean, customType, doublePrecision, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
@@ -112,7 +112,7 @@ export const loginTokens = pgTable("login_tokens", {
   tokenHash: text("token_hash").primaryKey(),
   email: text("email").notNull(),
   expiresAt: ts("expires_at").notNull(),
-  pendingWatch: jsonb("pending_watch").$type<{ productId: number; targetPrice: number } | null>(),
+  pendingWatch: jsonb("pending_watch").$type<{ productId: number; targetPrice: number; variantId?: number | null } | null>(),
   usedAt: ts("used_at"),
 });
 
@@ -129,6 +129,8 @@ export const watches = pgTable(
     userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     productId: integer("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
     targetPrice: doublePrecision("target_price").notNull(),
+    /** Theo dõi riêng một phân loại (màu, size…); null = theo giá chung của sản phẩm */
+    variantId: integer("variant_id").references((): AnyPgColumn => productVariants.id, { onDelete: "set null" }),
     lastNotifiedAt: ts("last_notified_at"),
     createdAt: ts("created_at").notNull().defaultNow(),
   },
@@ -418,3 +420,37 @@ export const productReviewMeta = pgTable("product_review_meta", {
   aiAt: ts("ai_at"),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
+
+/**
+ * Phân loại của sản phẩm (màu, size, dung tích…) và giá đang bán của từng phân loại.
+ * Sàn không trả giá theo phân loại qua API affiliate: giá do người dùng tiện ích ghi nhận khi chọn phân loại trên trang.
+ * key: khoá ổn định (Lazada: mã SKU; Shopee: tên nhóm=lựa chọn đã chuẩn hoá).
+ */
+export const productVariants = pgTable(
+  "product_variants",
+  {
+    id: serial("id").primaryKey(),
+    productId: integer("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    /** Tên hiển thị, vd "Màu: Đen · Size: L" */
+    name: text("name").notNull(),
+    skuId: text("sku_id"),
+    price: doublePrecision("price").notNull(),
+    originalPrice: doublePrecision("original_price"),
+    lastSeenAt: ts("last_seen_at").notNull().defaultNow(),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("product_variants_uq").on(t.productId, t.key)],
+);
+
+/** Lịch sử giá từng phân loại (chỉ ghi khi giá đổi) */
+export const variantPricePoints = pgTable(
+  "variant_price_points",
+  {
+    id: serial("id").primaryKey(),
+    variantId: integer("variant_id").notNull().references(() => productVariants.id, { onDelete: "cascade" }),
+    price: doublePrecision("price").notNull(),
+    capturedAt: ts("captured_at").notNull().defaultNow(),
+  },
+  (t) => [index("variant_price_points_idx").on(t.variantId, t.capturedAt)],
+);

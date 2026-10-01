@@ -45,7 +45,24 @@ async function reviews(payload) {
   return data;
 }
 
+/** Gửi giá của phân loại đang chọn (chỉ khi đã bật "Góp giá") */
+async function variant(payload) {
+  const base = await server();
+  const res = await fetch(`${base}/api/ext/variant`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return res.json().catch(() => ({}));
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+  if (msg?.type === "variant") {
+    variant(msg.payload)
+      .then((data) => reply({ ok: true, data }))
+      .catch((err) => reply({ ok: false, error: String(err.message || err) }));
+    return true;
+  }
   if (msg?.type === "reviews") {
     reviews(msg.payload)
       .then((data) => reply({ ok: true, data }))

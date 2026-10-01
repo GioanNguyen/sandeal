@@ -8,9 +8,23 @@ const MESSAGES = {
   verify: "Gần xong! Mở email và bấm link xác nhận để bắt đầu theo dõi.",
 };
 
+export interface WatchVariant { id: number; name: string; price: number; low: number }
+
+/** Giá gợi ý: thấp hơn đáy 90 ngày 2%, làm tròn nghìn */
+const suggest = (low: number) => Math.round((low * 0.98) / 1000) * 1000;
+
 export function WatchForm({
-  productId, suggested, userEmail, initial,
-}: { productId: number; suggested: number; userEmail?: string; initial?: { status?: string; msg?: string } }) {
+  productId, suggested, userEmail, initial, variants = [], initialVariant,
+}: {
+  productId: number; suggested: number; userEmail?: string; initial?: { status?: string; msg?: string };
+  /** Phân loại đã ghi nhận giá: cho chọn theo dõi riêng một phân loại */
+  variants?: WatchVariant[]; initialVariant?: number;
+}) {
+  const [variantId, setVariantId] = useState<number | "">(variants.some((v) => v.id === initialVariant) ? initialVariant! : "");
+  const [target, setTarget] = useState(() => {
+    const v = variants.find((x) => x.id === initialVariant);
+    return v ? suggest(v.low) : suggested;
+  });
   const init = initial?.status === "saved" || initial?.status === "verify" ? "ok" : initial?.status === "error" ? "error" : "idle";
   const [state, setState] = useState<"idle" | "saving" | "ok" | "error">(init);
   const [msg, setMsg] = useState(
@@ -29,6 +43,7 @@ export function WatchForm({
           productId,
           email: f.get("email"),
           targetPrice: Number(f.get("targetPrice")),
+          variantId: variantId || undefined,
           website: f.get("website"), // bẫy bot
         }),
       });
@@ -59,9 +74,31 @@ export function WatchForm({
           <input id="w-email" className="input" name="email" type="email" required autoComplete="email" placeholder="ban@email.com" />
         </div>
       )}
+      {variants.length > 0 && (
+        <div className="field" style={{ gridColumn: "1 / -1" }}>
+          <label htmlFor="w-variant">Phân loại</label>
+          <select
+            id="w-variant"
+            className="select"
+            name="variantId"
+            value={variantId}
+            onChange={(e) => {
+              const id = e.target.value ? Number(e.target.value) : "";
+              setVariantId(id);
+              const v = variants.find((x) => x.id === id);
+              setTarget(v ? suggest(v.low) : suggested);
+            }}
+          >
+            <option value="">Giá chung (thường là phân loại rẻ nhất)</option>
+            {variants.map((v) => (
+              <option key={v.id} value={v.id}>{v.name} – {new Intl.NumberFormat("vi-VN").format(v.price)} đ</option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="field">
         <label htmlFor="w-price">Giá mong muốn (đ)</label>
-        <input id="w-price" className="input" name="targetPrice" type="number" inputMode="numeric" min={1000} step={1000} required defaultValue={suggested} />
+        <input id="w-price" className="input" name="targetPrice" type="number" inputMode="numeric" min={1000} step={1000} required value={target} onChange={(e) => setTarget(Number(e.target.value))} />
       </div>
       <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="hp" />
       <button className="btn btn-primary" disabled={state === "saving"}>

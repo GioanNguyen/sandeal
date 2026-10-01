@@ -44,11 +44,13 @@ import { and, count } from "drizzle-orm";
 import { products } from "@/db/schema";
 import { isUnavailable, platformLatest } from "@/lib/availability";
 import { productInsight } from "@/lib/reviews";
+import { variantsFor } from "@/lib/variants";
+import { VariantPrices } from "@/components/VariantPrices";
 import { ReviewPanel, RiskAlert } from "@/components/ReviewInsight";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ id: string }>; searchParams?: Promise<{ watch?: string; msg?: string; moi?: string; nhacsale?: string }> };
+type Props = { params: Promise<{ id: string }>; searchParams?: Promise<{ watch?: string; msg?: string; moi?: string; nhacsale?: string; phanloai?: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = await getProduct(productIdFromParam((await params).id));
@@ -117,7 +119,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
     category: p.category ? { name: p.category, drop: await categorySaleDrop(p.category) } : undefined,
   });
   const viewers = (await recentViewers([p.id])).get(p.id) ?? 0;
-  const insight = await productInsight(p);
+  const [insight, variants] = await Promise.all([productInsight(p), variantsFor(p.id)]);
   // Nhắc khi sale bắt đầu: vừa đăng nhập từ nút "Nhắc tôi" (?nhacsale=1) thì bật luôn
   const sale = targetSale();
   if (user && sale && !sale.live && sp.nhacsale) {
@@ -298,6 +300,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
               </p>
             )}
           </section>
+          <VariantPrices variants={variants} productPrice={p.price} platformLabel={platformLabel} />
           <ReviewPanel insight={insight} platform={p.platform} />
           <section className="panel" id="theo-doi">
             <h2><Icon name="bell" /> {gone ? "Báo tôi khi món này có lại" : "Báo tôi khi giá giảm"}</h2>
@@ -306,7 +309,15 @@ export default async function ProductPage({ params, searchParams }: Props) {
                 ? "Săn Deal kiểm tra lại món này mỗi ngày. Khi thấy lại trên sàn, bạn nhận email (và thông báo nếu đã bật) kèm giá mới, dù giá có cao hơn mức bạn đặt."
                 : "Nhận email khi giá xuống bằng hoặc thấp hơn mức bạn đặt. Tối đa 1 email mỗi ngày."}
             </p>
-            <WatchForm productId={p.id} suggested={Math.round((advice.low * 0.98) / 1000) * 1000} userEmail={user?.email} initial={{ status: sp.watch, msg: sp.msg }} />
+            <WatchForm
+              productId={p.id}
+              suggested={Math.round((advice.low * 0.98) / 1000) * 1000}
+              userEmail={user?.email}
+              initial={{ status: sp.watch, msg: sp.msg }}
+              // Phân loại giá cũ vẫn cho chọn: chỉ báo khi có người ghi nhận lại giá mới
+              variants={variants.map((v) => ({ id: v.id, name: v.name, price: v.price, low: v.low90 }))}
+              initialVariant={Number(sp.phanloai) || undefined}
+            />
           </section>
         </div>
       </div>

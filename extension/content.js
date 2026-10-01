@@ -121,7 +121,10 @@
       const rv = ins && ins.reviews
         ? `<div class="rv"><b>${ins.reviews.ai ? "✨ Tóm tắt đánh giá (AI)" : "Người mua nói gì"}</b> <span class="muted">· ${ins.reviews.count} đánh giá</span><br>${esc(ins.reviews.summary)}</div>`
         : "";
-      body = `${sample}${risk}${v}${rv}
+      const vr = state.variant
+        ? `<div class="rv"><b>Phân loại bạn chọn</b><br>${esc(state.variant.name)}: <b>${vnd(state.variantPrice || state.variant.price)}</b>${state.variant.points >= 2 ? ` · thấp nhất 90 ngày <b>${vnd(state.variant.low90)}</b>` : " · Săn Deal bắt đầu theo dõi giá phân loại này"}${state.variant.points >= 2 && (state.variantPrice || state.variant.price) <= state.variant.low90 ? " ✓" : ""}<br><a target="_blank" href="${esc(links.detail)}#phan-loai">Báo khi phân loại này giảm giá</a></div>`
+        : "";
+      body = `${sample}${risk}${v}${vr}${rv}
         <div class="kpis"><div class="kpi"><span>Hiện tại</span><b>${vnd(p.price)}</b></div><div class="kpi"><span>Thấp nhất</span><b>${vnd(p.low90)}</b></div><div class="kpi"><span>Thường ngày</span><b>${vnd(p.usual)}</b></div></div>
         <div class="muted">Giá Săn Deal cập nhật ${ago}. Giá trên trang có thể khác theo phân loại bạn chọn hoặc voucher của shop.</div>
         ${spark(p.history, p.price)}
@@ -161,6 +164,7 @@
         const r = await chrome.runtime.sendMessage({ type: "observe", payload: { url: href, ...d } }).catch(() => null);
         if (location.href !== href) return;
         if (withReviews) collectReviews(href);
+        watchVariant(href);
         if (state.kind === "queued" && r?.ok && r.data?.status === "created") {
           const again = await chrome.runtime.sendMessage({ type: "lookup", url: href }).catch(() => null);
           if (location.href === href && again?.ok && again.data.status === "found") render({ kind: "found", data: again.data });
@@ -176,6 +180,27 @@
    * Góp đánh giá: phần đánh giá trên sàn tải dần khi người dùng cuộn / chuyển trang đánh giá, nên kiểm tra lại
    * mỗi 4 giây trong 5 phút, chỉ gửi đánh giá mới thấy. Chỉ chạy khi đã bật "Góp giá".
    */
+  /**
+   * Giá theo phân loại: khi người dùng bấm chọn màu/size… trên trang, gửi giá của đúng phân loại đó
+   * (mỗi phân loại một lần cho mỗi mức giá), rồi hiện giá thấp nhất 90 ngày của phân loại trong ô Săn Deal.
+   */
+  let variantTimer = null;
+  function watchVariant(href) {
+    clearInterval(variantTimer);
+    const sent = new Set();
+    let ticks = 0;
+    variantTimer = setInterval(async () => {
+      if (location.href.split("#")[0].replace(/-s\d+\.html.*/, "") !== href.split("#")[0].replace(/-s\d+\.html.*/, "") || ++ticks > 600) { clearInterval(variantTimer); return; }
+      const v = self.SanDealExtract && self.SanDealExtract.readVariant(document, location.href);
+      if (!v) return;
+      const sig = JSON.stringify([v.groups, v.skuId, v.price]);
+      if (sent.has(sig)) return;
+      sent.add(sig);
+      const r = await chrome.runtime.sendMessage({ type: "variant", payload: { url: location.href, ...v } }).catch(() => null);
+      if (r && r.ok && r.data && r.data.variant && current && current.kind === "found") render({ ...current, variant: r.data.variant, variantPrice: v.price });
+    }, 1500);
+  }
+
   let reviewTimer = null;
   function collectReviews(href) {
     clearInterval(reviewTimer);

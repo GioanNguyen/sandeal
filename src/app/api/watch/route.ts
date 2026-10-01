@@ -1,7 +1,7 @@
 import { redirectTo } from "@/lib/redirect";
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
-import { products } from "@/db/schema";
+import { products, productVariants } from "@/db/schema";
 import { EMAIL_RE, getCurrentUser, normalizeEmail, sendLoginLink, upsertWatch } from "@/lib/auth";
 import { db, ensureMigrated } from "@/lib/db";
 import { allow, clientIp } from "@/lib/ratelimit";
@@ -30,13 +30,21 @@ export async function POST(req: Request) {
   await ensureMigrated();
   const [product] = await db.select({ id: products.id, name: products.name }).from(products).where(eq(products.id, productId)).limit(1);
   if (!product) return fail(404, "Không tìm thấy sản phẩm");
+  // Phân loại (tuỳ chọn) phải thuộc đúng sản phẩm
+  let variantId: number | null = null;
+  const vid = Number(body?.variantId);
+  if (Number.isInteger(vid) && vid > 0) {
+    const [v] = await db.select({ id: productVariants.id, productId: productVariants.productId }).from(productVariants).where(eq(productVariants.id, vid)).limit(1);
+    if (!v || v.productId !== productId) return fail(400, "Phân loại không hợp lệ");
+    variantId = v.id;
+  }
 
   const user = await getCurrentUser();
   if (user) {
     if (!(await allow(`watch:u:${user.id}`, 60, 3600))) {
       return fail(429, "Bạn thao tác quá nhanh, thử lại sau.");
     }
-    await upsertWatch(user.id, productId, targetPrice);
+    await upsertWatch(user.id, productId, targetPrice, variantId);
     return done("saved");
   }
 
@@ -46,6 +54,6 @@ export async function POST(req: Request) {
   if (!(await allow(`watch:ip:${ip}`, 10, 3600)) || !(await allow(`mail:${email}`, 5, 3600))) {
     return fail(429, "Bạn gửi quá nhiều yêu cầu, thử lại sau ít phút.");
   }
-  await sendLoginLink(email, { productId, targetPrice, productName: product.name });
+  await sendLoginLink(email, { productId, targetPrice, productName: product.name, variantId });
   return done("verify");
 }

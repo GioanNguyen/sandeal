@@ -1711,3 +1711,27 @@ html[data-theme="dark"] .rv-pc-h.bad { color: #fb7185; }
   .risk-alert { flex-wrap: wrap; }
   .risk-alert .risk-more { margin-left: 28px; }
 }
+
+/* ===== Giá theo phân loại ===== */
+.vp-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.vp-list li { display: grid; grid-template-columns: minmax(0, 1fr) 120px auto auto; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.vp-list li.stale { opacity: .7; }
+.vp-name { display: grid; gap: 2px; min-width: 0; }
+.vp-name b { overflow-wrap: anywhere; font-size: 14px; }
+.vp-name .muted { font-size: 12px; }
+.vp-spark .spark { width: 120px; }
+.vp-new { font-size: 12px; }
+.vp-price { display: grid; justify-items: end; gap: 2px; text-align: right; }
+.vp-price .price { font-size: 16px; }
+.vp-price s, .vp-price .muted { font-size: 12px; }
+.vp-price .save { color: var(--save); font-weight: 700; }
+.vp-tag { margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: var(--save-soft); color: var(--save); font-weight: 700; }
+.vp-watch { white-space: nowrap; }
+.watch-variant { display: block; font-size: 13px; }
+@media (max-width: 640px) {
+  .vp-list li { grid-template-columns: minmax(0, 1fr) auto; }
+  .vp-spark { display: none; }
+  .vp-watch { grid-column: 1 / -1; justify-self: start; }
+}
+.watch-form .field { min-width: 0; }
+.watch-form select { width: 100%; min-width: 0; text-overflow: ellipsis; }

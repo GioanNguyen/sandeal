@@ -451,5 +451,68 @@
     return { ratingCount, starCounts, reviews };
   }
 
-  g.SanDealExtract = { itemIdOf, money, nameMatchesTitle, fromData, categoryOf, fromDocument, firstVnd, priceLike, pickStrike, strikeFromDocument, countNum, reviewsFromData, reviewsFromDocument, domReviews, starCountsFromDocument, shopeeReviews, lazadaReviews, relativeDate };
+  // ===================== Phân loại đang chọn (màu, size…) =====================
+
+  /** Giá đơn (không phải khoảng "14.065₫ - 39.000₫") */
+  function singlePrice(text) {
+    const t = String(text || "").trim();
+    if (!priceLike(t) || /\d\s*[₫đ]?\s*[-–]\s*[₫đ]?\s*\d/.test(t)) return NaN;
+    return firstVnd(t);
+  }
+
+  /** Shopee: mỗi nhóm là một section có tiêu đề h2 và các nút .selection-box-*; nút đang chọn có .selection-box-selected */
+  function shopeeVariant(doc) {
+    // Mỗi nhóm = section gần nhất bao các nút lựa chọn (trang lồng nhiều section, không lấy section ngoài)
+    const sections = [...new Set(Array.from(doc.querySelectorAll('button[class*="selection-box-"]')).map((btn) => btn.closest("section")).filter(Boolean))];
+    if (!sections.length) return null;
+    const groups = [];
+    for (const s of sections) {
+      const sel = s.querySelector("button.selection-box-selected");
+      if (!sel) return null; // chưa chọn đủ các nhóm: giá trên trang còn là khoảng giá
+      const h = s.querySelector("h2, h3, label");
+      groups.push({ group: h ? h.textContent.trim() : "", value: (sel.getAttribute("aria-label") || sel.textContent || "").trim() });
+    }
+    const box = Array.from(doc.querySelectorAll('[aria-live="polite"]')).find((el) => /[₫đ]/.test(el.textContent || "") && /\d/.test(el.textContent || ""));
+    if (!box) return null;
+    const leaves = Array.from(box.querySelectorAll("*")).filter((el) => el.children.length === 0 && priceLike(el.textContent));
+    if (!leaves.length) return null;
+    const price = singlePrice(leaves[0].textContent);
+    if (!(price > 0)) return null;
+    const orig = leaves.slice(1).map((el) => singlePrice(el.textContent)).find((v) => v > price);
+    return { groups, price, originalPrice: orig };
+  }
+
+  /** Lazada: nhóm .sku-prop-selection (tiêu đề + tên lựa chọn đang chọn), giá ở khối price-v2, mã SKU trên đường dẫn -s123.html */
+  function lazadaVariant(doc, href) {
+    const props = Array.from(doc.querySelectorAll(".sku-prop-selection"));
+    if (!props.length) return null;
+    const groups = [];
+    for (const pEl of props) {
+      const name = pEl.querySelector(".sku-name");
+      const value = name ? name.textContent.trim() : "";
+      if (!value) return null;
+      const t = pEl.querySelector(".section-title-v2, .section-title");
+      const group = t ? t.textContent.trim().replace(/:\s*$/, "") : "";
+      if (!groups.some((x) => x.group === group && x.value === value)) groups.push({ group, value });
+    }
+    const amt = doc.querySelector(".pdp-v2-product-price-content-salePrice-amount, .pdp-price_type_normal");
+    const price = amt ? money(amt.textContent.trim()) : NaN;
+    if (!(price > 0)) return null;
+    const o = doc.querySelector('[class*="originalPrice-amount"], .pdp-price_type_deleted');
+    const op = o ? money(o.textContent.trim().replace(/[₫đ\s]/g, "")) : NaN;
+    const sku = (String(href || "").match(/-s(\d+)\.html/) || [])[1];
+    return { groups, price, originalPrice: op > price ? op : undefined, skuId: sku };
+  }
+
+  /** Phân loại người dùng đang chọn + giá của nó; null khi trang không có phân loại hoặc chưa chọn đủ */
+  function readVariant(doc, href) {
+    const host = String((doc.location && doc.location.hostname) || (href ? new URL(href).hostname : ""));
+    try {
+      if (host.endsWith("shopee.vn")) return shopeeVariant(doc);
+      if (host.endsWith("lazada.vn")) return lazadaVariant(doc, href);
+    } catch (e) {}
+    return null;
+  }
+
+  g.SanDealExtract = { itemIdOf, money, nameMatchesTitle, fromData, categoryOf, fromDocument, firstVnd, priceLike, pickStrike, strikeFromDocument, countNum, reviewsFromData, reviewsFromDocument, domReviews, starCountsFromDocument, shopeeReviews, lazadaReviews, relativeDate, readVariant, singlePrice };
 })(typeof self !== "undefined" ? self : globalThis);
