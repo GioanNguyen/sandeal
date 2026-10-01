@@ -10,6 +10,8 @@ import { priceK } from "./social";
 
 /** Link ngắn cho bình luận: https://ten-mien/p/4004 (chuyển tới trang sản phẩm, tự gắn nguồn facebook) */
 export const shortLink = (site: string, p: { id: number }) => `${site}/p/${p.id}`;
+/** Ảnh Story dọc 9:16 (1080×1920) cho mẫu bài: tối đa 4 món */
+export const storyUrl = (site: string, kind: string, ids: number[]) => `${site}/story?k=${kind}&p=${ids.slice(0, 4).join(",")}`;
 import { unitPrice, unitPriceText, perBase, type UnitPrice } from "./unitprice";
 
 export type PostKind =
@@ -36,6 +38,8 @@ export interface PostDraft {
   comment: string;
   /** Ảnh đăng kèm (ảnh giá do Săn Deal tạo) */
   image: string;
+  /** Ảnh Story dọc 9:16 đi kèm bài */
+  story: string;
   /** Link chính (bình luận đầu) */
   link: string;
   productIds: number[];
@@ -88,6 +92,7 @@ function single(ctx: PostCtx, kind: PostKind, bodyLines: (string | false | null 
       ...extra,
     ], p.lastSeenAt ?? ctx.now),
     image: `${site}/product/${p.id}/opengraph-image`,
+    story: storyUrl(site, kind, [p.id]),
     link,
     productIds: [p.id],
   };
@@ -263,6 +268,7 @@ export function tongHop(items: Product[], opts: { site: string; now: Date; budge
     ].join("\n"),
     comment: commentFor(opts, links, oldest),
     image: `${opts.site}/product/${list[0].id}/opengraph-image`,
+    story: storyUrl(opts.site, "tong-hop", list.map((p) => p.id)),
     link: shortLink(opts.site, list[0]),
     productIds: list.map((p) => p.id),
   };
@@ -290,6 +296,7 @@ export function nangGia(r: { total: number; rate: number; raised: { product: Pro
     ].join("\n"),
     comment: commentFor(opts, [`📊 Bảng đầy đủ: ${link}`, "Số liệu chỉ tính các món Săn Deal đang theo dõi, không đại diện cho toàn sàn."], opts.now),
     image: `${opts.site}/nang-gia/${opts.slug}/opengraph-image`,
+    story: storyUrl(opts.site, "nang-gia", top.map((x) => x.product.id)),
     link,
     productIds: top.map((x) => x.product.id),
   };

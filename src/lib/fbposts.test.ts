@@ -98,5 +98,6 @@ test("singleDrafts: mọi mẫu đều tách link ra bình luận", () => {
     noLink(d.body);
     assert.match(d.comment, /https:\/\/sandealgiare\.com\/p\/\d+/);
     assert.doesNotMatch(d.comment, /\/product\/|utm_/, "bình luận chỉ dùng link ngắn");
+    assert.match(d.story, new RegExp(`/story\\?k=${d.kind}&p=47$`), "ảnh Story theo mẫu");
   }
 });

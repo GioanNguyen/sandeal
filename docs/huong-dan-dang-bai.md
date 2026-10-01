@@ -37,6 +37,14 @@ Cần một **Trang** (Page), không đăng được lên trang cá nhân hay nh
 
 > Quy trình cấp quyền của Meta có thể thay đổi và ứng dụng có thể cần xét duyệt trước khi dùng thật. Kiểm tra lại tài liệu Meta khi thiết lập.
 
+### Story của Trang
+
+- Mỗi mẫu bài có thêm **ảnh Story dọc 9:16** (`/story?k=<mẫu>&p=<mã món>`): ảnh sản phẩm, giá, % giảm thật, dòng "Link mua ở bài viết mới nhất của Trang" và link ngắn `ten-mien/p/<mã>`. Mẫu "Đoán giá" ẩn giá.
+- Trang **Đăng bài**: ô **Đăng kèm Story** (bật sẵn) – đăng bài xong tự đăng Story. Story lỗi thì bài vẫn giữ, chỉ báo lỗi phần Story.
+- Bài tự đăng giờ vàng kèm Story khi đặt `FB_STORY="1"` trong `.env`.
+- Story qua API **không gắn được nhãn dán link**. Muốn có link bấm: bấm **Tải ảnh Story**, đăng tay trong app Facebook và thêm nhãn dán Liên kết `ten-mien/p/<mã>`.
+- Không cần thêm quyền: dùng `pages_manage_posts` như bài thường. Story tự mất sau 24 giờ – 2–3 Story/ngày là vừa.
+
 ### Zalo, TikTok, nhóm Facebook (đăng tay)
 Các kênh này không có API đăng bài phù hợp cho web nhỏ (Zalo OA cần tài khoản doanh nghiệp đã xác thực; TikTok chỉ nhận video). Vào **/admin/dang-bai**:
 - Mỗi bài có sẵn ảnh (bấm **Tải ảnh**), **thân bài** và **bình luận đầu** tách riêng, mỗi phần có nút chép. Đăng thân bài + ảnh trước, rồi dán bình luận đầu ngay dưới bài.

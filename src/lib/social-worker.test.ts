@@ -48,9 +48,29 @@ test("đăng giờ vàng: chọn deal khác danh mục, gộp 1 bài Facebook, k
     assert.match(calls[2].body.caption, /GIÁ THẤP NHẤT/);
     assert.match(calls[3].body.message, /Xem lịch sử giá & mua/);
     assert.equal(await postGoldenHour(), 0, "không đăng lặp trong 7 ngày");
+    assert.ok(!calls.some((c) => /photo_stories/.test(c.url)), "mặc định không đăng Story tự động");
     assert.equal(calls.length, 4, "lượt không còn deal thì không đăng bài rỗng");
     const logged = await dbm.db.select().from(schema.socialPosts);
     assert.equal(logged.length, 3);
+  } finally {
+    globalThis.fetch = orig;
+  }
+});
+
+test("Story: tải ảnh chưa công khai rồi đăng photo_stories", async () => {
+  const calls: { url: string; body: Record<string, unknown> }[] = [];
+  const orig = globalThis.fetch;
+  globalThis.fetch = (async (url: string, init: { body: string }) => {
+    calls.push({ url, body: JSON.parse(init.body) });
+    return new Response(JSON.stringify(/photo_stories/.test(url) ? { success: true, post_id: "story_1" } : { id: "ph_1" }));
+  }) as unknown as typeof fetch;
+  try {
+    const { postFacebookStory } = await import("@/worker/social");
+    assert.equal(await postFacebookStory("https://sandeal.test/story?k=ky-luc&p=1"), "story_1");
+    assert.match(calls[0].url, /\/123\/photos$/);
+    assert.equal(calls[0].body.published, false);
+    assert.match(calls[1].url, /\/123\/photo_stories$/);
+    assert.equal(calls[1].body.photo_id, "ph_1");
   } finally {
     globalThis.fetch = orig;
   }

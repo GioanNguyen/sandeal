@@ -12,6 +12,7 @@ export function PostComposer({ drafts, canPost, title }: { drafts: PostDraft[]; 
   const [edits, setEdits] = useState<Record<number, { body: string; comment: string }>>({});
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState("");
+  const [withStory, setWithStory] = useState(true);
   const d = drafts[i];
   const cur = edits[i] ?? { body: d.body, comment: d.comment };
   const set = (k: "body" | "comment", v: string) => setEdits((e) => ({ ...e, [i]: { ...cur, [k]: v } }));
@@ -31,11 +32,21 @@ export function PostComposer({ drafts, canPost, title }: { drafts: PostDraft[]; 
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(channel === "facebook"
-        ? { channel, draft: { body: cur.body, comment: cur.comment, image: d.image, productIds: d.productIds } }
+        ? { channel, withStory, draft: { body: cur.body, comment: cur.comment, image: d.image, story: d.story, productIds: d.productIds } }
         : { channel, productId: d.productIds[0] }),
     }).catch(() => null);
     const j = await res?.json().catch(() => ({}));
-    setMsg(res?.ok ? (channel === "facebook" ? "Đã đăng lên Trang Facebook kèm bình luận đầu" : `Đã ghi nhận: ${channel}`) : j?.error ?? "Lỗi");
+    setMsg(
+      !res?.ok
+        ? j?.error ?? "Lỗi"
+        : channel !== "facebook"
+          ? `Đã ghi nhận: ${channel}`
+          : j?.storyError
+            ? `Đã đăng bài kèm bình luận đầu, nhưng Story lỗi: ${j.storyError}`
+            : j?.storyId
+              ? "Đã đăng bài kèm bình luận đầu + Story"
+              : "Đã đăng lên Trang Facebook kèm bình luận đầu",
+    );
     setBusy("");
   }
 
@@ -49,8 +60,12 @@ export function PostComposer({ drafts, canPost, title }: { drafts: PostDraft[]; 
           ))}
         </div>
       )}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={d.image} alt="Ảnh đăng kèm" width={600} height={315} loading="lazy" />
+      <div className="post-media">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={d.image} alt="Ảnh đăng kèm" width={600} height={315} loading="lazy" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <a href={d.story} target="_blank" rel="noreferrer" className="post-story" title="Xem ảnh Story cỡ thật"><img src={d.story} alt="Ảnh Story 9:16" width={108} height={192} loading="lazy" /></a>
+      </div>
       <div className="composer-body">
         <label className="field-label" htmlFor={`b-${d.kind}-${d.productIds[0]}`}>Thân bài <small className="muted">(không có link)</small></label>
         <textarea id={`b-${d.kind}-${d.productIds[0]}`} className="input" rows={9} value={cur.body} onChange={(e) => set("body", e.target.value)} />
@@ -66,8 +81,14 @@ export function PostComposer({ drafts, canPost, title }: { drafts: PostDraft[]; 
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => copy(cur.body, "thân bài")}><Icon name="copy" size={14} /> Chép thân bài</button>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => copy(cur.comment, "bình luận đầu")}><Icon name="copy" size={14} /> Chép bình luận đầu</button>
           <a className="btn btn-ghost btn-sm" href={d.image} download={`san-deal-${d.kind}-${d.productIds[0]}.png`}><Icon name="download" size={14} /> Tải ảnh</a>
+          <a className="btn btn-ghost btn-sm" href={d.story} download={`san-deal-story-${d.kind}-${d.productIds[0]}.png`}><Icon name="download" size={14} /> Tải ảnh Story</a>
         </div>
         <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+          {canPost && (
+            <label className="row" style={{ gap: 6, alignItems: "center", fontSize: 14 }}>
+              <input type="checkbox" checked={withStory} onChange={(e) => setWithStory(e.target.checked)} /> Đăng kèm Story
+            </label>
+          )}
           {canPost && (
             <button type="button" className="btn btn-primary btn-sm" disabled={!!busy} onClick={() => send("facebook")}>
               <Icon name="send" size={14} /> {busy === "facebook" ? "Đang đăng…" : "Đăng Trang Facebook"}

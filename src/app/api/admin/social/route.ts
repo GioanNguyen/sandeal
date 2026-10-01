@@ -4,7 +4,7 @@ import { products, socialPosts } from "@/db/schema";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { siteUrl } from "@/lib/mail";
-import { channels, postDeal, postFacebookDigest, postFacebookDraft } from "@/worker/social";
+import { channels, postDeal, postFacebookDigest, postFacebookDraft, postFacebookStory } from "@/worker/social";
 
 const MANUAL = ["zalo", "tiktok", "facebook-group"];
 
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   // Bài soạn theo mẫu: đăng ĐÚNG nội dung admin đã sửa (thân bài + bình luận đầu)
   if (body?.draft) {
     if (channel !== "facebook" || !(channels() as string[]).includes("facebook")) return NextResponse.json({ error: "Trang Facebook chưa được cấu hình" }, { status: 400 });
-    const d = body.draft as { body?: unknown; comment?: unknown; image?: unknown; productIds?: unknown };
+    const d = body.draft as { body?: unknown; comment?: unknown; image?: unknown; story?: unknown; productIds?: unknown };
     const text = String(d.body ?? "").trim();
     const comment = String(d.comment ?? "").trim();
     const image = String(d.image ?? "");
@@ -31,7 +31,19 @@ export async function POST(req: Request) {
       error = (err as Error).message.slice(0, 300);
     }
     if (ids.length) await db.insert(socialPosts).values(ids.map((productId) => ({ channel: "facebook", productId, externalId, error })));
-    return error ? NextResponse.json({ error }, { status: 502 }) : NextResponse.json({ ok: true, id: externalId });
+    if (error) return NextResponse.json({ error }, { status: 502 });
+    // Story kèm bài (tuỳ chọn): lỗi Story không ảnh hưởng bài đã đăng
+    const story = String(d.story ?? "");
+    let storyError: string | null = null;
+    let storyId: string | null = null;
+    if (body.withStory && story.startsWith(siteUrl())) {
+      try {
+        storyId = await postFacebookStory(story);
+      } catch (err) {
+        storyError = (err as Error).message.slice(0, 300);
+      }
+    }
+    return NextResponse.json({ ok: true, id: externalId, storyId, storyError });
   }
   // Bài tổng hợp nhiều deal lên Trang Facebook
   if (Array.isArray(body?.productIds)) {

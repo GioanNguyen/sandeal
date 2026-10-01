@@ -87,6 +87,43 @@ export async function postFacebookDraft(d: Pick<PostDraft, "body" | "comment" | 
   return postId;
 }
 
+/**
+ * Đăng 1 Story ảnh lên Trang: tải ảnh lên dạng chưa công khai rồi đăng thành Story.
+ * Story qua API không gắn được link bấm – ảnh tự ghi "link ở bài viết mới nhất".
+ */
+export async function postFacebookStory(image: string): Promise<string> {
+  const g = `https://graph.facebook.com/v21.0`;
+  const token = process.env.FB_PAGE_TOKEN;
+  const up = await fetch(`${g}/${process.env.FB_PAGE_ID}/photos`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url: image, published: false, access_token: token }),
+  });
+  const uj = (await up.json().catch(() => ({}))) as { id?: string; error?: { message: string } };
+  if (!up.ok || !uj.id) throw new Error(`Story: không tải được ảnh – ${uj.error?.message ?? `HTTP ${up.status}`}`);
+  const st = await fetch(`${g}/${process.env.FB_PAGE_ID}/photo_stories`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ photo_id: uj.id, access_token: token }),
+  });
+  const sj = (await st.json().catch(() => ({}))) as { post_id?: string; id?: string; error?: { message: string } };
+  if (!st.ok || sj.error) throw new Error(`Story: ${sj.error?.message ?? `HTTP ${st.status}`}`);
+  return sj.post_id ?? sj.id ?? uj.id;
+}
+
+/** Bài đăng tự động có kèm Story không (FB_STORY="1") */
+export const fbStory = () => process.env.FB_STORY === "1";
+
+/** Đăng Story kèm bài tự động; lỗi Story chỉ ghi log, không làm hỏng bài đã đăng */
+async function autoStory(d: Pick<PostDraft, "story">) {
+  if (!fbStory() || !d.story) return;
+  try {
+    await postFacebookStory(d.story);
+  } catch (err) {
+    console.warn("[social] facebook story lỗi:", (err as Error).message);
+  }
+}
+
 /** Tính sẵn dữ liệu cho các mẫu bài của 1 sản phẩm */
 export async function draftContext(p: Product, now = new Date()): Promise<PostCtx> {
   const [full, [row]] = await Promise.all([getProduct(p.id), enrichDeals([p])]);
@@ -171,6 +208,7 @@ export async function postDeal(channel: Channel, p: Product, variant = 0): Promi
       const d = drafts[variant % Math.max(1, drafts.length)];
       if (!d) throw new Error("Không có mẫu bài phù hợp cho món này");
       externalId = await postFacebookDraft(d);
+      await autoStory(d);
     } else {
       externalId = await postFacebook(buildCaption(p, link, { variant, ...extras }), link);
     }
@@ -208,6 +246,7 @@ export async function postFacebookDigest(deals: Product[]): Promise<number> {
         return ok;
       }
       externalId = await postFacebookDraft(d);
+      await autoStory(d);
     } else {
       const { message, link } = await digestFor(deals);
       externalId = await postFacebook(message, link);

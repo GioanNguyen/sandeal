@@ -318,3 +318,93 @@ export async function productSquareImage(p: OgProduct & { usual: number; low: nu
     { width: 1080, height: 1080, fonts: await fonts() },
   );
 }
+
+export const STORY_SIZE = { width: 1080, height: 1920 };
+
+export interface StoryItem {
+  name: string;
+  platform: string;
+  imageUrl: string | null;
+  price: number;
+  originalPrice: number | null;
+  realDropPct: number;
+}
+
+/**
+ * Ảnh Story dọc 9:16 cho Trang Facebook. Story đăng qua API không gắn được link bấm,
+ * nên ảnh ghi rõ "link ở bài viết mới nhất" và link ngắn để gõ tay.
+ * Chừa khoảng trên/dưới (~230px) cho thanh tên Trang và ô trả lời của Facebook.
+ */
+export async function storyImage(o: { headline: string; items: StoryItem[]; hidePrice?: boolean; link: string }) {
+  const items = o.items.slice(0, 4);
+  const imgs = await Promise.all(items.map((x) => imageData(x.imageUrl)));
+  const one = items.length === 1 ? items[0] : null;
+  const cut = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trim()}…` : s);
+  const pct = (x: StoryItem) => (x.realDropPct >= 5 ? `-${Math.round(x.realDropPct)}% thật` : "");
+
+  return new ImageResponse(
+    (
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", fontFamily: FAMILY, background: "linear-gradient(170deg,#e8491d 0%,#f26b1d 45%,#ffa41b 100%)", padding: "220px 64px 230px", gap: 36 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+          <div style={{ width: 72, height: 72, borderRadius: 20, background: "rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 42, fontWeight: 800 }}>S</div>
+          <div style={{ display: "flex", fontSize: 42, fontWeight: 800, color: "#fff" }}>Săn Deal</div>
+        </div>
+        <div style={{ display: "flex", fontSize: 76, fontWeight: 800, color: "#fff", lineHeight: 1.08 }}>{o.headline}</div>
+
+        {one ? (
+          <div style={{ display: "flex", flexDirection: "column", background: "#fff", borderRadius: 48, padding: 36, gap: 16 }}>
+            <div style={{ display: "flex", width: 880, height: 520, borderRadius: 32, overflow: "hidden", background: "#fff", alignItems: "center", justifyContent: "center", position: "relative" }}>
+              {imgs[0] ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={imgs[0]} width={520} height={520} style={{ objectFit: "contain" }} alt="" />
+              ) : (
+                <div style={{ display: "flex", fontSize: 48, color: C.muted, fontWeight: 700 }}>{PLATFORMS[one.platform]?.label ?? one.platform}</div>
+              )}
+              {pct(one) && !o.hidePrice && (
+                <div style={{ position: "absolute", top: 12, left: 12, display: "flex", background: C.primary, color: "#fff", fontSize: 46, fontWeight: 800, padding: "10px 26px", borderRadius: 999 }}>{pct(one)}</div>
+              )}
+            </div>
+            <div style={{ display: "flex", fontSize: 42, fontWeight: 800, color: C.text, lineHeight: 1.2 }}>{cut(one.name, 64)}</div>
+            {o.hidePrice ? (
+              <div style={{ display: "flex", fontSize: 96, fontWeight: 800, color: C.primary }}>Giá bao nhiêu?</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", fontSize: 100, fontWeight: 800, color: C.primary, lineHeight: 1 }}>{vnd(one.price)}</div>
+                {one.originalPrice && one.originalPrice > one.price ? (
+                  <div style={{ display: "flex", gap: 12, fontSize: 36, color: C.muted }}>
+                    Niêm yết <span style={{ textDecoration: "line-through" }}>{vnd(one.originalPrice)}</span>
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {items.map((x, k) => (
+              <div key={k} style={{ display: "flex", background: "#fff", borderRadius: 32, padding: 18, gap: 24, alignItems: "center" }}>
+                <div style={{ display: "flex", width: 170, height: 170, borderRadius: 22, overflow: "hidden", background: "#fff", alignItems: "center", justifyContent: "center", border: `2px solid ${C.border}` }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {imgs[k] ? <img src={imgs[k]!} width={166} height={166} style={{ objectFit: "contain" }} alt="" /> : null}
+                </div>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ display: "flex", fontSize: 32, fontWeight: 800, color: C.text, lineHeight: 1.2 }}>{`${k + 1}. ${cut(x.name, 50)}`}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    <div style={{ display: "flex", fontSize: 50, fontWeight: 800, color: C.primary }}>{vnd(x.price)}</div>
+                    {pct(x) && <div style={{ display: "flex", fontSize: 30, fontWeight: 800, color: C.save, background: C.saveSoft, padding: "6px 14px", borderRadius: 999 }}>{pct(x)}</div>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ display: "flex", flex: 1 }} />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+          <div style={{ display: "flex", background: "#fff", color: C.primary, fontSize: 44, fontWeight: 800, padding: "22px 44px", borderRadius: 999 }}>{o.hidePrice ? "Đáp án ở bài viết mới nhất của Trang" : "Link mua ở bài viết mới nhất của Trang"}</div>
+          <div style={{ display: "flex", color: "#fff", fontSize: 40, fontWeight: 800 }}>{o.link}</div>
+        </div>
+      </div>
+    ),
+    { ...STORY_SIZE, fonts: await fonts() },
+  );
+}
