@@ -102,6 +102,9 @@ export async function sitemapUrls(name: string): Promise<Url[] | null> {
       ["/ma-giam-gia", "daily", 0.7],
       ["/thuong-hieu", "daily", 0.6],
       ["/cach-hoat-dong", "monthly", 0.4],
+      ["/chinh-sach-bao-mat", "yearly", 0.2],
+      ["/dieu-khoan", "yearly", 0.2],
+      ["/xoa-du-lieu", "yearly", 0.2],
     ];
     return [
       ...pages.map(([p, changefreq, priority]) => ({ loc: `${base}${p}`, changefreq, priority })),

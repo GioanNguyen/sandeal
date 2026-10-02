@@ -1835,3 +1835,5 @@ html[data-theme="dark"] .rv-pc-h.bad { color: #fb7185; }
 .brand-az h3 { margin: 0 0 6px; font-size: 18px; color: var(--primary); }
 .brand-az ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 15px; }
 .brand-link { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: var(--primary); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.legal h3 { margin: 18px 0 6px; font-size: 17px; }
+.legal code { font-size: .92em; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }

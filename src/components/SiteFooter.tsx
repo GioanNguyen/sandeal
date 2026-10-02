@@ -49,6 +49,9 @@ export function SiteFooter({ loggedIn }: { loggedIn: boolean }) {
         { href: "/da-luu", label: "Món đã lưu" },
         loggedIn ? { href: "/account", label: "Tài khoản & thông báo" } : { href: "/login", label: "Đăng nhập / đăng ký" },
         { href: "/cach-hoat-dong", label: "Cách hoạt động" },
+        { href: "/chinh-sach-bao-mat", label: "Chính sách bảo mật" },
+        { href: "/dieu-khoan", label: "Điều khoản sử dụng" },
+        { href: "/xoa-du-lieu", label: "Xoá dữ liệu" },
       ],
     },
   ];
