@@ -1,6 +1,6 @@
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { coverFor } from "@/lib/guide-covers";
-import { guideBySlug } from "@/lib/guides";
+import { findGuide } from "@/lib/guides-db";
 import { siteUrl } from "@/lib/mail";
 import { guideCoverImage } from "@/lib/og";
 
@@ -12,12 +12,12 @@ export const runtime = "nodejs";
  */
 export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const slug = (await params).slug;
-  let g = guideBySlug(slug);
+  let g = await findGuide(slug);
   let preview = false;
   if (!g) {
     const u = await getCurrentUser();
     if (u && isAdmin(u.email)) {
-      g = guideBySlug(slug, new Date(), true);
+      g = await findGuide(slug, new Date(), true);
       preview = true;
     }
   }

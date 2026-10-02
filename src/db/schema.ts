@@ -493,3 +493,32 @@ export const webVitals = pgTable(
   },
   (t) => [index("web_vitals_idx").on(t.createdAt, t.metric)],
 );
+
+/**
+ * Bài hướng dẫn do AI (Claude) soạn từ số liệu thật của site. Quản trị viên duyệt trước khi đăng:
+ * draft (chờ duyệt) -> scheduled (đã duyệt, có ngày đăng) | rejected (bỏ).
+ */
+export const aiGuides = pgTable(
+  "ai_guides",
+  {
+    id: serial("id").primaryKey(),
+    slug: text("slug").notNull(),
+    status: text("status").notNull().default("draft"),
+    /** Mã chủ đề (để không soạn trùng chủ đề) */
+    topic: text("topic").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    kicker: text("kicker").notNull(),
+    points: jsonb("points").$type<string[]>().notNull(),
+    scene: jsonb("scene").$type<Record<string, unknown>>().notNull(),
+    /** Nội dung bài: danh sách khối (đoạn văn, tiêu đề, danh sách, mẹo) */
+    body: jsonb("body").$type<{ type: string; text?: string; items?: string[] }[]>().notNull(),
+    related: text("related").notNull().default("deep"),
+    /** Ngày đăng YYYY-MM-DD (khi đã duyệt) */
+    publishDate: text("publish_date"),
+    model: text("model"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    reviewedAt: ts("reviewed_at"),
+  },
+  (t) => [uniqueIndex("ai_guides_slug_uq").on(t.slug), index("ai_guides_status_idx").on(t.status)],
+);

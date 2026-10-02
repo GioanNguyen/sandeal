@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { guidePublishAt, publishedGuides } from "@/lib/guides";
+import { guidePublishAt } from "@/lib/guides";
+import { livePublishedGuides } from "@/lib/guides-db";
 
 export const metadata: Metadata = {
   title: "Hướng dẫn săn deal: nhận biết giảm giá ảo, dùng mã giảm giá, chọn thời điểm mua",
@@ -12,9 +13,9 @@ export const dynamic = "force-dynamic";
 
 const vnDate = (d: Date) => d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Asia/Ho_Chi_Minh" });
 
-export default function GuidesIndex() {
+export default async function GuidesIndex() {
   const now = new Date();
-  const list = publishedGuides(now);
+  const list = await livePublishedGuides(now);
   return (
     <>
       <Breadcrumbs items={[{ name: "Hướng dẫn" }]} />

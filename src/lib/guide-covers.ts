@@ -139,12 +139,86 @@ export const GUIDE_COVERS: Record<string, GuideCover> = {
   },
 };
 
-export function coverFor(g: { slug: string }): GuideCover {
-  return (
-    GUIDE_COVERS[g.slug] ?? {
-      kicker: "Hướng dẫn săn deal",
-      scene: { type: "chart", points: [520, 540, 500, 530, 480, 470, 450], badge: "Giảm thật" },
-      points: [],
+const DEFAULT_COVER: GuideCover = {
+  kicker: "Hướng dẫn săn deal",
+  scene: { type: "chart", points: [520, 540, 500, 530, 480, 470, 450], badge: "Giảm thật" },
+  points: [],
+};
+
+/** Ảnh bìa của bài: bài AI soạn mang ảnh bìa riêng (g.cover), bài viết sẵn lấy trong GUIDE_COVERS */
+export function coverFor(g: { slug: string; cover?: GuideCover }): GuideCover {
+  return g.cover ?? GUIDE_COVERS[g.slug] ?? DEFAULT_COVER;
+}
+
+// ---------- Kiểm tra ảnh bìa do AI đề xuất ----------
+
+const str = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/[<>{}]/g, "").replace(/\s+/g, " ").trim() : "").slice(0, max);
+const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : NaN);
+const arr = (v: unknown, max: number) => (Array.isArray(v) ? v.slice(0, max) : []);
+const COLORS = new Set(["#ee4d2d", "#0f146d", "#111111", "#d0021b", "#5b6170"]);
+
+/** Làm sạch cảnh minh hoạ AI đề xuất; sai định dạng thì trả null (dùng cảnh mặc định) */
+export function cleanScene(raw: unknown): CoverScene | null {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  const ok = <T extends CoverScene>(x: T, valid: boolean) => (valid ? x : null);
+  switch (r.type) {
+    case "fakeTag": {
+      const x = { type: "fakeTag" as const, was: str(r.was, 14), now: str(r.now, 14), pct: str(r.pct, 6) };
+      return ok(x, !!(x.was && x.now && x.pct));
     }
-  );
+    case "vouchers": {
+      const items = arr(r.items, 3).map((v) => {
+        const o = v as Record<string, unknown>;
+        return { big: str(o.big, 12), small: str(o.small, 34), tone: (["red", "green", "gold"].includes(o.tone as string) ? o.tone : "red") as "red" | "green" | "gold" };
+      }).filter((v) => v.big && v.small);
+      return ok({ type: "vouchers", items }, items.length >= 2);
+    }
+    case "calendar": {
+      const days = arr(r.days, 4).map((d) => str(d, 6)).filter(Boolean);
+      const hot = str(r.hot, 6);
+      return ok({ type: "calendar", days, hot, note: str(r.note, 46) }, days.length === 4 && days.includes(hot));
+    }
+    case "chart": {
+      const points = arr(r.points, 14).map(num).filter((n) => n > 0);
+      const marks = arr(r.marks, 3).map((m) => ({ at: Math.round(num((m as Record<string, unknown>).at)), label: str((m as Record<string, unknown>).label, 6) })).filter((m) => m.at >= 0 && m.at < points.length && m.label);
+      return ok({ type: "chart", points, marks, badge: str(r.badge, 24) }, points.length >= 5 && !!str(r.badge, 24));
+    }
+    case "compare": {
+      const rows = arr(r.rows, 3).map((v) => {
+        const o = v as Record<string, unknown>;
+        const color = String(o.color ?? "");
+        return { name: str(o.name, 14), color: COLORS.has(color) ? color : "#5b6170", price: str(o.price, 12), ...(str(o.tag, 14) ? { tag: str(o.tag, 14) } : {}) };
+      }).filter((v) => v.name && v.price);
+      return ok({ type: "compare", rows }, rows.length >= 2);
+    }
+    case "shop": {
+      const stars = arr(r.stars, 5).map(num).filter((n) => n >= 0);
+      return ok({ type: "shop", name: str(r.name, 22), rating: str(r.rating, 4), reviews: str(r.reviews, 18), stars }, stars.length === 5 && !!str(r.name, 22) && stars.some((n) => n > 0));
+    }
+    case "reviews": {
+      const items = arr(r.items, 3).map((v) => {
+        const o = v as Record<string, unknown>;
+        const stars = Math.min(5, Math.max(1, Math.round(num(o.stars)) || 5));
+        return { stars, text: str(o.text, 44), ...(str(o.flag, 18) ? { flag: str(o.flag, 18) } : {}) };
+      }).filter((v) => v.text);
+      return ok({ type: "reviews", items }, items.length >= 2);
+    }
+    case "unit": {
+      const items = arr(r.items, 2).map((v) => {
+        const o = v as Record<string, unknown>;
+        return { name: str(o.name, 18), price: str(o.price, 12), unit: str(o.unit, 14), ...(o.best === true ? { best: true } : {}) };
+      }).filter((v) => v.name && v.price && v.unit);
+      return ok({ type: "unit", items }, items.length === 2);
+    }
+    case "flash": {
+      const time = /^\d{2}:\d{2}:\d{2}$/.test(String(r.time)) ? String(r.time) : "01:59:42";
+      const sold = Math.min(98, Math.max(10, Math.round(num(r.sold)) || 80));
+      return ok({ type: "flash", price: str(r.price, 12), was: str(r.was, 12), time, sold }, !!(str(r.price, 12) && str(r.was, 12)));
+    }
+    case "gift": {
+      const items = arr(r.items, 4).map((v) => ({ text: str((v as Record<string, unknown>).text, 34), done: (v as Record<string, unknown>).done === true })).filter((v) => v.text);
+      return ok({ type: "gift", items }, items.length >= 3);
+    }
+  }
+  return null;
 }

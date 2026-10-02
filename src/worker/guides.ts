@@ -5,7 +5,8 @@
 import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { guidePosts } from "@/db/schema";
 import { db, ensureMigrated } from "@/lib/db";
-import { ALL_GUIDES, guidePublishAt, isGuidePublished, type Guide } from "@/lib/guides";
+import { guidePublishAt, isGuidePublished, type Guide } from "@/lib/guides";
+import { scheduleGuides } from "@/lib/guides-db";
 import { siteUrl } from "@/lib/mail";
 import { postFacebookDraft } from "./social";
 
@@ -60,7 +61,7 @@ export async function shareGuide(g: Guide, now = new Date()): Promise<{ ok: bool
 export async function shareDueGuides(now = new Date()): Promise<number> {
   if (!guidesFbEnabled()) return 0;
   await ensureMigrated();
-  const due = ALL_GUIDES.filter((g) => isGuidePublished(g, now) && now.getTime() - guidePublishAt(g).getTime() < 3 * DAY);
+  const due = (await scheduleGuides()).filter((g) => isGuidePublished(g, now) && now.getTime() - guidePublishAt(g).getTime() < 3 * DAY);
   for (const g of due) {
     const rows = await db.select().from(guidePosts).where(and(eq(guidePosts.slug, g.slug), eq(guidePosts.channel, "facebook")));
     if (rows.some((r) => r.externalId)) continue;

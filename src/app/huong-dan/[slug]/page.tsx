@@ -7,7 +7,8 @@ import { DealGrid } from "@/components/DealGrid";
 import { Icon } from "@/components/Icon";
 import { JsonLd } from "@/components/JsonLd";
 import { VoucherTicket } from "@/components/VoucherTicket";
-import { guideBySlug, guidePublishAt, publishedGuides } from "@/lib/guides";
+import { guidePublishAt } from "@/lib/guides";
+import { findGuide, livePublishedGuides } from "@/lib/guides-db";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { siteUrl } from "@/lib/mail";
 import { listActiveVouchers, listDeals } from "@/lib/queries";
@@ -27,9 +28,9 @@ async function canPreview(sp: Props["searchParams"]) {
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const now = new Date();
   const slug = (await params).slug;
-  const g = guideBySlug(slug, now) ?? ((await canPreview(searchParams)) ? guideBySlug(slug, now, true) : undefined);
+  const live = await findGuide(slug, now);
+  const g = live ?? ((await canPreview(searchParams)) ? await findGuide(slug, now, true) : undefined);
   if (!g) return {};
-  const live = guideBySlug(slug, now);
   return {
     title: g.title,
     description: g.description,
@@ -44,9 +45,10 @@ const vnDate = (s: string) => new Date(`${s}T00:00:00+07:00`).toLocaleDateString
 export default async function GuidePage({ params, searchParams }: Props) {
   const now = new Date();
   const slug = (await params).slug;
-  const g = guideBySlug(slug, now) ?? ((await canPreview(searchParams)) ? guideBySlug(slug, now, true) : undefined);
+  const live = await findGuide(slug, now);
+  const g = live ?? ((await canPreview(searchParams)) ? await findGuide(slug, now, true) : undefined);
   if (!g) notFound();
-  const preview = !guideBySlug(slug, now);
+  const preview = !live;
   const [deals, vouchers] = await Promise.all([
     g.related === "deep" ? listDeals({ minDrop: 20, page: 1, pageSize: 8 }) : Promise.resolve(null),
     g.related === "vouchers" ? listActiveVouchers({ limit: 8 }) : Promise.resolve([]),
@@ -72,7 +74,8 @@ export default async function GuidePage({ params, searchParams }: Props) {
       <Breadcrumbs items={[{ name: "Hướng dẫn", href: "/huong-dan" }, { name: g.title }]} />
       {preview && (
         <p className="form-msg" role="status">
-          <Icon name="clock" size={16} /> Bản xem trước cho quản trị viên – bài sẽ tự đăng lúc 8h ngày {vnDate(g.published)}.
+          <Icon name="clock" size={16} />{" "}
+          {g.draft ? "Bài nháp do AI soạn, chưa duyệt – chỉ quản trị viên xem được. Duyệt hoặc bỏ ở trang Quản trị › Hướng dẫn." : <>Bản xem trước cho quản trị viên – bài sẽ tự đăng lúc 8h ngày {vnDate(g.published)}.</>}
         </p>
       )}
       <article className="guide">
@@ -104,7 +107,7 @@ export default async function GuidePage({ params, searchParams }: Props) {
       <section className="section" aria-labelledby="more-head">
         <div className="section-head"><h2 id="more-head">Bài hướng dẫn khác</h2></div>
         <div className="guide-list">
-          {publishedGuides(now).filter((x) => x.slug !== g.slug).slice(0, 6).map((x) => (
+          {(await livePublishedGuides(now)).filter((x) => x.slug !== g.slug).slice(0, 6).map((x) => (
             <Link key={x.slug} href={`/huong-dan/${x.slug}`} className="guide-card"><h2>{x.title}</h2><p>{x.description}</p></Link>
           ))}
         </div>

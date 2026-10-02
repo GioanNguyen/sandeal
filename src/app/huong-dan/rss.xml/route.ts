@@ -1,4 +1,5 @@
-import { guidePublishAt, publishedGuides } from "@/lib/guides";
+import { guidePublishAt } from "@/lib/guides";
+import { livePublishedGuides } from "@/lib/guides-db";
 import { siteUrl } from "@/lib/mail";
 
 export const dynamic = "force-dynamic";
@@ -6,9 +7,9 @@ export const dynamic = "force-dynamic";
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** Nguồn tin RSS các bài hướng dẫn (Google, ứng dụng đọc tin và các công cụ tự đăng bài đọc được) */
-export function GET() {
+export async function GET() {
   const site = siteUrl();
-  const items = publishedGuides()
+  const items = (await livePublishedGuides())
     .slice(0, 30)
     .map((g) => {
       const url = `${site}/huong-dan/${g.slug}`;

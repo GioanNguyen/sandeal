@@ -1,5 +1,5 @@
 import { coverFor } from "@/lib/guide-covers";
-import { guideBySlug } from "@/lib/guides";
+import { findGuide } from "@/lib/guides-db";
 import { siteUrl } from "@/lib/mail";
 import { genericOgImage, guideCoverImage, OG_SIZE } from "@/lib/og";
 
@@ -10,7 +10,7 @@ export const alt = "Hướng dẫn săn deal";
 
 /** Ảnh xem trước khi chia sẻ link bài hướng dẫn */
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
-  const g = guideBySlug((await params).slug);
+  const g = await findGuide((await params).slug);
   if (!g) return genericOgImage("Hướng dẫn săn deal", "Mẹo mua sắm online không bị hớ");
   const c = coverFor(g);
   return guideCoverImage({ title: g.title, ...c, domain: new URL(siteUrl()).host }, "og");

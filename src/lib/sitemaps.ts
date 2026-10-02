@@ -8,7 +8,7 @@ import { COLLECTIONS } from "./collections";
 import { db, ensureMigrated } from "./db";
 import { siteUrl } from "./mail";
 import { roundupDefs } from "./roundups";
-import { publishedGuides } from "./guides";
+import { livePublishedGuides } from "./guides-db";
 import { priceTopics } from "./pricepages";
 import { salePages } from "./salepages";
 import { productPath, slugify } from "./slug";
@@ -101,7 +101,7 @@ export async function sitemapUrls(name: string): Promise<Url[] | null> {
     return [
       ...pages.map(([p, changefreq, priority]) => ({ loc: `${base}${p}`, changefreq, priority })),
       ...COLLECTIONS.map((c) => ({ loc: `${base}/bo-suu-tap/${c.slug}`, changefreq: "daily", priority: 0.7 })),
-      ...publishedGuides().map((g) => ({ loc: `${base}/huong-dan/${g.slug}`, lastmod: new Date(`${g.updated}T00:00:00+07:00`), changefreq: "monthly", priority: 0.6 })),
+      ...(await livePublishedGuides()).map((g) => ({ loc: `${base}/huong-dan/${g.slug}`, lastmod: new Date(`${g.updated}T00:00:00+07:00`), changefreq: "monthly", priority: 0.6 })),
       ...salePages().map((p) => ({ loc: `${base}/sale/${p.slug}`, changefreq: p.state === "past" ? "monthly" : "daily", priority: p.state === "past" ? 0.5 : 0.8 })),
       ...salePages().map((p) => ({ loc: `${base}/nang-gia/${p.slug}`, changefreq: p.state === "past" ? "monthly" : "daily", priority: 0.6 })),
     ];

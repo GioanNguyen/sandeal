@@ -7,6 +7,7 @@ import { imageIndexing, runImageIndex } from "./image-index";
 import { postReel, prepareReels, reelHours, reelsEnabled } from "./reels";
 import { runReviewAi } from "@/lib/reviews/ai";
 import { shareDueGuides } from "./guides";
+import { ensureGuidePipeline, guideAiEnabled } from "./guide-ai";
 import { pruneVitals } from "@/lib/vitals";
 
 const g = globalThis as unknown as { __sanDealCron?: boolean };
@@ -142,6 +143,23 @@ export function startScheduler({ runNow = false } = {}) {
     },
     { timezone: "Asia/Ho_Chi_Minh" },
   );
+
+  // Bài hướng dẫn do AI soạn (khi có ANTHROPIC_API_KEY): thứ Hai 9h15, nếu 3 tuần tới thiếu bài thì soạn 1 bài nháp
+  // và email quản trị viên để duyệt
+  if (guideAiEnabled()) {
+    cron.schedule(
+      "15 9 * * 1",
+      async () => {
+        try {
+          const r = await ensureGuidePipeline();
+          if (r.drafted || r.approved) console.log(`[guide-ai] soạn ${r.drafted} bài nháp, tự duyệt ${r.approved} bài`);
+        } catch (err) {
+          console.error("[guide-ai] lỗi:", (err as Error).message);
+        }
+      },
+      { timezone: "Asia/Ho_Chi_Minh" },
+    );
+  }
 
   // Số đo tốc độ trang: xoá bản ghi quá 60 ngày, mỗi đêm 3h40
   cron.schedule("40 3 * * *", () => void pruneVitals().catch((err) => console.error("[vitals] lỗi dọn dữ liệu:", (err as Error).message)), { timezone: "Asia/Ho_Chi_Minh" });

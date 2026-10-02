@@ -3,6 +3,7 @@ import Link from "next/link";
 import React from "react";
 import type { ReactNode } from "react";
 import { SCHEDULED_GUIDES } from "./guides-lich";
+import type { GuideCover } from "./guide-covers";
 
 /** Bài hướng dẫn mua sắm (nội dung tĩnh, mỗi bài gắn deal thật ở cuối trang) */
 export interface Guide {
@@ -14,6 +15,12 @@ export interface Guide {
   /** Loại deal gắn cuối bài */
   related: "deep" | "vouchers" | "sales";
   body: ReactNode;
+  /** Ảnh bìa riêng (bài do AI soạn); bài viết sẵn lấy trong guide-covers.ts */
+  cover?: GuideCover;
+  /** Bài do AI soạn (id trong bảng ai_guides) */
+  aiId?: number;
+  /** Bài nháp AI chưa được duyệt (chỉ quản trị viên xem trước) */
+  draft?: boolean;
 }
 
 const BASE_GUIDES: Guide[] = [
