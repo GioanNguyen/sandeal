@@ -1,7 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { ImageResponse } from "next/og";
+// JSX ở đây cũng chạy ngoài Next (kiểm thử bằng tsx): cần React trong phạm vi
+import React from "react";
 import { PLATFORMS, vnd } from "./format";
+import type { CoverScene } from "./guide-covers";
 
 export const OG_SIZE = { width: 1200, height: 630 };
 /** Mỗi bộ ký tự là một font riêng, liệt kê theo thứ tự để chữ nào thiếu thì lấy ở font sau */
@@ -41,11 +44,30 @@ async function imageData(url: string | null | undefined): Promise<string | null>
 
 const C = { bg: "#fff7f2", text: "#1c1a19", muted: "#5b6170", primary: "#d0390f", save: "#047857", saveSoft: "#dcfce7", border: "#f1e3da" };
 
+/** Ngọn lửa trong logo (cùng nét với icon "flame" ở đầu trang web) */
+const FLAME = "M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-1.5.5-2.5 1.5-3.5C10 10 11 8 12 3Z M9.5 17.5A2.5 2.5 0 0 0 12 20a2.5 2.5 0 0 0 2.5-2.5c0-1.5-1-2.5-2.5-4-1.5 1.5-2.5 2.5-2.5 4Z";
+
+/**
+ * Logo Săn Deal giống đầu trang web: ô vuông bo góc nền cam chuyển màu, ngọn lửa nét trắng (tỉ lệ như trên web:
+ * ô 32px, bo 10px, lửa 18px). onOrange: đặt trên nền cam thì đổi thành ô trắng, lửa cam để không chìm vào nền.
+ */
+function LogoMark({ size, onOrange = false }: { size: number; onOrange?: boolean }) {
+  const r = Math.round((size * 10) / 32);
+  const icon = Math.round((size * 18) / 32);
+  return (
+    <div style={{ width: size, height: size, flex: "none", borderRadius: r, display: "flex", alignItems: "center", justifyContent: "center", ...(onOrange ? { backgroundColor: "#ffffff" } : { backgroundImage: "linear-gradient(120deg, #e8491d 0%, #f26b1d 55%, #ffa41b 100%)" }) }}>
+      <svg width={icon} height={icon} viewBox="0 0 24 24" fill="none" stroke={onOrange ? "#d0390f" : "#ffffff"} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <path d={FLAME} />
+      </svg>
+    </div>
+  );
+}
+
 function Brand() {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-      <div style={{ width: 52, height: 52, borderRadius: 14, background: "linear-gradient(120deg,#e8491d,#ffa41b)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 30, fontWeight: 800 }}>S</div>
-      <div style={{ display: "flex", fontSize: 30, fontWeight: 800, color: C.text }}>Săn Deal</div>
+      <LogoMark size={52} />
+      <div style={{ display: "flex", fontSize: 30, fontWeight: 800, color: C.text, letterSpacing: -0.6 }}>Săn Deal</div>
     </div>
   );
 }
@@ -140,8 +162,8 @@ export async function genericOgImage(title: string, subtitle: string) {
     (
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: 64, fontFamily: FAMILY, background: "linear-gradient(120deg,#e8491d 0%,#f26b1d 55%,#ffa41b 100%)", color: "#fff" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ width: 64, height: 64, borderRadius: 18, background: "rgba(255,255,255,0.22)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 38, fontWeight: 800 }}>S</div>
-          <div style={{ display: "flex", fontSize: 38, fontWeight: 800 }}>Săn Deal</div>
+          <LogoMark size={64} onOrange />
+          <div style={{ display: "flex", fontSize: 38, fontWeight: 800, letterSpacing: -0.8 }}>Săn Deal</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <div style={{ display: "flex", fontSize: 70, fontWeight: 800, lineHeight: 1.1 }}>{title}</div>
@@ -346,8 +368,8 @@ export async function storyImage(o: { headline: string; items: StoryItem[]; hide
     (
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", fontFamily: FAMILY, background: "linear-gradient(170deg,#e8491d 0%,#f26b1d 45%,#ffa41b 100%)", padding: "220px 64px 230px", gap: 36 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          <div style={{ width: 72, height: 72, borderRadius: 20, background: "rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 42, fontWeight: 800 }}>S</div>
-          <div style={{ display: "flex", fontSize: 42, fontWeight: 800, color: "#fff" }}>Săn Deal</div>
+          <LogoMark size={72} onOrange />
+          <div style={{ display: "flex", fontSize: 42, fontWeight: 800, color: "#fff", letterSpacing: -0.8 }}>Săn Deal</div>
         </div>
         <div style={{ display: "flex", fontSize: 76, fontWeight: 800, color: "#fff", lineHeight: 1.08 }}>{o.headline}</div>
 
@@ -435,8 +457,8 @@ const GRAD = "linear-gradient(170deg,#e8491d 0%,#f26b1d 45%,#ffa41b 100%)";
 function ReelBrand({ light }: { light: boolean }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-      <div style={{ width: 72, height: 72, borderRadius: 20, background: light ? "rgba(255,255,255,0.25)" : C.primary, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 42, fontWeight: 800 }}>S</div>
-      <div style={{ display: "flex", fontSize: 42, fontWeight: 800, color: light ? "#fff" : C.text }}>Săn Deal</div>
+      <LogoMark size={72} onOrange={light} />
+      <div style={{ display: "flex", fontSize: 42, fontWeight: 800, color: light ? "#fff" : C.text, letterSpacing: -0.8 }}>Săn Deal</div>
     </div>
   );
 }
@@ -542,4 +564,356 @@ export async function reelFrame(scene: 1 | 2 | 3, o: ReelFrameData) {
     );
   }
   return new ImageResponse(body, { ...STORY_SIZE, fonts: await fonts() });
+}
+
+// ---------- Ảnh bìa bài hướng dẫn ----------
+
+/** Bảng màu ảnh bìa: nền sáng ấm như web, chữ mực tối, cam thương hiệu chỉ dùng cho điểm nhấn */
+const K = {
+  paper: "#fff7f2",
+  ink: "#1c1a19",
+  soft: "#5b6170",
+  line: "#f1e3da",
+  brand: "#d0390f",
+  brandSoft: "#ffe6dc",
+  green: "#047857",
+  greenSoft: "#dcfce7",
+  gold: "#b45309",
+  goldSoft: "#fef3c7",
+  card: "#ffffff",
+};
+const SHADOW = "0 18px 40px rgba(120,45,10,0.16), 0 3px 8px rgba(120,45,10,0.08)";
+/** Thư viện vẽ ảnh không nhận transform rỗng: chỉ thêm khi có góc nghiêng */
+const tilt = (deg: number | undefined, extra = "") => (deg || extra ? { transform: `${deg ? `rotate(${deg}deg)` : ""} ${extra}`.trim() } : {});
+
+/** Thẻ trắng nghiêng nhẹ như ảnh chụp/thẻ giấy đặt trên bàn */
+function Card({ children, z, w, rotate = 0, pad = 30, style = {} }: { children: React.ReactNode; z: (n: number) => number; w: number; rotate?: number; pad?: number; style?: React.CSSProperties }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", width: z(w), padding: z(pad), background: K.card, borderRadius: z(28), boxShadow: SHADOW, ...tilt(rotate), ...style }}>
+      {children}
+    </div>
+  );
+}
+
+function Stars({ n, z, size = 26 }: { n: number; z: (n: number) => number; size?: number }) {
+  return (
+    <div style={{ display: "flex", gap: z(4) }}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <svg key={i} width={z(size)} height={z(size)} viewBox="0 0 24 24" fill={i <= n ? "#f5a623" : "#e8dcd3"}>
+          <path d="m12 2.5 2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5-4.8-4.6 6.6-.9Z" />
+        </svg>
+      ))}
+    </div>
+  );
+}
+
+/** Cảnh minh hoạ theo chủ đề bài. Kích thước gốc 860×560, nhân hệ số k để thu nhỏ cho ảnh ngang */
+function CoverSceneView({ scene, k }: { scene: CoverScene; k: number }) {
+  const z = (n: number) => Math.round(n * k);
+  switch (scene.type) {
+    case "fakeTag":
+      return (
+        <div style={{ display: "flex", position: "relative", width: z(860), height: z(560), alignItems: "center", justifyContent: "center" }}>
+          <Card z={z} w={560} rotate={-3} pad={40}>
+            <div style={{ display: "flex", fontSize: z(26), fontWeight: 700, color: K.soft }}>Giá gốc do shop ghi</div>
+            <div style={{ display: "flex", fontSize: z(52), fontWeight: 800, color: K.soft, textDecoration: "line-through", marginTop: z(4), whiteSpace: "nowrap" }}>{scene.was}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: z(18), marginTop: z(18) }}>
+              <div style={{ display: "flex", fontSize: z(84), fontWeight: 800, color: K.brand, letterSpacing: -2, whiteSpace: "nowrap" }}>{scene.now}</div>
+            </div>
+            <div style={{ display: "flex", height: z(2), background: K.line, margin: `${z(22)}px 0` }} />
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: z(12) }}>
+              <div style={{ display: "flex", fontSize: z(28), fontWeight: 700, color: K.ink, whiteSpace: "nowrap" }}>30 ngày qua chỉ bán 339K – 359K</div>
+              <div style={{ display: "flex", padding: `${z(8)}px ${z(16)}px`, borderRadius: z(12), background: K.goldSoft, color: K.gold, fontSize: z(24), fontWeight: 800, whiteSpace: "nowrap" }}>Giảm thật ≈ 0%</div>
+            </div>
+          </Card>
+          <div style={{ position: "absolute", right: z(70), top: z(36), display: "flex", alignItems: "center", justifyContent: "center", width: z(190), height: z(190), borderRadius: 999, background: K.brand, color: "#fff", fontSize: z(58), fontWeight: 800, transform: "rotate(12deg)", boxShadow: SHADOW }}>
+            {scene.pct}
+          </div>
+        </div>
+      );
+    case "vouchers":
+      return (
+        <div style={{ display: "flex", flexDirection: "column", width: z(860), height: z(560), alignItems: "center", justifyContent: "center", gap: z(18) }}>
+          {scene.items.map((v, i) => {
+            const c = v.tone === "red" ? [K.brand, K.brandSoft] : v.tone === "green" ? [K.green, K.greenSoft] : [K.gold, K.goldSoft];
+            return (
+              <div key={i} style={{ display: "flex", width: z(680), height: z(150), background: K.card, borderRadius: z(22), boxShadow: SHADOW, transform: `rotate(${[-2, 1.5, -1][i] ?? 0}deg)`, marginLeft: z([0, 70, 20][i] ?? 0) }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: z(190), background: c[0], color: "#fff", fontSize: z(30), fontWeight: 800, borderRadius: `${z(22)}px 0 0 ${z(22)}px` }}>Mã</div>
+                <div style={{ display: "flex", width: 0, borderLeft: `${z(4)}px dashed ${c[1]}` }} />
+                <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: `0 ${z(30)}px`, gap: z(6) }}>
+                  <div style={{ display: "flex", fontSize: z(48), fontWeight: 800, color: c[0] }}>{v.big}</div>
+                  <div style={{ display: "flex", fontSize: z(26), fontWeight: 700, color: K.soft }}>{v.small}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    case "calendar":
+      return (
+        <div style={{ display: "flex", width: z(860), height: z(560), alignItems: "center", justifyContent: "center" }}>
+          <Card z={z} w={720} rotate={-2} pad={36}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", fontSize: z(34), fontWeight: 800, color: K.ink }}>Lịch sale</div>
+              <div style={{ display: "flex", fontSize: z(24), fontWeight: 700, color: K.soft }}>Shopee · Lazada · TikTok</div>
+            </div>
+            <div style={{ display: "flex", gap: z(16), marginTop: z(26) }}>
+              {scene.days.map((d) => {
+                const hot = d === scene.hot;
+                return (
+                  <div key={d} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: z(150), height: z(190), borderRadius: z(22), background: hot ? K.brand : K.paper, color: hot ? "#fff" : K.ink, border: hot ? "none" : `${z(3)}px solid ${K.line}`, ...(hot ? { ...tilt(3, "scale(1.06)"), boxShadow: SHADOW } : {}) }}>
+                    <div style={{ display: "flex", fontSize: z(22), fontWeight: 700, opacity: 0.85 }}>{hot ? "Sắp tới" : "Ngày"}</div>
+                    <div style={{ display: "flex", fontSize: z(50), fontWeight: 800, marginTop: z(6) }}>{d}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", fontSize: z(26), fontWeight: 700, color: K.soft, marginTop: z(26) }}>{scene.note}</div>
+          </Card>
+        </div>
+      );
+    case "chart": {
+      const W = 640, H = 230;
+      const lo = Math.min(...scene.points), hi = Math.max(...scene.points);
+      const x = (i: number) => (i / (scene.points.length - 1)) * W;
+      const y = (v: number) => 14 + (1 - (v - lo) / Math.max(1, hi - lo)) * (H - 28);
+      let d = `M${x(0)},${y(scene.points[0])}`;
+      scene.points.forEach((v, i) => { if (i) d += ` H${x(i)} V${y(v)}`; });
+      const sorted = [...scene.points].sort((a, b) => a - b);
+      const usual = sorted[Math.floor(sorted.length / 2)];
+      const last = scene.points.length - 1;
+      return (
+        <div style={{ display: "flex", position: "relative", width: z(860), height: z(560), alignItems: "center", justifyContent: "center" }}>
+          <Card z={z} w={740} rotate={-1.5} pad={34}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <div style={{ display: "flex", fontSize: z(32), fontWeight: 800, color: K.ink }}>Lịch sử giá 90 ngày</div>
+              <div style={{ display: "flex", fontSize: z(24), fontWeight: 700, color: K.soft }}>Săn Deal</div>
+            </div>
+            <svg width={z(W + 8)} height={z(H)} viewBox={`-4 0 ${W + 8} ${H}`} style={{ marginTop: z(18) }}>
+              <line x1="0" x2={W} y1={y(usual)} y2={y(usual)} stroke="#c9b8ad" strokeWidth="3" strokeDasharray="10 9" />
+              {(scene.marks ?? []).map((m) => (
+                <rect key={m.label} x={x(m.at) - 18} y="0" width="36" height={H} fill={K.brandSoft} />
+              ))}
+              <path d={d} fill="none" stroke={K.brand} strokeWidth="6" strokeLinejoin="round" strokeLinecap="round" />
+              <circle cx={x(last)} cy={y(scene.points[last])} r="13" fill={K.brand} stroke="#fff" strokeWidth="5" />
+            </svg>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: z(14), fontSize: z(22), fontWeight: 700, color: K.soft }}>
+              <div style={{ display: "flex" }}>Đường đứt: giá thường ngày</div>
+              <div style={{ display: "flex", gap: z(14) }}>{(scene.marks ?? []).map((m) => <span key={m.label} style={{ color: K.brand }}>{m.label}</span>)}</div>
+            </div>
+          </Card>
+          <div style={{ position: "absolute", right: z(40), top: z(14), display: "flex", padding: `${z(14)}px ${z(24)}px`, borderRadius: z(16), background: K.greenSoft, color: K.green, fontSize: z(30), fontWeight: 800, transform: "rotate(5deg)", boxShadow: SHADOW }}>
+            {scene.badge}
+          </div>
+        </div>
+      );
+    }
+    case "compare":
+      return (
+        <div style={{ display: "flex", width: z(860), height: z(560), alignItems: "center", justifyContent: "center" }}>
+          <Card z={z} w={760} rotate={-1.5} pad={30}>
+            {scene.rows.map((r, i) => (
+              <div key={r.name} style={{ display: "flex", alignItems: "center", gap: z(20), padding: `${z(22)}px 0`, borderTop: i ? `${z(2)}px solid ${K.line}` : "none" }}>
+                <div style={{ display: "flex", width: z(22), height: z(22), borderRadius: 999, background: r.color }} />
+                <div style={{ display: "flex", flex: 1, fontSize: z(34), fontWeight: 800, color: K.ink, whiteSpace: "nowrap" }}>{r.name}</div>
+                {r.tag && (
+                  <div style={{ display: "flex", fontSize: z(21), fontWeight: 800, padding: `${z(6)}px ${z(14)}px`, borderRadius: 999, background: i === 0 ? K.greenSoft : K.goldSoft, color: i === 0 ? K.green : K.gold, whiteSpace: "nowrap" }}>{r.tag}</div>
+                )}
+                <div style={{ display: "flex", fontSize: z(38), fontWeight: 800, color: i === 0 ? K.brand : K.ink, minWidth: z(210), justifyContent: "flex-end", whiteSpace: "nowrap" }}>{r.price}</div>
+              </div>
+            ))}
+          </Card>
+        </div>
+      );
+    case "shop": {
+      const total = scene.stars.reduce((a, b) => a + b, 0);
+      return (
+        <div style={{ display: "flex", width: z(860), height: z(560), alignItems: "center", justifyContent: "center" }}>
+          <Card z={z} w={700} rotate={-2} pad={36}>
+            <div style={{ display: "flex", alignItems: "center", gap: z(22) }}>
+              <div style={{ display: "flex", width: z(92), height: z(92), borderRadius: 999, background: K.brandSoft, color: K.brand, alignItems: "center", justifyContent: "center", fontSize: z(44), fontWeight: 800 }}>{scene.name.charAt(5)}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: z(6) }}>
+                <div style={{ display: "flex", fontSize: z(36), fontWeight: 800, color: K.ink }}>{scene.name}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: z(12), fontSize: z(26), fontWeight: 700, color: K.soft }}>
+                  <span style={{ color: K.ink }}>{scene.rating}</span>
+                  <Stars n={5} z={z} />
+                  <span>{scene.reviews}</span>
+                </div>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: z(12), marginTop: z(30) }}>
+              {[5, 4, 3, 2, 1].map((st) => {
+                const pct = Math.round((scene.stars[5 - st] / total) * 100);
+                const bad = st <= 2;
+                return (
+                  <div key={st} style={{ display: "flex", alignItems: "center", gap: z(16), fontSize: z(24), fontWeight: 700, color: bad ? K.brand : K.soft }}>
+                    <div style={{ display: "flex", width: z(40) }}>{st}★</div>
+                    <div style={{ display: "flex", flex: 1, height: z(18), borderRadius: 999, background: K.paper }}>
+                      <div style={{ display: "flex", width: `${Math.max(2, pct)}%`, height: "100%", borderRadius: 999, background: bad ? K.brand : "#f5a623" }} />
+                    </div>
+                    <div style={{ display: "flex", width: z(64), justifyContent: "flex-end" }}>{pct}%</div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+      );
+    }
+    case "reviews":
+      return (
+        <div style={{ display: "flex", flexDirection: "column", width: z(860), height: z(560), alignItems: "center", justifyContent: "center", gap: z(18) }}>
+          {scene.items.map((r, i) => (
+            <div key={i} style={{ display: "flex", flexDirection: "column", gap: z(10), width: z(700), padding: `${z(22)}px ${z(28)}px`, background: K.card, borderRadius: z(24), boxShadow: SHADOW, transform: `rotate(${[-2, 1.5, -1][i] ?? 0}deg)`, marginLeft: z([0, 80, 30][i] ?? 0) }}>
+              <div style={{ display: "flex", alignItems: "center", gap: z(14) }}>
+                <Stars n={r.stars} z={z} size={24} />
+                {r.flag && <div style={{ display: "flex", fontSize: z(20), fontWeight: 800, padding: `${z(4)}px ${z(12)}px`, borderRadius: 999, background: K.goldSoft, color: K.gold }}>{r.flag}</div>}
+              </div>
+              <div style={{ display: "flex", fontSize: z(30), fontWeight: 700, color: K.ink }}>{r.text}</div>
+            </div>
+          ))}
+        </div>
+      );
+    case "unit":
+      return (
+        <div style={{ display: "flex", width: z(860), height: z(560), alignItems: "center", justifyContent: "center", gap: z(26) }}>
+          {scene.items.map((u, i) => (
+            <div key={u.name} style={{ display: "flex", flexDirection: "column", width: z(360), padding: z(30), background: K.card, borderRadius: z(26), boxShadow: SHADOW, transform: `rotate(${i ? 2.5 : -2.5}deg)`, border: u.best ? `${z(4)}px solid ${K.green}` : `${z(4)}px solid transparent` }}>
+              <div style={{ display: "flex", fontSize: z(28), fontWeight: 800, color: K.ink }}>{u.name}</div>
+              <div style={{ display: "flex", fontSize: z(44), fontWeight: 800, color: K.ink, marginTop: z(12), whiteSpace: "nowrap" }}>{u.price}</div>
+              <div style={{ display: "flex", height: z(2), background: K.line, margin: `${z(18)}px 0` }} />
+              <div style={{ display: "flex", fontSize: z(22), fontWeight: 700, color: K.soft }}>Tính theo kg</div>
+              <div style={{ display: "flex", fontSize: z(38), fontWeight: 800, color: u.best ? K.green : K.soft, marginTop: z(4), whiteSpace: "nowrap" }}>{u.unit}</div>
+              {u.best && <div style={{ display: "flex", alignSelf: "flex-start", marginTop: z(14), fontSize: z(22), fontWeight: 800, padding: `${z(6)}px ${z(14)}px`, borderRadius: 999, background: K.greenSoft, color: K.green }}>Rẻ hơn</div>}
+            </div>
+          ))}
+        </div>
+      );
+    case "flash":
+      return (
+        <div style={{ display: "flex", width: z(860), height: z(560), alignItems: "center", justifyContent: "center" }}>
+          <Card z={z} w={720} rotate={-2} pad={34}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", fontSize: z(36), fontWeight: 800, color: K.brand }}>Flash sale</div>
+              <div style={{ display: "flex", gap: z(8) }}>
+                {scene.time.split(":").map((t, i) => (
+                  <div key={i} style={{ display: "flex", padding: `${z(6)}px ${z(12)}px`, borderRadius: z(10), background: K.ink, color: "#fff", fontSize: z(34), fontWeight: 800 }}>{t}</div>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: z(18), marginTop: z(26) }}>
+              <div style={{ display: "flex", fontSize: z(76), fontWeight: 800, color: K.brand, letterSpacing: -2, whiteSpace: "nowrap" }}>{scene.price}</div>
+              <div style={{ display: "flex", fontSize: z(32), fontWeight: 700, color: K.soft, textDecoration: "line-through", whiteSpace: "nowrap" }}>{scene.was}</div>
+            </div>
+            <div style={{ display: "flex", height: z(30), borderRadius: 999, background: K.brandSoft, marginTop: z(20) }}>
+              <div style={{ display: "flex", width: `${scene.sold}%`, height: "100%", borderRadius: 999, background: "linear-gradient(90deg,#f26b1d,#d0390f)", alignItems: "center", paddingLeft: z(16), color: "#fff", fontSize: z(20), fontWeight: 800 }}>Sắp hết</div>
+            </div>
+            <div style={{ display: "flex", fontSize: z(26), fontWeight: 700, color: K.ink, marginTop: z(22) }}>Thường ngày bán bao nhiêu?</div>
+          </Card>
+        </div>
+      );
+    case "gift":
+      return (
+        <div style={{ display: "flex", width: z(860), height: z(560), alignItems: "center", justifyContent: "center" }}>
+          <Card z={z} w={660} rotate={-2} pad={36}>
+            <div style={{ display: "flex", fontSize: z(34), fontWeight: 800, color: K.ink }}>Danh sách quà</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: z(18), marginTop: z(24) }}>
+              {scene.items.map((t) => (
+                <div key={t.text} style={{ display: "flex", alignItems: "center", gap: z(18) }}>
+                  <div style={{ display: "flex", width: z(40), height: z(40), borderRadius: z(10), alignItems: "center", justifyContent: "center", background: t.done ? K.green : K.card, border: t.done ? "none" : `${z(3)}px solid #d9c8bd` }}>
+                    {t.done && (
+                      <svg width={z(26)} height={z(26)} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5 9-10" /></svg>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", fontSize: z(30), fontWeight: 700, color: t.done ? K.soft : K.ink, textDecoration: t.done ? "line-through" : "none" }}>{t.text}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      );
+  }
+}
+
+export interface GuideCoverData {
+  title: string;
+  kicker: string;
+  scene: CoverScene;
+  points: string[];
+  domain: string;
+}
+
+/** Nền: giấy sáng ấm có hai quầng sáng cam/vàng nhạt, như ánh nắng trên bàn – không phải mảng màu phẳng */
+const COVER_BG = {
+  backgroundColor: K.paper,
+  backgroundImage: "radial-gradient(circle at 85% 12%, rgba(255,164,27,0.30) 0%, rgba(255,247,242,0) 42%), radial-gradient(circle at 10% 60%, rgba(242,107,29,0.16) 0%, rgba(255,247,242,0) 45%)",
+};
+const titleSize = (t: string, big: number) => (t.length <= 45 ? big : t.length <= 70 ? Math.round(big * 0.86) : Math.round(big * 0.76));
+
+function CoverBrand({ z }: { z: (n: number) => number }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: z(12) }}>
+      <LogoMark size={z(50)} />
+      <div style={{ display: "flex", fontSize: z(30), fontWeight: 800, color: K.ink, letterSpacing: -0.6 }}>Săn Deal</div>
+    </div>
+  );
+}
+
+/**
+ * Ảnh bìa bài hướng dẫn.
+ * "fb": ảnh dọc 4:5 (1080×1350) đăng bài ảnh lên Trang: cảnh minh hoạ, tiêu đề, 3 ý chính.
+ * "og": ảnh ngang 1200×630 cho ô xem trước khi chia sẻ link (Facebook, Zalo, Messenger).
+ */
+export async function guideCoverImage(o: GuideCoverData, kind: "fb" | "og") {
+  if (kind === "og") {
+    const z = (n: number) => Math.round(n * 0.9);
+    return new ImageResponse(
+      (
+        <div style={{ width: "100%", height: "100%", display: "flex", fontFamily: FAMILY, ...COVER_BG, padding: "52px 0 52px 60px" }}>
+          <div style={{ width: 560, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <CoverBrand z={z} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "flex", fontSize: 26, fontWeight: 800, color: K.brand }}>{o.kicker}</div>
+              <div style={{ display: "flex", fontSize: titleSize(o.title, 54), fontWeight: 800, lineHeight: 1.12, color: K.ink, letterSpacing: -1 }}>{o.title}</div>
+            </div>
+            <div style={{ display: "flex", fontSize: 22, fontWeight: 700, color: K.soft }}>Hướng dẫn săn deal – {o.domain}</div>
+          </div>
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <CoverSceneView scene={o.scene} k={0.62} />
+          </div>
+        </div>
+      ),
+      { ...OG_SIZE, fonts: await fonts() },
+    );
+  }
+  const z = (n: number) => n;
+  const points = o.points.slice(0, 3);
+  return new ImageResponse(
+    (
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", fontFamily: FAMILY, ...COVER_BG, padding: "64px 76px 60px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <CoverBrand z={z} />
+          <div style={{ display: "flex", fontSize: 26, fontWeight: 700, color: K.soft }}>{o.domain}</div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", marginTop: 26, marginLeft: -66 }}>
+          <CoverSceneView scene={o.scene} k={1} />
+        </div>
+        <div style={{ display: "flex", fontSize: 30, fontWeight: 800, color: K.brand, marginTop: 14 }}>{o.kicker}</div>
+        <div style={{ display: "flex", fontSize: titleSize(o.title, 72), fontWeight: 800, lineHeight: 1.1, color: K.ink, letterSpacing: -1.5, marginTop: 10 }}>{o.title}</div>
+        <div style={{ flex: 1, display: "flex" }} />
+        {points.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {points.map((t, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <svg width={34} height={34} viewBox="0 0 24 24" fill="none" stroke={K.brand} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5 9-10" /></svg>
+                <div style={{ display: "flex", fontSize: 32, fontWeight: 700, color: K.ink }}>{t}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ display: "flex", alignSelf: "flex-start", marginTop: 30, fontSize: 28, fontWeight: 800, color: "#fff", background: K.brand, padding: "16px 30px", borderRadius: 999 }}>Đọc bài đầy đủ ở bình luận</div>
+      </div>
+    ),
+    { width: 1080, height: 1350, fonts: await fonts() },
+  );
 }

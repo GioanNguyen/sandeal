@@ -148,37 +148,72 @@ test("lịch bài hướng dẫn: bài tự hiện lúc 8h ngày đăng, đều 
   for (const x of ALL_GUIDES) assert.ok(x.description.length >= 70 && x.description.length <= 200, `mô tả ${x.slug}: ${x.description.length} ký tự`);
 });
 
-test("đăng bài hướng dẫn lên Facebook: đúng bài vừa tới ngày, mỗi bài 1 lần, thử lại khi lỗi", async () => {
+test("đăng bài hướng dẫn lên Facebook: bài ảnh có ảnh bìa, link ở bình luận đầu, mỗi bài 1 lần, thử lại khi lỗi", async () => {
   process.env.FB_PAGE_ID = "123";
   process.env.FB_PAGE_TOKEN = "tok";
   const calls: { url: string; body: Record<string, string> }[] = [];
-  let fail = true;
+  let fail: "all" | "comment" | null = "all";
   const orig = globalThis.fetch;
   globalThis.fetch = (async (url: string, init?: { body?: string }) => {
     calls.push({ url: String(url), body: JSON.parse(init?.body ?? "{}") });
-    if (fail) return new Response(JSON.stringify({ error: { message: "Token hết hạn" } }), { status: 400 });
-    return new Response(JSON.stringify({ id: "123_999" }), { status: 200 });
+    const isComment = String(url).endsWith("/comments");
+    if (fail === "all" || (fail === "comment" && isComment)) return new Response(JSON.stringify({ error: { message: "Token hết hạn" } }), { status: 400 });
+    return new Response(JSON.stringify(isComment ? { id: "c1" } : { id: "999", post_id: "123_999" }), { status: 200 });
   }) as typeof fetch;
   try {
     const at = new Date("2026-10-13T01:30:00Z"); // 8h30 ngày đăng bài "sàn nào rẻ hơn"
     assert.equal(await guidesW.shareDueGuides(at), 0, "lỗi lần đầu");
-    fail = false;
+    fail = null;
     assert.equal(await guidesW.shareDueGuides(at), 1);
     assert.equal(await guidesW.shareDueGuides(at), 0, "không đăng lại bài đã đăng");
-    const last = calls.at(-1)!;
-    assert.match(last.url, /\/123\/feed$/);
-    assert.equal(last.body.link, "https://sandealgiare.com/huong-dan/shopee-lazada-tiktok-shop-san-nao-re-hon");
-    assert.match(last.body.message, /Shopee, Lazada hay TikTok Shop/);
+    const photo = calls.at(-2)!;
+    const comment = calls.at(-1)!;
+    assert.match(photo.url, /\/123\/photos$/, "đăng bài ảnh");
+    assert.equal(photo.body.url, "https://sandealgiare.com/huong-dan/shopee-lazada-tiktok-shop-san-nao-re-hon/anh-bia");
+    assert.match(photo.body.caption, /Shopee, Lazada hay TikTok Shop/);
+    assert.doesNotMatch(photo.body.caption, /https?:\/\//, "thân bài không có link");
+    assert.match(comment.url, /\/123_999\/comments$/);
+    assert.match(comment.body.message, /https:\/\/sandealgiare\.com\/huong-dan\/shopee-lazada-tiktok-shop-san-nao-re-hon/);
     // Bài cũ hơn 3 ngày và bài chưa tới ngày: không tự đăng
     const n = calls.length;
     assert.equal(await guidesW.shareDueGuides(new Date("2026-10-19T01:30:00Z")), 0);
     assert.equal(calls.length, n);
     const st = await guidesW.guideShareStatus();
     assert.equal(st.get("shopee-lazada-tiktok-shop-san-nao-re-hon")?.externalId, "123_999");
+
+    // Ảnh đã lên nhưng bình luận lỗi: coi là đã đăng, không đăng trùng lần sau, có ghi chú
+    fail = "comment";
+    const at2 = new Date("2026-10-20T01:30:00Z");
+    assert.equal(await guidesW.shareDueGuides(at2), 1);
+    const m = calls.length;
+    assert.equal(await guidesW.shareDueGuides(at2), 0);
+    assert.equal(calls.length, m, "không đăng lại ảnh");
+    const s2 = (await guidesW.guideShareStatus()).get("cach-kiem-tra-shop-uy-tin");
+    assert.equal(s2?.externalId, "123_999");
+    assert.match(s2?.error ?? "", /bình luận/);
   } finally {
     globalThis.fetch = orig;
     delete process.env.FB_PAGE_ID;
     delete process.env.FB_PAGE_TOKEN;
+  }
+});
+
+test("ảnh bìa: mọi bài có nhãn, hình và 3 ý ngắn; vẽ được ảnh dọc 4:5 và ảnh ngang", async () => {
+  const { coverFor, GUIDE_COVERS } = await import("./guide-covers");
+  const { guideCoverImage } = await import("./og");
+  for (const g of ALL_GUIDES) {
+    assert.ok(GUIDE_COVERS[g.slug], `thiếu ảnh bìa: ${g.slug}`);
+    const c = coverFor(g);
+    assert.equal(c.points.length, 3, g.slug);
+    for (const t of c.points) assert.ok(t.length <= 42, `ý quá dài (${t.length}): ${t}`);
+  }
+  assert.ok(Object.keys(GUIDE_COVERS).every((k) => ALL_GUIDES.some((g) => g.slug === k)), "không có ảnh bìa thừa");
+  const longest = [...ALL_GUIDES].sort((a, b) => b.title.length - a.title.length)[0];
+  const c = coverFor(longest);
+  for (const [kind, w, h] of [["fb", 1080, 1350], ["og", 1200, 630]] as const) {
+    const buf = Buffer.from(await (await guideCoverImage({ title: longest.title, ...c, domain: "sandealgiare.com" }, kind)).arrayBuffer());
+    assert.equal(buf.subarray(1, 4).toString(), "PNG");
+    assert.deepEqual([buf.readUInt32BE(16), buf.readUInt32BE(20)], [w, h]);
   }
 });
 

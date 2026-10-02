@@ -1800,3 +1800,5 @@ html[data-theme="dark"] .rv-pc-h.bad { color: #fb7185; }
 .vt-slow .vs { margin-left: 8px; }
 .vt-legend { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; font-size: 14px; line-height: 1.55; }
 .guide-share { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.guide-thumb { display: block; width: 48px; height: 60px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--surface-2); }
+.guide-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
