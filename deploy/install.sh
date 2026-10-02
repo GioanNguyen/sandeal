@@ -55,7 +55,7 @@ command -v curl >/dev/null || pkg_install curl
 command -v openssl >/dev/null || pkg_install openssl
 command -v ss >/dev/null || pkg_install iproute2 2>/dev/null || pkg_install iproute || true
 # ffmpeg: dựng video Reels tự động (không có thì web vẫn chạy, chỉ tắt phần Reels)
-command -v ffmpeg >/dev/null || pkg_install ffmpeg >/dev/null 2>&1 || warn "Không cài được ffmpeg – Reels tự động sẽ tạm tắt (cài tay rồi khởi động lại dịch vụ)"
+command -v ffmpeg >/dev/null || pkg_install ffmpeg >/dev/null 2>&1 || warn "Không cài được ffmpeg – Reels tự động sẽ tạm tắt. Cài tay theo deploy/DEPLOY.md (mục Xử lý sự cố); AlmaLinux/Rocky cần thêm kho EPEL + RPM Fusion"
 
 rand() { local s; s=$(openssl rand -base64 96 | tr -dc 'A-Za-z0-9'); echo "${s:0:${1:-32}}"; }
 port_busy() { ss -ltnH "( sport = :$1 )" 2>/dev/null | grep -q .; }

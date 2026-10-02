@@ -139,7 +139,7 @@ export default async function SocialAdmin({ searchParams }: { searchParams: Prom
         <h2><Icon name="sparkles" /> Reels (video dọc)</h2>
         <p className="muted" style={{ margin: "0 0 12px" }}>
           {!ffmpeg
-            ? "Máy chủ chưa có ffmpeg nên chưa dựng được video. Cài bằng: sudo apt install ffmpeg (hoặc chạy lại install.sh)."
+            ? "Máy chủ chưa có ffmpeg nên chưa dựng được video. Ubuntu/Debian: sudo apt update && sudo apt install -y ffmpeg. AlmaLinux/Rocky: xem deploy/DEPLOY.md, mục Xử lý sự cố. Cài xong tải lại trang này sau khoảng 1 phút, không cần khởi động lại dịch vụ."
             : reelsOn
               ? `Tự dựng sẵn video lúc ${process.env.REELS_PREPARE_HOUR ?? 5}h20 và đăng Reel lúc ${reelHours().map((h) => `${h}h05`).join(", ")} mỗi ngày. Video ~13 giây: câu mở đầu → biểu đồ giá vẽ dần → kết luận, link mua ở bình luận đầu.`
               : process.env.REELS === "0"

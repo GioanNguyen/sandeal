@@ -274,6 +274,16 @@ sudo systemctl start sandeal
   - Mở cổng 80/443: `ufw allow 80,443/tcp` hoặc `firewall-cmd --add-service={http,https} --permanent && firewall-cmd --reload`.
   - Chạy lại `sudo bash install.sh --web`.
 - **Web server không phải nginx/Apache** (vd Caddy, LiteSpeed): chạy `sudo bash install.sh --no-web`, rồi cấu hình reverse proxy tới `http://127.0.0.1:<PORT trong .env>` và gửi kèm header `Host` và `X-Forwarded-For`.
+- **"Máy chủ chưa có ffmpeg" (Reels không dựng được video)**: install.sh tự cài ffmpeg, nhưng trên AlmaLinux/Rocky kho mặc định không có sẵn. Kiểm tra bằng `ffmpeg -version`, nếu chưa có thì cài:
+  - Ubuntu/Debian: `sudo apt update && sudo apt install -y ffmpeg`
+  - AlmaLinux/Rocky 8–9 (thêm kho EPEL và RPM Fusion):
+    ```bash
+    sudo dnf install -y epel-release
+    sudo dnf config-manager --set-enabled crb 2>/dev/null || sudo dnf config-manager --set-enabled powertools
+    sudo dnf install -y https://download1.rpmfusion.org/free/el/rpmfusion-free-release-$(rpm -E %rhel).noarch.rpm
+    sudo dnf install -y ffmpeg
+    ```
+  Cài xong tải lại trang Đăng bài trong /admin (khoảng 1 phút), không cần khởi động lại dịch vụ.
 - **Quay lại site public_html cũ**:
   1. Chép file trong `/opt/sandeal/backup-web-*` về chỗ cũ.
   2. Xoá file `sandealgiare.com-sandeal.conf`.

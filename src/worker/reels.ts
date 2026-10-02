@@ -97,18 +97,22 @@ export async function reelPlan(p: Product, now = new Date()): Promise<ReelPlan> 
 
 // ---------- Dựng video ----------
 
-let ffmpegOk: boolean | null = null;
+let ffmpegOk: { ok: boolean; at: number } | null = null;
 const ffmpegBin = () => process.env.FFMPEG_PATH || "ffmpeg";
 
-/** Có ffmpeg không (kiểm tra 1 lần) */
+/**
+ * Có ffmpeg không. "Có" thì nhớ luôn; "không có" chỉ nhớ 1 phút để cài ffmpeg xong là dùng được ngay,
+ * không cần khởi động lại dịch vụ.
+ */
 export async function hasFfmpeg(): Promise<boolean> {
-  if (ffmpegOk !== null) return ffmpegOk;
-  ffmpegOk = await new Promise<boolean>((ok) => {
+  if (ffmpegOk && (ffmpegOk.ok || Date.now() - ffmpegOk.at < 60_000)) return ffmpegOk.ok;
+  const ok = await new Promise<boolean>((done) => {
     const c = spawn(ffmpegBin(), ["-version"], { stdio: "ignore" });
-    c.on("error", () => ok(false));
-    c.on("exit", (code) => ok(code === 0));
+    c.on("error", () => done(false));
+    c.on("exit", (code) => done(code === 0));
   });
-  return ffmpegOk;
+  ffmpegOk = { ok, at: Date.now() };
+  return ok;
 }
 
 /** Chạy ffmpeg ở mức ưu tiên thấp nhất (nice 19 trên Linux/macOS) để không giành CPU của web */
@@ -260,7 +264,7 @@ function oneAtATime<T>(fn: () => Promise<T>): Promise<T> {
 /** Dựng video cho 1 món, trả về đường dẫn file .mp4 */
 export function renderReel(productId: number, outFile?: string): Promise<string> {
   return oneAtATime(async () => {
-    if (!(await hasFfmpeg())) throw new Error("Chưa cài ffmpeg trên máy chủ (sudo apt install ffmpeg)");
+    if (!(await hasFfmpeg())) throw new Error("Chưa cài ffmpeg trên máy chủ – xem hướng dẫn cài ở deploy/DEPLOY.md (mục ffmpeg)");
     const dir = reelsDir();
     await fs.mkdir(dir, { recursive: true });
     const tmp = await fs.mkdtemp(path.join(dir, "tmp-"));
