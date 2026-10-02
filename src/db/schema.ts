@@ -522,3 +522,21 @@ export const aiGuides = pgTable(
   },
   (t) => [uniqueIndex("ai_guides_slug_uq").on(t.slug), index("ai_guides_status_idx").on(t.status)],
 );
+
+/** Các lần báo công cụ tìm kiếm (IndexNow) có trang mới/đổi */
+export const indexnowLog = pgTable(
+  "indexnow_log",
+  {
+    id: serial("id").primaryKey(),
+    at: ts("at").notNull().defaultNow(),
+    urls: integer("urls").notNull(),
+    /** Mã HTTP trả về (0 = lỗi mạng) */
+    status: integer("status").notNull(),
+    error: text("error"),
+    /** Vài đường dẫn mẫu đã gửi */
+    sample: jsonb("sample").$type<string[]>(),
+    /** Có gửi kèm các trang tổng hợp (trang chủ, mã giảm giá…) không */
+    hubs: boolean("hubs").notNull().default(false),
+  },
+  (t) => [index("indexnow_log_at_idx").on(t.at)],
+);

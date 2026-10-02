@@ -5,6 +5,7 @@ const TABS = [
   { href: "/admin/dang-bai", label: "Đăng bài" },
   { href: "/admin/huong-dan", label: "Hướng dẫn" },
   { href: "/admin/toc-do", label: "Tốc độ" },
+  { href: "/admin/tim-kiem", label: "Tìm kiếm" },
 ];
 
 export function AdminTabs({ current }: { current: string }) {

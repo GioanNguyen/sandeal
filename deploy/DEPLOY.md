@@ -98,6 +98,7 @@ Sửa file `/opt/sandeal/.env` (`sudo nano /opt/sandeal/.env`), sau đó chạy 
 | `GUIDES_FB` | Bài hướng dẫn trong lịch tự hiện lúc 8h ngày đăng và tự đăng link lên Trang Facebook (khi đã có `FB_PAGE_ID`/`FB_PAGE_TOKEN`). `GUIDES_FB=0` để chỉ hiện trên site. Xem lịch ở `/admin/huong-dan` |
 | `GUIDES_AI` | Khi đã có `ANTHROPIC_API_KEY`: lịch bài sắp hết thì mỗi thứ Hai AI soạn 1 bài nháp từ số liệu thật và email `ADMIN_EMAILS`; duyệt/bỏ ở `/admin/huong-dan`, bài duyệt tự xếp vào thứ Ba trống kế tiếp. `GUIDES_AI=0` để tắt, `GUIDES_AI_AUTO=1` để tự duyệt bài nháp sau 3 ngày |
 | `VITALS` | Đo tốc độ trang trên máy khách thật (LCP, INP, CLS…), xem ở `/admin/toc-do`. Không lưu IP, tự xoá sau 60 ngày. `VITALS=0` để tắt, `VITALS_SAMPLE=0.5` để chỉ đo một nửa lượt xem |
+| `INDEXNOW` | Tự báo Bing/Yandex/Naver các trang mới, đổi giá (2 giờ/lần), xem ở `/admin/tim-kiem`. Tự tắt khi site chưa https hoặc đang khoá mật khẩu. Google: khai báo `/sitemap.xml` 1 lần trong Search Console. `INDEXNOW=0` để tắt |
 | `IMAGE_SEARCH` | Tìm bằng ảnh, bật sẵn. Lần đầu tự tải mô hình ~90 MB vào `/opt/sandeal/models` và dùng thêm ~400 MB RAM. VPS 1 GB RAM thì đặt `IMAGE_SEARCH=0` để tắt |
 
 Khi chưa có SMTP, link đăng nhập được ghi vào log. Xem bằng `sudo journalctl -u sandeal -n 50`.

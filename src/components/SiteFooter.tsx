@@ -24,6 +24,8 @@ export function SiteFooter({ loggedIn }: { loggedIn: boolean }) {
         { href: "/bo-suu-tap", label: "Bộ sưu tập deal" },
         { href: "/gia", label: "Giá hôm nay" },
         { href: "/bao-cao-gia", label: "Báo cáo giá tuần" },
+        { href: "/ma-giam-gia", label: "Mã giảm giá theo tháng" },
+        { href: "/thuong-hieu", label: "Deal theo thương hiệu" },
       ],
     },
     {

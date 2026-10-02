@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PLATFORMS } from "@/lib/format";
 import { listActiveVouchers } from "@/lib/queries";
+import { VOUCHER_PLATFORMS, currentMonthRef, platformLabel } from "@/lib/voucherpages";
 import { VoucherTicket } from "@/components/VoucherTicket";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +20,14 @@ export default async function Vouchers({ searchParams }: { searchParams: Promise
   return (
     <>
       <h1 className="page-title">Mã giảm giá & khuyến mãi</h1>
-      <p className="page-sub">Chỉ hiện mã còn hạn, mã sắp hết hạn xếp trước. Bấm vào mã để chép.</p>
+      <p className="page-sub">
+        Chỉ hiện mã còn hạn, mã sắp hết hạn xếp trước. Bấm vào mã để chép. Xem theo tháng kèm lịch sale:{" "}
+        {VOUCHER_PLATFORMS.map((p, i) => {
+          const r = currentMonthRef(p, now);
+          return <span key={p}>{i ? ", " : ""}<Link href={`/ma-giam-gia/${r.slug}`}>{platformLabel(p)} tháng {r.m}</Link></span>;
+        })}
+        .
+      </p>
       <nav className="chips" aria-label="Lọc theo sàn" style={{ marginBottom: 20 }}>
         <Link className="chip" href="/vouchers" aria-current={!platform}>Tất cả sàn</Link>
         {Object.entries(PLATFORMS).map(([k, v]) => (

@@ -127,6 +127,13 @@
       "when": 1790925795873,
       "tag": "0017_ai_guides",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790928933332,
+      "tag": "0018_indexnow",
+      "breakpoints": true
     }
   ]
 }

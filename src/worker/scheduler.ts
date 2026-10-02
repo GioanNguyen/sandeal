@@ -9,6 +9,7 @@ import { runReviewAi } from "@/lib/reviews/ai";
 import { shareDueGuides } from "./guides";
 import { ensureGuidePipeline, guideAiEnabled } from "./guide-ai";
 import { pruneVitals } from "@/lib/vitals";
+import { pruneIndexNow, runIndexNow } from "@/lib/indexnow";
 
 const g = globalThis as unknown as { __sanDealCron?: boolean };
 
@@ -160,6 +161,21 @@ export function startScheduler({ runNow = false } = {}) {
       { timezone: "Asia/Ho_Chi_Minh" },
     );
   }
+
+  // Báo công cụ tìm kiếm (IndexNow) các trang mới/đổi: 45 phút sau mỗi lần đồng bộ giá (mặc định 2 giờ/lần)
+  cron.schedule(
+    "45 */2 * * *",
+    async () => {
+      try {
+        const r = await runIndexNow();
+        if (r.sent) console.log(`[indexnow] đã báo ${r.sent} trang (HTTP ${r.status})`);
+      } catch (err) {
+        console.error("[indexnow] lỗi:", (err as Error).message);
+      }
+    },
+    { timezone: "Asia/Ho_Chi_Minh" },
+  );
+  cron.schedule("50 3 * * *", () => void pruneIndexNow().catch(() => 0), { timezone: "Asia/Ho_Chi_Minh" });
 
   // Số đo tốc độ trang: xoá bản ghi quá 60 ngày, mỗi đêm 3h40
   cron.schedule("40 3 * * *", () => void pruneVitals().catch((err) => console.error("[vitals] lỗi dọn dữ liệu:", (err as Error).message)), { timezone: "Asia/Ho_Chi_Minh" });

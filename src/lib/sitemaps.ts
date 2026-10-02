@@ -16,6 +16,8 @@ import { listShops } from "./shops";
 import { versusPairs, versusPath } from "./versus";
 import { reportWeeks } from "./weekly";
 import { recentDays } from "./daily";
+import { listBrands } from "./brands";
+import { monthRefs, monthStart } from "./voucherpages";
 
 export const PRODUCTS_PER_FILE = 10_000;
 type Url = { loc: string; lastmod?: Date | null; changefreq?: string; priority?: number };
@@ -70,6 +72,7 @@ export async function sitemapFiles(): Promise<{ name: string; lastmod: Date | nu
     { name: "reports.xml", lastmod: at ?? null },
     { name: "shops.xml", lastmod: at ?? null },
     { name: "versus.xml", lastmod: at ?? null },
+    { name: "brands.xml", lastmod: at ?? null },
     ...Array.from({ length: chunks }, (_, i) => ({ name: `products-${i + 1}.xml`, lastmod: at ?? null })),
   ];
 }
@@ -96,12 +99,16 @@ export async function sitemapUrls(name: string): Promise<Url[] | null> {
       ["/bao-cao-gia", "weekly", 0.6],
       ["/shop", "weekly", 0.5],
       ["/huong-dan", "weekly", 0.6],
+      ["/ma-giam-gia", "daily", 0.7],
+      ["/thuong-hieu", "daily", 0.6],
       ["/cach-hoat-dong", "monthly", 0.4],
     ];
     return [
       ...pages.map(([p, changefreq, priority]) => ({ loc: `${base}${p}`, changefreq, priority })),
       ...COLLECTIONS.map((c) => ({ loc: `${base}/bo-suu-tap/${c.slug}`, changefreq: "daily", priority: 0.7 })),
       ...(await livePublishedGuides()).map((g) => ({ loc: `${base}/huong-dan/${g.slug}`, lastmod: new Date(`${g.updated}T00:00:00+07:00`), changefreq: "monthly", priority: 0.6 })),
+      // Mã giảm giá theo tháng: tháng này đổi hằng ngày, tháng trước là trang lưu trữ
+      ...monthRefs().map((r) => ({ loc: `${base}/ma-giam-gia/${r.slug}`, changefreq: r.state === "past" ? "monthly" : "daily", priority: r.state === "current" ? 0.8 : r.state === "next" ? 0.6 : 0.4, ...(r.state === "past" ? { lastmod: monthStart(r.m === 12 ? r.y + 1 : r.y, r.m === 12 ? 1 : r.m + 1) } : {}) })),
       ...salePages().map((p) => ({ loc: `${base}/sale/${p.slug}`, changefreq: p.state === "past" ? "monthly" : "daily", priority: p.state === "past" ? 0.5 : 0.8 })),
       ...salePages().map((p) => ({ loc: `${base}/nang-gia/${p.slug}`, changefreq: p.state === "past" ? "monthly" : "daily", priority: 0.6 })),
     ];
@@ -121,6 +128,9 @@ export async function sitemapUrls(name: string): Promise<Url[] | null> {
       ...weeks.map((w, i) => ({ loc: `${base}/bao-cao-gia/${w.slug}`, lastmod: i === 0 ? new Date() : w.end, changefreq: i === 0 ? "daily" : "yearly", priority: 0.6 })),
       ...days.map((d) => ({ loc: `${base}/deal-hom-nay/${d.slug}`, changefreq: "yearly", priority: 0.4 })),
     ];
+  }
+  if (name === "brands.xml") {
+    return (await listBrands()).map((b) => ({ loc: `${base}/thuong-hieu/${b.slug}`, changefreq: "daily", priority: 0.6 }));
   }
   if (name === "shops.xml") {
     const weekAgo = Date.now() - 7 * 86_400_000;

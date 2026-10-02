@@ -49,6 +49,7 @@ import { VariantPrices } from "@/components/VariantPrices";
 import { ReviewPanel, RiskAlert } from "@/components/ReviewInsight";
 import { categoryStats, productStory } from "@/lib/productstory";
 import { ProductStory } from "@/components/ProductStory";
+import { brandOf, brandPath } from "@/lib/brands";
 
 export const dynamic = "force-dynamic";
 
@@ -125,7 +126,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
     category: p.category ? { name: p.category, drop: await categorySaleDrop(p.category) } : undefined,
   });
   const viewers = (await recentViewers([p.id])).get(p.id) ?? 0;
-  const [insight, variants] = await Promise.all([productInsight(p), variantsFor(p.id)]);
+  const [insight, variants, brand] = await Promise.all([productInsight(p), variantsFor(p.id), brandOf(p)]);
   // Nhắc khi sale bắt đầu: vừa đăng nhập từ nút "Nhắc tôi" (?nhacsale=1) thì bật luôn
   const sale = targetSale();
   if (user && sale && !sale.live && sp.nhacsale) {
@@ -194,6 +195,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
           <div className="buy-row" style={{ margin: 0 }}>
             <PlatformBadge platform={p.platform} inline />
             <ShopBadge type={p.shopType} />
+            {brand && <Link className="brand-link" href={brandPath(brand)} title={`Xem ${brand.count} deal ${brand.name}`}>{brand.name}</Link>}
             {p.shopName && <span className="muted">{shopHref ? <Link href={shopHref}>{p.shopName}</Link> : p.shopName}{p.shopRating ? ` · shop ${p.shopRating.toFixed(1)}/5` : ""}</span>}
             {p.rating ? <span className="rating muted"><Icon name="star" size={14} />{p.rating.toFixed(1)}</span> : null}
             {p.sold ? <span className="muted">· Đã bán {soldText(p.sold)}</span> : null}
