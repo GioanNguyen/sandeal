@@ -1,5 +1,9 @@
 /** Bộ icon SVG nét (theo phong cách Lucide), không dùng emoji */
 const PATHS = {
+  info: <><circle cx="12" cy="12" r="9" /><path d="M12 16v-5M12 8h.01" /></>,
+  help: <><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 0 1 4.9.7c0 1.7-2.4 2.3-2.4 3.8M12 17h.01" /></>,
+  gauge: <><path d="M3.5 17a9 9 0 1 1 17 0" /><path d="m12 13 4-4" /><circle cx="12" cy="13" r="1" /></>,
+  book: <><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2Z" /><path d="M4 19V5M8 7h7" /></>,
   search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>,
   flame: <path d="M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-1.5.5-2.5 1.5-3.5C10 10 11 8 12 3Z M9.5 17.5A2.5 2.5 0 0 0 12 20a2.5 2.5 0 0 0 2.5-2.5c0-1.5-1-2.5-2.5-4-1.5 1.5-2.5 2.5-2.5 4Z" />,
   ticket: <><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4Z" /><path d="M14 6v2M14 11v2M14 16v2" /></>,

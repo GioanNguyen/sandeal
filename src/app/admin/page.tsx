@@ -1,5 +1,6 @@
 import { and, count, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
 import Link from "next/link";
+import { AdminTabs } from "@/components/AdminTabs";
 import { redirect } from "next/navigation";
 import { clicks, conversions, priceObservations, products, users, watches } from "@/db/schema";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
@@ -92,10 +93,7 @@ export default async function AdminPage() {
 
   return (
     <>
-      <nav className="tabs" aria-label="Quản trị">
-        <Link href="/admin" aria-current="page">Thống kê</Link>
-        <Link href="/admin/dang-bai">Đăng bài</Link>
-      </nav>
+      <AdminTabs current="/admin" />
       <div className="account-head">
         <div>
           <h1 className="page-title">Thống kê {DAYS} ngày</h1>

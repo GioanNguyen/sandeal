@@ -11,6 +11,7 @@ import { Icon } from "@/components/Icon";
 import { PwaInstall } from "@/components/Pwa";
 import { SavedProvider, SavedNavLink } from "@/components/Saved";
 import { NavProgress } from "@/components/NavProgress";
+import { WebVitals } from "@/components/WebVitals";
 import { Suspense } from "react";
 import { headers } from "next/headers";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
@@ -75,6 +76,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Suspense fallback={null}>
           <NavProgress />
         </Suspense>
+        {/* Đo tốc độ trên máy người dùng thật (VITALS=0 để tắt, VITALS_SAMPLE=0.5 để chỉ đo 50% lượt xem) */}
+        {process.env.VITALS !== "0" && <WebVitals sample={Math.min(1, Math.max(0, Number(process.env.VITALS_SAMPLE ?? 1) || 0))} />}
         <SavedProvider>
         <a href="#main" className="skip-link">Bỏ qua, tới nội dung chính</a>
         <header className="site-header">

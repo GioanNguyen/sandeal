@@ -192,7 +192,7 @@ export async function raiseDraft(now = new Date()) {
   return nangGia(r, { site: siteUrl(), now, sale: saleTitle(pg.event), slug: pg.slug, upcoming: pg.state === "upcoming" });
 }
 
-async function postFacebook(message: string, link: string): Promise<string> {
+export async function postFacebook(message: string, link: string): Promise<string> {
   // Đăng lên Trang Facebook: Facebook tự lấy ảnh xem trước (Open Graph) từ link sản phẩm
   const res = await fetch(`https://graph.facebook.com/v21.0/${process.env.FB_PAGE_ID}/feed`, {
     method: "POST",

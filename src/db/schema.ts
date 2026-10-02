@@ -454,3 +454,42 @@ export const variantPricePoints = pgTable(
   },
   (t) => [index("variant_price_points_idx").on(t.variantId, t.capturedAt)],
 );
+
+/** Bài hướng dẫn đã đăng lên mạng xã hội (mỗi bài, mỗi kênh 1 lần) */
+export const guidePosts = pgTable(
+  "guide_posts",
+  {
+    id: serial("id").primaryKey(),
+    slug: text("slug").notNull(),
+    channel: text("channel").notNull(), // facebook
+    postedAt: ts("posted_at").notNull().defaultNow(),
+    externalId: text("external_id"),
+    error: text("error"),
+  },
+  (t) => [index("guide_posts_idx").on(t.slug, t.channel)],
+);
+
+/**
+ * Tốc độ tải trang đo trên máy người dùng thật (Core Web Vitals). Không lưu IP hay danh tính,
+ * chỉ loại trang, đường dẫn (bỏ tham số), loại thiết bị. Tự xoá sau 60 ngày.
+ */
+export const webVitals = pgTable(
+  "web_vitals",
+  {
+    id: serial("id").primaryKey(),
+    /** LCP | INP | CLS | FCP | TTFB */
+    metric: text("metric").notNull(),
+    value: doublePrecision("value").notNull(),
+    /** good | needs-improvement | poor (theo ngưỡng của Google) */
+    rating: text("rating").notNull(),
+    /** Loại trang: product, home, category… */
+    page: text("page").notNull(),
+    path: text("path").notNull(),
+    /** mobile | desktop */
+    device: text("device").notNull(),
+    /** Mạng (4g, 3g…) nếu trình duyệt cho biết */
+    net: text("net"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("web_vitals_idx").on(t.createdAt, t.metric)],
+);

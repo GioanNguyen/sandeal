@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AdminTabs } from "@/components/AdminTabs";
 import { and, desc, eq, gte } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { products, socialPosts, type Product } from "@/db/schema";
@@ -79,10 +80,7 @@ export default async function SocialAdmin({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <nav className="tabs" aria-label="Quản trị">
-        <Link href="/admin">Thống kê</Link>
-        <Link href="/admin/dang-bai" aria-current="page">Đăng bài</Link>
-      </nav>
+      <AdminTabs current="/admin/dang-bai" />
       <h1 className="page-title">Soạn bài Facebook</h1>
       <p className="page-sub">
         Mỗi bài gồm <b>thân bài không có link</b> và <b>bình luận đầu chứa link</b> (bài có link ngoài thường bị Facebook giảm tiếp cận).

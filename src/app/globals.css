@@ -1741,3 +1741,62 @@ html[data-theme="dark"] .rv-pc-h.bad { color: #fb7185; }
 .reel-list li { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .reel-btns .form-msg { margin-top: 6px; }
 .reel-preview { width: 270px; max-width: 100%; aspect-ratio: 9 / 16; border-radius: 12px; background: #000; margin-top: 8px; }
+
+/* Nhận xét giá + hỏi đáp trên trang sản phẩm */
+.story p { margin: 0 0 10px; line-height: 1.7; font-size: 15px; }
+.story p:last-child { margin-bottom: 0; }
+.faq details { border-top: 1px solid var(--border); padding: 10px 0; }
+.faq details:first-of-type { border-top: 0; padding-top: 2px; }
+.faq summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; color: var(--muted); font-weight: 400; font-size: 18px; line-height: 1; }
+.faq details[open] summary::after { content: "−"; }
+.faq details p { margin: 8px 0 0; line-height: 1.65; font-size: 15px; color: var(--text); }
+.guide-date { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.guide-new { background: var(--primary); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; }
+
+/* Quản trị: thanh tab cuộn ngang trên điện thoại */
+.admin-tabs { overflow-x: auto; scrollbar-width: none; }
+.admin-tabs a { white-space: nowrap; flex: none; }
+
+/* Quản trị › Tốc độ trang */
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; padding: 3px; background: var(--surface); margin-bottom: 12px; }
+.seg a { padding: 6px 14px; border-radius: 999px; font-size: 14px; font-weight: 600; color: var(--muted); min-height: 36px; display: inline-flex; align-items: center; }
+.seg a[aria-current="page"] { background: var(--primary-soft); color: var(--primary); }
+.vs { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.vs-good { color: var(--save); }
+.vs-needs-improvement { color: var(--warn); }
+.vs-poor { color: var(--primary); }
+.vt-verdicts { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin: 6px 0 4px; }
+.vt-verdict { display: flex; gap: 10px; align-items: center; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--border); }
+.vt-verdict.ok { background: var(--save-soft); color: var(--save); border-color: transparent; }
+.vt-verdict.bad { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.vt-verdict span { color: var(--text); }
+.vt-tiles { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.vt-tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.vt-tile.core { border-width: 1.5px; }
+.vt-tile p { margin: 0; }
+.vt-name { font-size: 13px; color: var(--muted); }
+.vt-name b { color: var(--text); margin-right: 2px; }
+.vt-val { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.vt-small { font-size: 12.5px; font-weight: 400; }
+.vt-bar { display: flex; height: 6px; border-radius: 999px; overflow: hidden; gap: 2px; background: var(--surface); margin-top: 4px; }
+.vt-bar i { display: block; height: 100%; }
+.vt-bar i:first-child { border-radius: 999px 0 0 999px; }
+.vt-bar i:last-child { border-radius: 0 999px 999px 0; }
+.vt-bar .g { background: var(--save); }
+.vt-bar .n { background: var(--warn); }
+.vt-bar .p { background: var(--primary); }
+.vt-trends { display: grid; gap: 12px; grid-template-columns: 1fr; }
+.vt-trends .panel { margin: 0; padding: 14px; }
+.vt-h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.vt-h3 b { color: var(--text); }
+.vt { margin: 0; }
+.vt-day:hover circle { r: 6; }
+.vt-table th[scope="row"] { font-size: 14px; color: var(--text); white-space: nowrap; }
+.vt-table td, .vt-table th { white-space: nowrap; }
+.vt-slow { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; font-size: 14px; }
+.vt-slow li > a { word-break: break-all; }
+.vt-slow .vs { margin-left: 8px; }
+.vt-legend { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; font-size: 14px; line-height: 1.55; }
+.guide-share { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }

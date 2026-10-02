@@ -6,6 +6,8 @@ import { runSaleStartAlerts, runWeeklySummary } from "./alerts";
 import { imageIndexing, runImageIndex } from "./image-index";
 import { postReel, prepareReels, reelHours, reelsEnabled } from "./reels";
 import { runReviewAi } from "@/lib/reviews/ai";
+import { shareDueGuides } from "./guides";
+import { pruneVitals } from "@/lib/vitals";
 
 const g = globalThis as unknown as { __sanDealCron?: boolean };
 
@@ -127,6 +129,22 @@ export function startScheduler({ runNow = false } = {}) {
       );
     }
   }
+
+  // Bài hướng dẫn theo lịch: tự hiện trên site lúc 8h ngày đăng; đăng link lên Trang Facebook từ 8h12 (thử lại mỗi giờ nếu lỗi)
+  cron.schedule(
+    "12 8-21 * * *",
+    async () => {
+      try {
+        await shareDueGuides();
+      } catch (err) {
+        console.error("[guides] lỗi đăng bài:", (err as Error).message);
+      }
+    },
+    { timezone: "Asia/Ho_Chi_Minh" },
+  );
+
+  // Số đo tốc độ trang: xoá bản ghi quá 60 ngày, mỗi đêm 3h40
+  cron.schedule("40 3 * * *", () => void pruneVitals().catch((err) => console.error("[vitals] lỗi dọn dữ liệu:", (err as Error).message)), { timezone: "Asia/Ho_Chi_Minh" });
 
   // Liên kết Telegram cá nhân: đọc tin nhắn gửi tới bot mỗi 20 giây
   if (process.env.TELEGRAM_BOT_TOKEN) {

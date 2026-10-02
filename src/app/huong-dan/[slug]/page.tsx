@@ -7,27 +7,46 @@ import { DealGrid } from "@/components/DealGrid";
 import { Icon } from "@/components/Icon";
 import { JsonLd } from "@/components/JsonLd";
 import { VoucherTicket } from "@/components/VoucherTicket";
-import { GUIDES, guideBySlug } from "@/lib/guides";
+import { guideBySlug, guidePublishAt, publishedGuides } from "@/lib/guides";
+import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { siteUrl } from "@/lib/mail";
 import { listActiveVouchers, listDeals } from "@/lib/queries";
 import { saleBySlug, saleSlug, saleTitle } from "@/lib/salepages";
 import { nextSale } from "@/lib/sales";
 
 export const dynamic = "force-dynamic";
-type Props = { params: Promise<{ slug: string }> };
+type Props = { params: Promise<{ slug: string }>; searchParams?: Promise<{ "xem-truoc"?: string }> };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const g = guideBySlug((await params).slug);
+/** Quản trị viên xem trước bài chưa tới ngày đăng: /huong-dan/<slug>?xem-truoc=1 */
+async function canPreview(sp: Props["searchParams"]) {
+  if (!(await sp)?.["xem-truoc"]) return false;
+  const u = await getCurrentUser();
+  return !!u && isAdmin(u.email);
+}
+
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
+  const now = new Date();
+  const slug = (await params).slug;
+  const g = guideBySlug(slug, now) ?? ((await canPreview(searchParams)) ? guideBySlug(slug, now, true) : undefined);
   if (!g) return {};
-  return { title: g.title, description: g.description, alternates: { canonical: `/huong-dan/${g.slug}` }, openGraph: { title: g.title, description: g.description, type: "article" } };
+  const live = guideBySlug(slug, now);
+  return {
+    title: g.title,
+    description: g.description,
+    alternates: { canonical: `/huong-dan/${g.slug}`, types: { "application/rss+xml": "/huong-dan/rss.xml" } },
+    openGraph: { title: g.title, description: g.description, type: "article", publishedTime: guidePublishAt(g).toISOString() },
+    ...(live ? {} : { robots: { index: false, follow: false } }),
+  };
 }
 
 const vnDate = (s: string) => new Date(`${s}T00:00:00+07:00`).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Asia/Ho_Chi_Minh" });
 
-export default async function GuidePage({ params }: Props) {
-  const g = guideBySlug((await params).slug);
-  if (!g) notFound();
+export default async function GuidePage({ params, searchParams }: Props) {
   const now = new Date();
+  const slug = (await params).slug;
+  const g = guideBySlug(slug, now) ?? ((await canPreview(searchParams)) ? guideBySlug(slug, now, true) : undefined);
+  if (!g) notFound();
+  const preview = !guideBySlug(slug, now);
   const [deals, vouchers] = await Promise.all([
     g.related === "deep" ? listDeals({ minDrop: 20, page: 1, pageSize: 8 }) : Promise.resolve(null),
     g.related === "vouchers" ? listActiveVouchers({ limit: 8 }) : Promise.resolve([]),
@@ -40,7 +59,7 @@ export default async function GuidePage({ params }: Props) {
     "@type": "Article",
     headline: g.title,
     description: g.description,
-    datePublished: g.published,
+    datePublished: guidePublishAt(g).toISOString(),
     dateModified: g.updated,
     mainEntityOfPage: `${site}/huong-dan/${g.slug}`,
     author: { "@type": "Organization", name: "Săn Deal", url: `${site}/` },
@@ -51,6 +70,11 @@ export default async function GuidePage({ params }: Props) {
     <>
       <JsonLd data={ld} />
       <Breadcrumbs items={[{ name: "Hướng dẫn", href: "/huong-dan" }, { name: g.title }]} />
+      {preview && (
+        <p className="form-msg" role="status">
+          <Icon name="clock" size={16} /> Bản xem trước cho quản trị viên – bài sẽ tự đăng lúc 8h ngày {vnDate(g.published)}.
+        </p>
+      )}
       <article className="guide">
         <h1 className="page-title">{g.title}</h1>
         <p className="muted" style={{ fontSize: 14 }}>Săn Deal · cập nhật {vnDate(g.updated)}</p>
@@ -80,7 +104,7 @@ export default async function GuidePage({ params }: Props) {
       <section className="section" aria-labelledby="more-head">
         <div className="section-head"><h2 id="more-head">Bài hướng dẫn khác</h2></div>
         <div className="guide-list">
-          {GUIDES.filter((x) => x.slug !== g.slug).map((x) => (
+          {publishedGuides(now).filter((x) => x.slug !== g.slug).slice(0, 6).map((x) => (
             <Link key={x.slug} href={`/huong-dan/${x.slug}`} className="guide-card"><h2>{x.title}</h2><p>{x.description}</p></Link>
           ))}
         </div>

@@ -47,6 +47,8 @@ import { productInsight } from "@/lib/reviews";
 import { variantsFor } from "@/lib/variants";
 import { VariantPrices } from "@/components/VariantPrices";
 import { ReviewPanel, RiskAlert } from "@/components/ReviewInsight";
+import { categoryStats, productStory } from "@/lib/productstory";
+import { ProductStory } from "@/components/ProductStory";
 
 export const dynamic = "force-dynamic";
 
@@ -57,9 +59,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!p) return {};
   const title = `Lịch sử giá ${p.name} – có đang rẻ thật? (${vnd(p.price)}, ${PLATFORMS[p.platform]?.label ?? p.platform})`;
   const gone = isUnavailable(p, await platformLatest());
-  const description = gone
-    ? `Giá ghi nhận lần cuối ${vnd(p.price)}. Săn Deal hiện không còn thấy món này trên sàn – xem lịch sử giá, món tương tự và nhận báo khi có lại.`
-    : `Giá hiện tại ${vnd(p.price)}${p.realDropPct >= 1 ? `, rẻ hơn ${Math.round(p.realDropPct)}% so với giá 30 ngày` : ""}. Xem biểu đồ giá 90 ngày và nhận báo khi giá giảm.`;
+  // Mô tả riêng cho từng món, viết từ lịch sử giá của chính món đó (không dùng một câu chung cho mọi trang)
+  const now = new Date();
+  const advice = buyAdvice(p.prices, p.price, now, { category: p.category ? { name: p.category, drop: await categorySaleDrop(p.category) } : undefined });
+  const description = productStory({
+    id: p.id, name: p.name, platformLabel: PLATFORMS[p.platform]?.label ?? p.platform, price: p.price, gone, history: p.prices, advice,
+    offers: [], category: null, shop: { name: null, mall: false, rating: null }, variants: null, reviews: null, unitText: null, afterCodes: p.price, sold: null, now,
+  }).meta;
   return {
     title,
     description,
@@ -130,6 +136,25 @@ export default async function ProductPage({ params, searchParams }: Props) {
     ? await Promise.all([hasSaleAlert(user.id, p.id), db.select({ e: pushSubscriptions.endpoint }).from(pushSubscriptions).where(eq(pushSubscriptions.userId, user.id)).limit(1).then((r) => r.length > 0)])
     : [false, false];
   const platformLabel = PLATFORMS[p.platform]?.label ?? p.platform;
+  const unit = unitPrice(p.name, p.price);
+  const story = productStory({
+    id: p.id,
+    name: p.name,
+    platformLabel,
+    price: p.price,
+    gone,
+    history: p.prices,
+    advice,
+    offers: offers.length >= 2 ? offers.map((o) => ({ platformLabel: PLATFORMS[o.platform]?.label ?? o.platform, price: o.price, current: o.id === p.id })) : [],
+    category: await categoryStats(p.category, p.price),
+    shop: { name: p.shopName, mall: p.shopType === "mall", rating: p.shopRating },
+    variants: variants.length ? { count: variants.length, min: Math.min(...variants.map((v) => v.price)), max: Math.max(...variants.map((v) => v.price)) } : null,
+    reviews: insight.reviews ? { count: insight.reviews.count, pros: insight.ai?.pros.length ? insight.ai.pros : insight.reviews.pros, cons: insight.ai?.cons.length ? insight.ai.cons : insight.reviews.cons } : null,
+    unitText: unit ? unitPriceText(unit) : null,
+    afterCodes,
+    sold: p.sold,
+    now: new Date(),
+  });
   // Trang "Giá [loại] hôm nay" khớp với tên sản phẩm (liên kết nội bộ cho SEO)
   const topic = (await priceTopics()).filter((t) => p.name.toLowerCase().startsWith(t.label.toLowerCase())).sort((a, b) => b.label.length - a.label.length)[0];
 
@@ -143,7 +168,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
     sku: `${p.platform}-${p.externalId}`,
     image: imgs.length ? imgs : undefined,
     category: p.category ?? undefined,
-    description: `${p.name} trên ${platformLabel}: giá hiện tại ${vnd(p.price)}${p.realDropPct >= 1 ? `, rẻ hơn ${Math.round(p.realDropPct)}% so với giá thường ngày 30 ngày qua` : ""}. Xem lịch sử giá và nhận báo khi giá giảm.`,
+    description: story.paragraphs[0] || `${p.name} trên ${platformLabel}: giá hiện tại ${vnd(p.price)}.`,
     // Không khai aggregateRating: sàn chỉ cho điểm sao, không cho số lượt đánh giá – Google yêu cầu cả hai
     // Món không còn thấy trên sàn: không khai giá bán/tình trạng hàng (không biết chắc) thay vì khai sai "còn hàng"
     offers: gone ? undefined : {
@@ -300,8 +325,10 @@ export default async function ProductPage({ params, searchParams }: Props) {
               </p>
             )}
           </section>
+          <ProductStory story={story} part="text" />
           <VariantPrices variants={variants} productPrice={p.price} platformLabel={platformLabel} />
           <ReviewPanel insight={insight} platform={p.platform} />
+          <ProductStory story={story} part="faq" />
           <section className="panel" id="theo-doi">
             <h2><Icon name="bell" /> {gone ? "Báo tôi khi món này có lại" : "Báo tôi khi giá giảm"}</h2>
             <p className="muted" style={{ margin: 0 }}>

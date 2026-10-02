@@ -1,5 +1,8 @@
 import Link from "next/link";
+// Nội dung bài là JSX chạy ngay lúc nạp file: cần React trong phạm vi khi chạy ngoài Next (kiểm thử bằng tsx)
+import React from "react";
 import type { ReactNode } from "react";
+import { SCHEDULED_GUIDES } from "./guides-lich";
 
 /** Bài hướng dẫn mua sắm (nội dung tĩnh, mỗi bài gắn deal thật ở cuối trang) */
 export interface Guide {
@@ -13,7 +16,7 @@ export interface Guide {
   body: ReactNode;
 }
 
-export const GUIDES: Guide[] = [
+const BASE_GUIDES: Guide[] = [
   {
     slug: "cach-nhan-biet-giam-gia-ao",
     title: "Cách nhận biết giảm giá ảo khi mua hàng online",
@@ -154,4 +157,23 @@ export const GUIDES: Guide[] = [
   },
 ];
 
-export const guideBySlug = (slug: string) => GUIDES.find((g) => g.slug === slug);
+/** Tất cả bài, gồm cả bài đã lên lịch nhưng chưa tới ngày đăng */
+export const ALL_GUIDES: Guide[] = [...BASE_GUIDES, ...SCHEDULED_GUIDES];
+
+/** Giờ đăng: 8h sáng (giờ Việt Nam) ngày `published` */
+export const guidePublishAt = (g: Pick<Guide, "published">) => new Date(`${g.published}T08:00:00+07:00`);
+export const isGuidePublished = (g: Pick<Guide, "published">, now = new Date()) => guidePublishAt(g).getTime() <= now.getTime();
+
+/** Bài đã đăng, mới nhất trước */
+export const publishedGuides = (now = new Date()) =>
+  ALL_GUIDES.filter((g) => isGuidePublished(g, now)).sort((a, b) => guidePublishAt(b).getTime() - guidePublishAt(a).getTime() || a.slug.localeCompare(b.slug));
+
+/** Bài chờ đăng, gần nhất trước */
+export const upcomingGuides = (now = new Date()) =>
+  ALL_GUIDES.filter((g) => !isGuidePublished(g, now)).sort((a, b) => guidePublishAt(a).getTime() - guidePublishAt(b).getTime());
+
+/** Tìm bài theo đường dẫn; bài chưa tới ngày đăng chỉ trả về khi `preview` (quản trị viên xem trước) */
+export const guideBySlug = (slug: string, now = new Date(), preview = false) => {
+  const g = ALL_GUIDES.find((x) => x.slug === slug);
+  return g && (preview || isGuidePublished(g, now)) ? g : undefined;
+};

@@ -95,6 +95,8 @@ Sửa file `/opt/sandeal/.env` (`sudo nano /opt/sandeal/.env`), sau đó chạy 
 | `ADMIN_EMAILS` | Các email được vào /admin, cách nhau dấu phẩy |
 | `TELEGRAM_*` | Tuỳ chọn: bot Telegram |
 | `REELS` | Reels Facebook tự động, bật sẵn khi đã có `FB_PAGE_ID`/`FB_PAGE_TOKEN`. install.sh tự cài ffmpeg. Mỗi video cần ~300 MB RAM trong ~20 giây, dựng lúc 5h20 sáng. `REELS=0` để tắt, `REELS_HEIGHT=1280` cho VPS yếu. Nhạc tự cân về cùng độ to (`REELS_MUSIC_LUFS`, mặc định -16) |
+| `GUIDES_FB` | Bài hướng dẫn trong lịch tự hiện lúc 8h ngày đăng và tự đăng link lên Trang Facebook (khi đã có `FB_PAGE_ID`/`FB_PAGE_TOKEN`). `GUIDES_FB=0` để chỉ hiện trên site. Xem lịch ở `/admin/huong-dan` |
+| `VITALS` | Đo tốc độ trang trên máy khách thật (LCP, INP, CLS…), xem ở `/admin/toc-do`. Không lưu IP, tự xoá sau 60 ngày. `VITALS=0` để tắt, `VITALS_SAMPLE=0.5` để chỉ đo một nửa lượt xem |
 | `IMAGE_SEARCH` | Tìm bằng ảnh, bật sẵn. Lần đầu tự tải mô hình ~90 MB vào `/opt/sandeal/models` và dùng thêm ~400 MB RAM. VPS 1 GB RAM thì đặt `IMAGE_SEARCH=0` để tắt |
 
 Khi chưa có SMTP, link đăng nhập được ghi vào log. Xem bằng `sudo journalctl -u sandeal -n 50`.
