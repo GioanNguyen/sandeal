@@ -49,6 +49,7 @@ import { VariantPrices } from "@/components/VariantPrices";
 import { ReviewPanel, RiskAlert } from "@/components/ReviewInsight";
 import { categoryStats, productStory } from "@/lib/productstory";
 import { ProductStory } from "@/components/ProductStory";
+import { FollowBox } from "@/components/FollowBox";
 import { brandOf, brandPath } from "@/lib/brands";
 
 export const dynamic = "force-dynamic";
@@ -348,6 +349,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
               initialVariant={Number(sp.phanloai) || undefined}
             />
           </section>
+          <FollowBox title="Không muốn bỏ lỡ deal giảm thật?" text="Theo dõi Săn Deal: báo deal giảm thật mỗi ngày, bóc các món “giảm” ảo mỗi tuần." />
         </div>
       </div>
       {gone ? (

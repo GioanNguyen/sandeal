@@ -18,6 +18,7 @@ const HEADLINE: Record<string, string> = {
   "vua-giam": "Vừa giảm hôm nay",
   "tong-hop": "Deal giảm thật hôm nay",
   "nang-gia": "Những món bị nâng giá trước sale",
+  "boc-gia-ao": "Ghi giảm sâu, giá như mọi ngày",
 };
 
 /** Ảnh Story 1080×1920: /story?k=ky-luc&p=4004 (tối đa 4 món, cách nhau dấu phẩy) */

@@ -35,7 +35,7 @@ export function PostComposer({ drafts, canPost, title, posted }: { drafts: PostD
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(channel === "facebook"
-        ? { channel, withStory, force, draft: { body: cur.body, comment: cur.comment, image: d.image, story: d.story, productIds: d.productIds } }
+        ? { channel, withStory, force, draft: { kind: d.kind, body: cur.body, comment: cur.comment, image: d.image, story: d.story, productIds: d.productIds } }
         : { channel, productId: d.productIds[0] }),
     }).catch(() => null);
     const j = await res?.json().catch(() => ({}));

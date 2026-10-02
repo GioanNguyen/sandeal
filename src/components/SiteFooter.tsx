@@ -3,6 +3,7 @@ import { PLATFORMS } from "@/lib/format";
 import { Icon } from "./Icon";
 import { ThemeToggle } from "./ThemeToggle";
 import { BackToTop } from "./BackToTop";
+import { FollowBox } from "./FollowBox";
 
 type Col = { title: string; links: { href: string; label: string }[] };
 
@@ -20,6 +21,7 @@ export function SiteFooter({ loggedIn }: { loggedIn: boolean }) {
         { href: "/vouchers", label: "Mã giảm giá" },
         { href: "/lich-sale", label: "Lịch sale" },
         { href: "/nang-gia", label: "Ai nâng giá trước sale?" },
+        { href: "/giam-gia-ao", label: "Giảm giá ảo" },
         { href: "/top", label: "Top deal tuần này" },
         { href: "/bo-suu-tap", label: "Bộ sưu tập deal" },
         { href: "/gia", label: "Giá hôm nay" },
@@ -76,6 +78,7 @@ export function SiteFooter({ loggedIn }: { loggedIn: boolean }) {
               <span key={k} className="foot-platform"><span className="dot" style={{ background: p.color }} aria-hidden="true" />{p.label}</span>
             ))}
           </p>
+          <FollowBox variant="footer" />
         </section>
 
         {cols.map((c) => (

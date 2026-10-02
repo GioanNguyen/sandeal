@@ -22,6 +22,7 @@ export const SITE_FEATURES: { path: string; name: string; what: string }[] = [
   { path: "/vouchers", name: "Mã giảm giá", what: "danh sách mã còn hạn của 3 sàn, sắp theo giờ hết hạn" },
   { path: "/lich-sale", name: "Lịch sale", what: "ngày giờ các đợt sale sắp tới, có đếm ngược" },
   { path: "/nang-gia", name: "Ai đang nâng giá trước sale?", what: "danh sách món đang đắt hơn giá thường ngày của chính chúng trước đợt sale" },
+  { path: "/giam-gia-ao", name: "Giảm giá ảo", what: "danh sách món ghi giảm sâu (giá gạch cao) nhưng giá hiện tại gần như bằng giá thường ngày" },
   { path: "/so-sanh", name: "So sánh giá", what: "cùng sản phẩm ở các sàn, ghép tự động theo tên, xếp theo chênh lệch" },
   { path: "/shop", name: "Shop", what: "mỗi shop có bao nhiêu món giảm thật, bao nhiêu món ghi % giảm cao hơn thực tế" },
   { path: "/gia", name: "Giá hôm nay", what: "bảng giá rẻ nhất theo loại sản phẩm trên 3 sàn" },

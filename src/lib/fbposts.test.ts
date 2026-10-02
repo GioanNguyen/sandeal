@@ -18,7 +18,7 @@ const ctx = (p: Product, h: { price: number; capturedAt: Date }[], extra: Partia
 
 const noLink = (s: string) => assert.doesNotMatch(s, /https?:\/\//, "thân bài không được có link");
 
-test("đủ 11 mẫu", () => assert.equal(POST_KINDS.length, 11));
+test("đủ 12 mẫu", () => assert.equal(POST_KINDS.length, 12));
 
 test("món mới chưa đủ số liệu (vd nhập từ CSV): vẫn có mẫu \"Giới thiệu deal\" để đăng, không bịa số", () => {
   // 1 điểm giá, không giá gốc, không mã, không đơn vị, 1 sàn -> trước đây không có mẫu nào ("Không có mẫu bài phù hợp")

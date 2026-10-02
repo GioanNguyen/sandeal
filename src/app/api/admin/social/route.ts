@@ -4,6 +4,7 @@ import { products, socialPosts } from "@/db/schema";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { siteUrl } from "@/lib/mail";
+import { GIA_AO_CHANNEL, NANG_GIA_CHANNEL } from "@/worker/giaao";
 import { channels, lastPosted, postDeal, postFacebookDigest, postFacebookDraft, postFacebookStory, repostDays } from "@/worker/social";
 
 const MANUAL = ["zalo", "tiktok", "facebook-group"];
@@ -17,14 +18,16 @@ export async function POST(req: Request) {
   // Bài soạn theo mẫu: đăng ĐÚNG nội dung admin đã sửa (thân bài + bình luận đầu)
   if (body?.draft) {
     if (channel !== "facebook" || !(channels() as string[]).includes("facebook")) return NextResponse.json({ error: "Trang Facebook chưa được cấu hình" }, { status: 400 });
-    const d = body.draft as { body?: unknown; comment?: unknown; image?: unknown; story?: unknown; productIds?: unknown };
+    const d = body.draft as { kind?: unknown; body?: unknown; comment?: unknown; image?: unknown; story?: unknown; productIds?: unknown };
     const text = String(d.body ?? "").trim();
     const comment = String(d.comment ?? "").trim();
     const image = String(d.image ?? "");
     if (!text || !comment || !image.startsWith(siteUrl())) return NextResponse.json({ error: "Thiếu nội dung hoặc ảnh không hợp lệ" }, { status: 400 });
     const ids = (Array.isArray(d.productIds) ? d.productIds : []).map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 10);
+    // Bài "Bóc giá ảo" / "Ai nâng giá" ghi lịch sử riêng (để lượt đăng tự động không lặp lại các món này)
+    const postChannel = d.kind === "boc-gia-ao" ? GIA_AO_CHANNEL : d.kind === "nang-gia" ? NANG_GIA_CHANNEL : "facebook";
     // Chống đăng trùng: món đã đăng thành công lên Trang trong N ngày -> hỏi lại (gửi force: true để vẫn đăng)
-    if (!body.force) {
+    if (!body.force && postChannel === "facebook") {
       const dup = await lastPosted(ids);
       if (dup.size) {
         const names = new Map((await db.select({ id: products.id, name: products.name }).from(products).where(inArray(products.id, [...dup.keys()]))).map((r) => [r.id, r.name]));
@@ -39,7 +42,7 @@ export async function POST(req: Request) {
     } catch (err) {
       error = (err as Error).message.slice(0, 300);
     }
-    if (ids.length) await db.insert(socialPosts).values(ids.map((productId) => ({ channel: "facebook", productId, externalId, error })));
+    if (ids.length) await db.insert(socialPosts).values(ids.map((productId) => ({ channel: postChannel, productId, externalId, error })));
     if (error) return NextResponse.json({ error }, { status: 502 });
     // Story kèm bài (tuỳ chọn): lỗi Story không ảnh hưởng bài đã đăng
     const story = String(d.story ?? "");

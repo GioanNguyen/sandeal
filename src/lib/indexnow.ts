@@ -115,7 +115,7 @@ export async function changedUrls(since: Date, now = new Date(), withHubs = fals
   for (const p of VOUCHER_PLATFORMS) if (newMonth || vRows.some((v) => v.platform === p)) out.push(`${site}/ma-giam-gia/${currentMonthRef(p, now).slug}`);
   if (newMonth) for (const r of monthRefs(now).filter((x) => x.state === "next")) out.push(`${site}/ma-giam-gia/${r.slug}`);
   // Trang tổng hợp (đổi liên tục): tối đa 1 lần/ngày
-  if (withHubs) out.push(...["/", "/deal-hom-nay", "/vouchers", "/ma-giam-gia", "/thuong-hieu", "/huong-dan", "/gia"].map((p) => `${site}${p}`));
+  if (withHubs) out.push(...["/", "/deal-hom-nay", "/vouchers", "/ma-giam-gia", "/thuong-hieu", "/huong-dan", "/gia", "/giam-gia-ao"].map((p) => `${site}${p}`));
   return [...new Set(out)];
 }
 

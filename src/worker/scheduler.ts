@@ -10,6 +10,8 @@ import { shareDueGuides } from "./guides";
 import { ensureGuidePipeline, guideAiEnabled } from "./guide-ai";
 import { pruneVitals } from "@/lib/vitals";
 import { pruneIndexNow, runIndexNow } from "@/lib/indexnow";
+import { afterJitter, postJitterMin } from "@/lib/jitter";
+import { giaAoEnabled, giaAoSchedule, postGiaAo } from "./giaao";
 
 const g = globalThis as unknown as { __sanDealCron?: boolean };
 
@@ -61,13 +63,16 @@ export function startScheduler({ runNow = false } = {}) {
     { timezone: "Asia/Ho_Chi_Minh" },
   );
 
-  // Đăng deal hot lên mạng xã hội vào giờ vàng (mặc định 11h và 20h)
+  // Bài đăng lên mạng xã hội (deal, Reels, bài hướng dẫn) lệch ngẫu nhiên 0…POST_JITTER_MIN phút (mặc định 20) mỗi lần
+  if (postJitterMin()) console.log(`[worker] giờ đăng lệch ngẫu nhiên tới ${postJitterMin()} phút`);
+
+  // Đăng deal hot lên mạng xã hội vào giờ vàng (mặc định 11h và 20h, cộng phần lệch ngẫu nhiên)
   const hours = (process.env.SOCIAL_HOURS || "11,20").replace(/\s/g, "");
   cron.schedule(
     `0 ${hours} * * *`,
     async () => {
       try {
-        const n = await postGoldenHour();
+        const n = await afterJitter("social", () => postGoldenHour());
         if (n) console.log(`[social] đã đăng ${n} bài`);
       } catch (err) {
         console.error("[social] lỗi:", err);
@@ -94,7 +99,7 @@ export function startScheduler({ runNow = false } = {}) {
     { timezone: "Asia/Ho_Chi_Minh" },
   );
 
-  // Reels Facebook: dựng sẵn video vào giờ vắng (mặc định 5h20), đăng vào giờ vàng (mặc định 12h05, 21h05).
+  // Reels Facebook: dựng sẵn video vào giờ vắng (mặc định 5h20), đăng vào giờ vàng (mặc định 12h05, 21h05, cộng phần lệch ngẫu nhiên).
   // Không dựng khi đang nhận diện ảnh sản phẩm (2 việc cùng tốn RAM): chờ tối đa 30 phút.
   if (reelsEnabled()) {
     const waitIdle = async () => {
@@ -120,8 +125,10 @@ export function startScheduler({ runNow = false } = {}) {
         `5 ${hours.join(",")} * * *`,
         async () => {
           try {
-            await waitIdle();
-            const r = await postReel();
+            const r = await afterJitter("reels", async () => {
+              await waitIdle();
+              return postReel();
+            });
             console.log(r.ok ? `[reels] đã đăng Reel món ${r.productId} (video ${r.videoId})` : `[reels] không đăng được: ${r.error}`);
           } catch (err) {
             console.error("[reels] lỗi đăng:", (err as Error).message);
@@ -132,12 +139,29 @@ export function startScheduler({ runNow = false } = {}) {
     }
   }
 
-  // Bài hướng dẫn theo lịch: tự hiện trên site lúc 8h ngày đăng; đăng link lên Trang Facebook từ 8h12 (thử lại mỗi giờ nếu lỗi)
+  // Bài "Bóc giá ảo" (hoặc "Ai nâng giá trước sale?" khi sắp tới sale lớn): mặc định thứ 4, thứ 7 lúc 9h + lệch ngẫu nhiên
+  if (giaAoEnabled()) {
+    const { days, hour } = giaAoSchedule();
+    cron.schedule(
+      `0 ${hour} * * ${days.join(",")}`,
+      async () => {
+        try {
+          const r = await afterJitter("gia-ao", () => postGiaAo());
+          console.log(r.ok ? `[gia-ao] đã đăng bài ${r.kind} (${r.id})` : `[gia-ao] không đăng: ${r.error}`);
+        } catch (err) {
+          console.error("[gia-ao] lỗi:", (err as Error).message);
+        }
+      },
+      { timezone: "Asia/Ho_Chi_Minh" },
+    );
+  }
+
+  // Bài hướng dẫn theo lịch: tự hiện trên site lúc 8h ngày đăng; đăng lên Trang Facebook từ 8h12 + lệch ngẫu nhiên (thử lại mỗi giờ nếu lỗi)
   cron.schedule(
     "12 8-21 * * *",
     async () => {
       try {
-        await shareDueGuides();
+        await shareDueGuides(new Date(), () => afterJitter("guides", async () => undefined));
       } catch (err) {
         console.error("[guides] lỗi đăng bài:", (err as Error).message);
       }

@@ -1837,3 +1837,28 @@ html[data-theme="dark"] .rv-pc-h.bad { color: #fb7185; }
 .brand-link { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: var(--primary); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 .legal h3 { margin: 18px 0 6px; font-size: 17px; }
 .legal code { font-size: .92em; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+
+/* ---------- Mời theo dõi Săn Deal (Trang Facebook, nhóm, Zalo, Telegram) ---------- */
+.follow-box { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; margin: 24px 0; padding: 16px 18px; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--border); }
+.follow-text { display: grid; gap: 4px; flex: 1 1 280px; }
+.follow-text b { font-size: 16px; color: var(--text); }
+.follow-text span { font-size: 14px; color: var(--muted); line-height: 1.5; }
+.follow-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.follow-actions .btn { min-height: 40px; }
+.foot-follow { margin-top: 16px; }
+.foot-follow-links { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+.foot-follow-link { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); color: var(--text); font-size: 13px; font-weight: 600; }
+.foot-follow-link:hover { color: var(--primary); border-color: var(--primary); }
+
+/* ---------- Giảm giá ảo (/giam-gia-ao) ---------- */
+.fake-claim { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.fake-claim s { color: var(--muted); }
+.fake-tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.fake-tag.claim { background: var(--warn-soft); color: var(--warn); }
+.fake-tag.real { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+.fake-list .num { display: grid; justify-items: end; gap: 4px; }
+@media (max-width: 640px) {
+  .fake-list li { grid-template-columns: 56px 1fr; }
+  .fake-list .num { grid-column: 2; justify-items: start; text-align: left; white-space: normal; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .fake-list .num b { display: inline; }
+}

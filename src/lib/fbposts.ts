@@ -5,6 +5,7 @@
  */
 import type { Product } from "@/db/schema";
 import type { Advice } from "./advice";
+import type { FakeDeal } from "./fakedeals";
 import { PLATFORMS, soldText } from "./format";
 import { priceK } from "./social";
 
@@ -18,7 +19,7 @@ import { unitPrice, unitPriceText, perBase, type UnitPrice } from "./unitprice";
 
 export type PostKind =
   | "that-hay-ao" | "mua-hay-cho" | "don-vi" | "doan-gia" | "ky-luc"
-  | "so-san" | "sau-ma" | "vua-giam" | "tong-hop" | "nang-gia" | "gioi-thieu";
+  | "so-san" | "sau-ma" | "vua-giam" | "tong-hop" | "nang-gia" | "boc-gia-ao" | "gioi-thieu";
 
 export const POST_KINDS: { kind: PostKind; label: string; hint: string }[] = [
   { kind: "that-hay-ao", label: "Giảm thật hay ảo?", hint: "So % shop ghi với giá thường ngày" },
@@ -31,6 +32,7 @@ export const POST_KINDS: { kind: PostKind; label: string; hint: string }[] = [
   { kind: "vua-giam", label: "Vừa giảm hôm nay", hint: "Giảm ≥5% trong 24 giờ" },
   { kind: "tong-hop", label: "Tổng hợp theo ngân sách", hint: "Nhiều món dưới 1 mức giá" },
   { kind: "nang-gia", label: "Ai nâng giá trước sale?", hint: "Số liệu trang /nang-gia" },
+  { kind: "boc-gia-ao", label: "Bóc giá ảo", hint: "Món ghi giảm sâu nhưng giá như mọi ngày (tự đăng thứ 4, thứ 7)" },
   { kind: "gioi-thieu", label: "Giới thiệu deal", hint: "Dự phòng khi món chưa đủ số liệu cho mẫu khác" },
 ];
 
@@ -303,6 +305,51 @@ export function nangGia(r: { total: number; rate: number; raised: { product: Pro
     story: storyUrl(opts.site, "nang-gia", top.map((x) => x.product.id)),
     link,
     productIds: top.map((x) => x.product.id),
+  };
+}
+
+/**
+ * 12. Bóc giá ảo: 2–3 món ghi giảm sâu nhưng giá hiện tại gần như bằng giá thường ngày.
+ * Chỉ nêu số liệu giá (không kết luận về shop); bình luận đầu là link lịch sử giá trên Săn Deal, KHÔNG có link mua.
+ */
+export function bocGiaAo(items: FakeDeal[], opts: { site: string; now: Date }): PostDraft | null {
+  const top = items.slice(0, 3);
+  if (top.length < 2) return null;
+  const num = ["1️⃣", "2️⃣", "3️⃣"];
+  const real = (r: number) => (r >= 0.5 ? `chỉ rẻ hơn ${Math.round(r)}%` : r <= -0.5 ? `còn ĐẮT hơn ${Math.round(-r)}%` : "y như mọi ngày");
+  const short = (n: string) => {
+    const f = fullName(n);
+    return f.length > 80 ? `${f.slice(0, 79).trim()}…` : f;
+  };
+  const link = `${opts.site}/giam-gia-ao?utm_source=facebook&utm_medium=social&utm_campaign=boc-gia-ao`;
+  const at = top.reduce((d, x) => (x.p.lastSeenAt && x.p.lastSeenAt > d ? x.p.lastSeenAt : d), new Date(0));
+  return {
+    kind: "boc-gia-ao",
+    label: LABEL["boc-gia-ao"],
+    body: [
+      "🔍 BÓC GIÁ ẢO TUẦN NÀY",
+      "Ghi giảm sâu, nhưng so với lịch sử giá thật thì…",
+      "",
+      ...top.flatMap((x, i) => [
+        `${num[i]} ${short(x.p.name)} (${plat(x.p)})`,
+        `🏷 Ghi giảm ${x.claim}%${x.p.originalPrice && x.p.originalPrice > x.p.price ? `: ${priceK(x.p.originalPrice)} → ${priceK(x.p.price)}` : ""}`,
+        `📊 Giá thường ngày ${Math.floor(x.days)} ngày qua: ${priceK(x.usual)} → giá này ${real(x.real)}`,
+        "",
+      ]),
+      "👉 Giá gạch không phải giá thật. Trước khi mua, xem món đó thường ngày bán bao nhiêu.",
+      "🔔 Theo dõi Trang để tuần nào cũng biết món nào “giảm” ảo.",
+      "👇 Lịch sử giá từng món + danh sách đầy đủ ở bình luận đầu",
+      "#SănDeal #GiảmGiáẢo #GiáThật",
+    ].join("\n"),
+    comment: commentFor(opts, [
+      `📋 Danh sách đầy đủ: ${link}`,
+      ...top.map((x, i) => `${num[i]} Lịch sử giá: ${shortLink(opts.site, x.p)}`),
+      "Số liệu từ lịch sử giá Săn Deal ghi nhận, chỉ nói về giá – không đánh giá shop hay chất lượng sản phẩm.",
+    ], at.getTime() ? at : opts.now),
+    image: `${opts.site}/giam-gia-ao/anh?p=${top.map((x) => x.p.id).join(",")}`,
+    story: storyUrl(opts.site, "boc-gia-ao", top.map((x) => x.p.id)),
+    link,
+    productIds: top.map((x) => x.p.id),
   };
 }
 

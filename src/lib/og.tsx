@@ -917,3 +917,86 @@ export async function guideCoverImage(o: GuideCoverData, kind: "fb" | "og") {
     { width: 1080, height: 1350, fonts: await fonts() },
   );
 }
+
+// ===================== Bóc giá ảo (ảnh bài Facebook 1080×1350) =====================
+
+export const FAKE_SIZE = { width: 1080, height: 1350 };
+
+export interface FakeImageItem {
+  name: string;
+  platform: string;
+  imageUrl: string | null;
+  price: number;
+  /** % giảm shop ghi */
+  claim: number;
+  /** % rẻ hơn giá thường ngày (âm = đắt hơn) */
+  real: number;
+  usual: number;
+}
+
+/**
+ * Ảnh bài "Bóc giá ảo": mỗi món một thẻ, bên trái % shop ghi (gạch đi), bên phải % giảm thật so với giá thường ngày.
+ * Khổ 4:5 – khổ dọc lớn nhất Facebook hiện nguyên trong bảng tin.
+ */
+export async function fakeDealsImage(o: { items: FakeImageItem[]; link: string }) {
+  const items = o.items.slice(0, 3);
+  const imgs = await Promise.all(items.map((x) => imageData(x.imageUrl)));
+  const cut = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trim()}…` : s);
+  const k = (n: number) => (n >= 1_000_000 ? `${(Math.round(n / 10_000) / 100).toString().replace(".", ",")}tr` : `${Math.round(n / 1000)}K`);
+  const realText = (r: number) => (r >= 0.5 ? `−${Math.round(r)}%` : r <= -0.5 ? `+${Math.round(-r)}%` : "0%");
+  const small = items.length === 3;
+  const thumb = small ? 190 : 240;
+
+  return new ImageResponse(
+    (
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", fontFamily: FAMILY, backgroundColor: C.bg }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "40px 60px 36px", backgroundImage: GRAD }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <LogoMark size={52} onOrange />
+            <div style={{ display: "flex", fontSize: 32, fontWeight: 800, color: "#fff", letterSpacing: -0.6 }}>Săn Deal</div>
+          </div>
+          <div style={{ display: "flex", fontSize: 84, fontWeight: 800, color: "#fff", letterSpacing: -2, lineHeight: 1 }}>BÓC GIÁ ẢO</div>
+          <div style={{ display: "flex", fontSize: 34, fontWeight: 700, color: "#fff", opacity: 0.95 }}>Shop ghi giảm sâu – so với giá thật thì sao?</div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: small ? 24 : 32, padding: small ? "34px 48px 0" : "0 48px", flex: 1, justifyContent: small ? "flex-start" : "center" }}>
+          {items.map((x, i) => (
+            <div key={i} style={{ display: "flex", gap: 26, alignItems: "center", backgroundColor: "#fff", borderRadius: 30, padding: 20, border: `2px solid ${C.border}`, boxShadow: "0 10px 24px rgba(120,45,10,0.08)" }}>
+              <div style={{ display: "flex", width: thumb, height: thumb, flex: "none", borderRadius: 22, overflow: "hidden", alignItems: "center", justifyContent: "center", border: `2px solid ${C.border}`, backgroundColor: "#fff" }}>
+                {imgs[i] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={imgs[i]!} width={thumb - 6} height={thumb - 6} style={{ objectFit: "contain" }} alt="" />
+                ) : (
+                  <div style={{ display: "flex", fontSize: 30, fontWeight: 700, color: C.muted }}>{PLATFORMS[x.platform]?.label ?? x.platform}</div>
+                )}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: 12 }}>
+                <div style={{ display: "flex", fontSize: 31, fontWeight: 800, color: C.text, lineHeight: 1.2 }}>{cut(x.name, small ? 58 : 72)}</div>
+                <div style={{ display: "flex", alignItems: "stretch", gap: 14 }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "8px 18px", borderRadius: 18, backgroundColor: "#fef3c7" }}>
+                    <div style={{ display: "flex", fontSize: 22, fontWeight: 700, color: "#92400e" }}>Shop ghi</div>
+                    <div style={{ display: "flex", fontSize: 46, fontWeight: 800, color: "#b45309", lineHeight: 1.05 }}>{`−${x.claim}%`}</div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    <svg width={40} height={40} viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "8px 18px", borderRadius: 18, backgroundColor: "#f1f2f4", border: "2px solid #d6d8de" }}>
+                    <div style={{ display: "flex", fontSize: 22, fontWeight: 700, color: C.muted }}>{x.real <= -0.5 ? "Đắt hơn thường ngày" : "Giảm thật"}</div>
+                    <div style={{ display: "flex", fontSize: 46, fontWeight: 800, color: C.text, lineHeight: 1.05 }}>{realText(x.real)}</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", fontSize: 25, fontWeight: 700, color: C.muted }}>{`Giá đang bán ${k(x.price)} · thường ngày ${k(x.usual)}`}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 56px 34px", gap: 20 }}>
+          <div style={{ display: "flex", fontSize: 22, fontWeight: 700, color: C.muted, flex: 1 }}>Giá thường ngày = giá giữ lâu nhất trong lịch sử giá</div>
+          <div style={{ display: "flex", fontSize: 30, fontWeight: 800, color: C.primary }}>{o.link}</div>
+        </div>
+      </div>
+    ),
+    { ...FAKE_SIZE, fonts: await fonts() },
+  );
+}

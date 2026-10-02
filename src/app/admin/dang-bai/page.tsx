@@ -13,6 +13,7 @@ import { Icon } from "@/components/Icon";
 import { PostComposer } from "@/components/PostComposer";
 import { ReelButtons } from "@/components/ReelButtons";
 import { hasFfmpeg, REEL_CHANNEL, reelHours, reelsEnabled } from "@/worker/reels";
+import { GIA_AO_CHANNEL, NANG_GIA_CHANNEL, giaAoEnabled, giaAoSchedule, nextGiaAoDraft } from "@/worker/giaao";
 import { channels, draftsForProduct, lastPosted, pickDeals, raiseDraft, repostDays, roundupDraft } from "@/worker/social";
 
 export const metadata = { title: "Đăng bài mạng xã hội", robots: { index: false } };
@@ -47,12 +48,28 @@ export default async function SocialAdmin({ searchParams }: { searchParams: Prom
   const list = [...one, ...picked, ...pool].filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true))).slice(0, 12);
   const perProduct = (await Promise.all(list.map(async (p) => ({ p, drafts: await draftsForProduct(p, now) })))).filter((x) => x.drafts.length);
 
-  const topic = (await Promise.all([raiseDraft(now), roundupDraft(100_000, now), roundupDraft(200_000, now)])).filter((d): d is PostDraft => !!d);
+  const [giaAo, ...others] = await Promise.all([nextGiaAoDraft(now), raiseDraft(now), roundupDraft(100_000, now), roundupDraft(200_000, now)]);
+  const topic = [...(giaAo ? [giaAo.draft] : []), ...(others as (PostDraft | null)[])]
+    .filter((d): d is PostDraft => !!d)
+    .filter((d, i, arr) => arr.findIndex((x) => x.kind === d.kind && x.productIds.join() === d.productIds.join()) === i);
+  const ga = giaAoSchedule();
+  const dayName = (d: number) => (d === 0 ? "CN" : `thứ ${d + 1}`);
+  const giaAoNote = giaAoEnabled() ? `Tự đăng ${ga.days.map(dayName).join(", ")} lúc ${ga.hour}h (lệch vài phút).` : "Chưa bật tự đăng (cần Trang Facebook; GIA_AO=0 đang tắt).";
 
   // Đánh dấu món đã đăng lên Trang trong N ngày để tránh đăng trùng
   const days = repostDays();
   const allIds = [...new Set([...perProduct.map((x) => x.p.id), ...topic.flatMap((d) => d.productIds)])];
   const posted = await lastPosted(allIds, "facebook", now, days);
+  const postedGiaAo = await lastPosted(topic.flatMap((d) => d.productIds), GIA_AO_CHANNEL, now, 30);
+  const postedNangGia = await lastPosted(topic.flatMap((d) => d.productIds), NANG_GIA_CHANNEL, now, 7);
+  const topicPosted = (d: PostDraft) => {
+    const m = d.kind === "boc-gia-ao" ? postedGiaAo : d.kind === "nang-gia" ? postedNangGia : null;
+    if (!m) return postedOf(d.productIds);
+    const hit = d.productIds.map((id) => m.get(id)).filter((x): x is NonNullable<typeof x> => !!x);
+    if (!hit.length) return null;
+    const last = hit.reduce((a, b) => (b.at > a.at ? b : a));
+    return { text: `${hit.length}/${d.productIds.length} món đã có trong bài này ${ago(last.at, now)}`, url: last.externalId ? `https://www.facebook.com/${last.externalId}` : null };
+  };
   const postedOf = (ids: number[]) => {
     const hit = ids.map((id) => posted.get(id)).filter((x): x is NonNullable<typeof x> => !!x);
     if (!hit.length) return null;
@@ -107,7 +124,7 @@ export default async function SocialAdmin({ searchParams }: { searchParams: Prom
         <section style={{ marginBottom: 24 }}>
           <div className="section-head"><h2>Bài theo chủ đề</h2></div>
           <div className="composers">
-            {topic.map((d) => <PostComposer key={`${d.kind}-${d.productIds.join("-")}`} drafts={[d]} canPost={canPost} title={d.label} posted={postedOf(d.productIds)} />)}
+            {topic.map((d) => <PostComposer key={`${d.kind}-${d.productIds.join("-")}`} drafts={[d]} canPost={canPost} title={d.kind === "boc-gia-ao" ? `${d.label} – ${giaAoNote}` : d.label} posted={topicPosted(d)} />)}
           </div>
         </section>
       )}
@@ -174,7 +191,7 @@ export default async function SocialAdmin({ searchParams }: { searchParams: Prom
                   <td><Link href={productPath({ id: post.productId, name })}>{name}</Link></td>
                   <td>
                     {post.error ? <span className="status">Lỗi: {post.error}</span> : <span className="status status-completed">Đã đăng</span>}
-                    {!post.error && post.channel === "facebook" && post.externalId && <> <a href={`https://www.facebook.com/${post.externalId}`} target="_blank" rel="noreferrer">Xem bài</a></>}
+                    {!post.error && post.channel.startsWith("facebook") && post.channel !== REEL_CHANNEL && post.externalId && <> <a href={`https://www.facebook.com/${post.externalId}`} target="_blank" rel="noreferrer">Xem bài</a></>}
                     {!post.error && post.channel === REEL_CHANNEL && post.externalId && <> <a href={`https://www.facebook.com/reel/${post.externalId}`} target="_blank" rel="noreferrer">Xem Reel</a></>}
                   </td>
                 </tr>

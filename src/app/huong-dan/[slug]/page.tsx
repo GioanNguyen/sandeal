@@ -14,6 +14,7 @@ import { siteUrl } from "@/lib/mail";
 import { listActiveVouchers, listDeals } from "@/lib/queries";
 import { saleBySlug, saleSlug, saleTitle } from "@/lib/salepages";
 import { nextSale } from "@/lib/sales";
+import { FollowBox } from "@/components/FollowBox";
 
 export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ slug: string }>; searchParams?: Promise<{ "xem-truoc"?: string }> };
@@ -83,6 +84,7 @@ export default async function GuidePage({ params, searchParams }: Props) {
         <p className="muted" style={{ fontSize: 14 }}>Săn Deal · cập nhật {vnDate(g.updated)}</p>
         {g.body}
       </article>
+      <FollowBox title="Thấy bài hữu ích?" text="Theo dõi Săn Deal để nhận bài hướng dẫn mới mỗi tuần và tin báo khi có deal giảm thật." />
 
       {deals && deals.items.length > 0 && (
         <section className="section" aria-labelledby="rel-head">

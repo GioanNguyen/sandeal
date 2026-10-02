@@ -275,3 +275,27 @@ test("đo tốc độ: báo cáo p75 theo thiết bị, loại trang, ngày; đ�
   const after = await vitals.vitalsReport(28, new Date(now.getTime() + 1000));
   assert.equal(after.views.mobile + after.views.desktop, 0, "xoá sau 60 ngày");
 });
+
+test("giờ đăng lệch ngẫu nhiên: trong khoảng 0…POST_JITTER_MIN phút, 0 = tắt, có giới hạn trên", async () => {
+  const j = await import("./jitter");
+  delete process.env.POST_JITTER_MIN;
+  assert.equal(j.postJitterMin(), 20);
+  assert.equal(j.jitterMs(20, () => 0), 0);
+  assert.equal(j.jitterMs(20, () => 0.5), 10 * 60_000);
+  assert.ok(j.jitterMs(20, () => 1) < 20 * 60_000, "không vượt quá 20 phút");
+  for (let i = 0; i < 200; i++) {
+    const w = j.jitterMs(20);
+    assert.ok(w >= 0 && w < 20 * 60_000 && w % 1000 === 0);
+  }
+  process.env.POST_JITTER_MIN = "0";
+  assert.equal(j.postJitterMin(), 0);
+  assert.equal(j.jitterMs(), 0);
+  process.env.POST_JITTER_MIN = "abc";
+  assert.equal(j.postJitterMin(), 0);
+  process.env.POST_JITTER_MIN = "120";
+  assert.equal(j.postJitterMin(), 45, "tối đa 45 phút để không trùng lần chạy giờ sau");
+  delete process.env.POST_JITTER_MIN;
+  let ran = false;
+  assert.equal(await j.afterJitter("t", async () => { ran = true; return 7; }, 5), 7);
+  assert.ok(ran);
+});

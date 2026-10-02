@@ -58,7 +58,7 @@ export async function shareGuide(g: Guide, now = new Date()): Promise<{ ok: bool
  * Đăng các bài vừa tới ngày (trong 3 ngày gần nhất) mà chưa đăng thành công. Mỗi lần chạy tối đa 1 bài,
  * mỗi bài thử lại tối đa 3 lần nếu lỗi. Trả về số bài đã đăng.
  */
-export async function shareDueGuides(now = new Date()): Promise<number> {
+export async function shareDueGuides(now = new Date(), beforePost?: () => Promise<void>): Promise<number> {
   if (!guidesFbEnabled()) return 0;
   await ensureMigrated();
   const due = (await scheduleGuides()).filter((g) => isGuidePublished(g, now) && now.getTime() - guidePublishAt(g).getTime() < 3 * DAY);
@@ -66,7 +66,8 @@ export async function shareDueGuides(now = new Date()): Promise<number> {
     const rows = await db.select().from(guidePosts).where(and(eq(guidePosts.slug, g.slug), eq(guidePosts.channel, "facebook")));
     if (rows.some((r) => r.externalId)) continue;
     if (rows.length >= 3) continue;
-    const r = await shareGuide(g, now);
+    if (beforePost) await beforePost(); // lệch giờ ngẫu nhiên: chỉ chờ khi thật sự có bài cần đăng
+    const r = await shareGuide(g, beforePost ? new Date() : now);
     if (r.ok) console.log(`[guides] đã đăng bài "${g.title}" lên Facebook (${r.id})`);
     else console.error(`[guides] không đăng được "${g.title}": ${r.error}`);
     return r.ok ? 1 : 0;
