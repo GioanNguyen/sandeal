@@ -20,6 +20,8 @@ cp -a .next/standalone "$OUT/app"
 rm -rf "$OUT/app/.next/static"
 cp -a .next/static "$OUT/app/.next/static"
 cp -a public/. "$OUT/app/public/"
+# Nhạc nền Reels (để trong code) đi kèm gói triển khai
+mkdir -p "$OUT/app/src/assets/music" && cp -a src/assets/music/. "$OUT/app/src/assets/music/" 2>/dev/null || true
 # Luôn đóng gói lại tiện ích với đúng SITE_URL (kể cả khi SKIP_BUILD)
 node scripts/build-extension.mjs
 cp public/downloads/san-deal-extension.zip public/downloads/san-deal-extension.json "$OUT/app/public/downloads/"

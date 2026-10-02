@@ -1735,3 +1735,9 @@ html[data-theme="dark"] .rv-pc-h.bad { color: #fb7185; }
 }
 .watch-form .field { min-width: 0; }
 .watch-form select { width: 100%; min-width: 0; text-overflow: ellipsis; }
+
+/* ===== Reels (trang quản trị) ===== */
+.reel-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.reel-list li { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.reel-btns .form-msg { margin-top: 6px; }
+.reel-preview { width: 270px; max-width: 100%; aspect-ratio: 9 / 16; border-radius: 12px; background: #000; margin-top: 8px; }

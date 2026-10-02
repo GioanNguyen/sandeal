@@ -42,7 +42,10 @@ services:
     build: .
     restart: unless-stopped
     env_file: .env
-    environment: *dbenv
+    environment:
+      <<: *dbenv
+      # Worker lấy khung hình video Reels từ web
+      REELS_RENDER_URL: http://web:3000
     command: ["npm", "run", "worker"]
     volumes:
       - models:/models

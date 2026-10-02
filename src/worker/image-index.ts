@@ -10,6 +10,9 @@ import { imageSearchEnabled } from "@/lib/imagesearch/model";
 let running = false;
 let warned = false;
 
+/** Đang nhận diện ảnh sản phẩm (để việc nặng khác như dựng video Reels chờ chạy sau) */
+export const imageIndexing = () => running;
+
 /** Một đợt lập chỉ mục (không chạy chồng). Trả về số món vừa thêm. */
 export async function runImageIndex(): Promise<number> {
   if (running || !imageSearchEnabled()) return 0;

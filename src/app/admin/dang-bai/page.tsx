@@ -10,6 +10,8 @@ import { productPath } from "@/lib/slug";
 import { siteUrl } from "@/lib/mail";
 import { Icon } from "@/components/Icon";
 import { PostComposer } from "@/components/PostComposer";
+import { ReelButtons } from "@/components/ReelButtons";
+import { hasFfmpeg, REEL_CHANNEL, reelHours, reelsEnabled } from "@/worker/reels";
 import { channels, draftsForProduct, lastPosted, pickDeals, raiseDraft, repostDays, roundupDraft } from "@/worker/social";
 
 export const metadata = { title: "Đăng bài mạng xã hội", robots: { index: false } };
@@ -69,6 +71,9 @@ export default async function SocialAdmin({ searchParams }: { searchParams: Prom
     .orderBy(desc(socialPosts.postedAt))
     .limit(40);
   const hours = (process.env.SOCIAL_HOURS || "11,20").split(",").map((h) => `${h.trim()}h`).join(" và ");
+  const reelsOn = reelsEnabled();
+  const ffmpeg = await hasFfmpeg();
+  const reelPosted = await lastPosted(fresh.map((x) => x.p.id), REEL_CHANNEL, now, days);
   const counts = new Map<string, number>();
   for (const x of [...topic, ...perProduct.flatMap((y) => y.drafts)]) counts.set(x.kind, (counts.get(x.kind) ?? 0) + 1);
 
@@ -132,6 +137,32 @@ export default async function SocialAdmin({ searchParams }: { searchParams: Prom
         </details>
       )}
 
+      <section className="panel" style={{ marginTop: 24 }} id="reels">
+        <h2><Icon name="sparkles" /> Reels (video dọc)</h2>
+        <p className="muted" style={{ margin: "0 0 12px" }}>
+          {!ffmpeg
+            ? "Máy chủ chưa có ffmpeg nên chưa dựng được video. Cài bằng: sudo apt install ffmpeg (hoặc chạy lại install.sh)."
+            : reelsOn
+              ? `Tự dựng sẵn video lúc ${process.env.REELS_PREPARE_HOUR ?? 5}h20 và đăng Reel lúc ${reelHours().map((h) => `${h}h05`).join(", ")} mỗi ngày. Video ~13 giây: câu mở đầu → biểu đồ giá vẽ dần → kết luận, link mua ở bình luận đầu.`
+              : process.env.REELS === "0"
+                ? "Đang tắt (REELS=0). Vẫn xem thử và tải video được để đăng tay lên TikTok, Reels."
+                : "Chưa kết nối Trang Facebook: xem thử và tải video để đăng tay."}
+        </p>
+        {ffmpeg && (
+          <ul className="reel-list">
+            {fresh.slice(0, 6).map(({ p }) => (
+              <li key={p.id}>
+                <div>
+                  <Link href={productPath(p)}><b>{p.name}</b></Link>
+                  {reelPosted.has(p.id) && <span className="muted"> · đã đăng Reel {ago(reelPosted.get(p.id)!.at, now)}</span>}
+                </div>
+                <ReelButtons productId={p.id} canPost={reelsOn} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <section className="panel" style={{ marginTop: 24 }}>
         <h2><Icon name="clock" /> Đã đăng gần đây</h2>
         {history.length ? (
@@ -146,6 +177,7 @@ export default async function SocialAdmin({ searchParams }: { searchParams: Prom
                   <td>
                     {post.error ? <span className="status">Lỗi: {post.error}</span> : <span className="status status-completed">Đã đăng</span>}
                     {!post.error && post.channel === "facebook" && post.externalId && <> <a href={`https://www.facebook.com/${post.externalId}`} target="_blank" rel="noreferrer">Xem bài</a></>}
+                    {!post.error && post.channel === REEL_CHANNEL && post.externalId && <> <a href={`https://www.facebook.com/reel/${post.externalId}`} target="_blank" rel="noreferrer">Xem Reel</a></>}
                   </td>
                 </tr>
               ))}

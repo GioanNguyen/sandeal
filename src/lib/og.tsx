@@ -408,3 +408,138 @@ export async function storyImage(o: { headline: string; items: StoryItem[]; hide
     { ...STORY_SIZE, fonts: await fonts() },
   );
 }
+
+// ===================== Reels (video dọc 1080×1920) =====================
+
+/** Vùng biểu đồ trong cảnh 2 (toạ độ trên khung hình): ffmpeg phủ một tấm trắng lên đúng vùng này rồi kéo sang phải để "vẽ dần" biểu đồ */
+export const REEL_PLOT = { x: 112, y: 700, w: 856, h: 520 };
+
+export interface ReelFrameData {
+  hook: string;
+  sub?: string;
+  name: string;
+  platform: string;
+  imageUrl: string | null;
+  price: number;
+  originalPrice: number | null;
+  realDropPct: number;
+  chart: { points: [number, number][]; low: number; usual: number; high: number; days: number };
+  verdict: { tone: "good" | "wait" | "new"; title: string };
+  reasons: string[];
+  afterCode: number | null;
+  link: string;
+}
+
+const GRAD = "linear-gradient(170deg,#e8491d 0%,#f26b1d 45%,#ffa41b 100%)";
+
+function ReelBrand({ light }: { light: boolean }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+      <div style={{ width: 72, height: 72, borderRadius: 20, background: light ? "rgba(255,255,255,0.25)" : C.primary, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 42, fontWeight: 800 }}>S</div>
+      <div style={{ display: "flex", fontSize: 42, fontWeight: 800, color: light ? "#fff" : C.text }}>Săn Deal</div>
+    </div>
+  );
+}
+
+/** Biểu đồ bậc thang (giá đổi theo thời điểm) vẽ bằng SVG, đúng kích thước REEL_PLOT */
+function reelChart(c: ReelFrameData["chart"], current: number) {
+  const { w: W, h: H } = REEL_PLOT;
+  const pts = c.points.length >= 2 ? c.points : [[Date.now() - 86_400_000, current], [Date.now(), current]] as [number, number][];
+  const t0 = pts[0][0], t1 = pts[pts.length - 1][0];
+  const ys = [...pts.map((p) => p[1]), c.usual, c.low];
+  const lo = Math.min(...ys) * 0.97, hi = Math.max(...ys) * 1.03;
+  const x = (t: number) => ((t - t0) / Math.max(1, t1 - t0)) * (W - 24) + 12;
+  const y = (v: number) => 16 + (1 - (v - lo) / Math.max(1, hi - lo)) * (H - 32);
+  let d = `M${x(t0).toFixed(1)},${y(pts[0][1]).toFixed(1)}`;
+  for (let i = 1; i < pts.length; i++) d += ` H${x(pts[i][0]).toFixed(1)} V${y(pts[i][1]).toFixed(1)}`;
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+      <line x1={0} x2={W} y1={y(c.usual)} y2={y(c.usual)} stroke="#9aa0ab" strokeWidth={3} strokeDasharray="14 12" />
+      <line x1={0} x2={W} y1={y(c.low)} y2={y(c.low)} stroke={C.save} strokeWidth={3} strokeDasharray="14 12" />
+      <path d={d} fill="none" stroke={C.primary} strokeWidth={8} strokeLinejoin="round" />
+      <circle cx={x(t1)} cy={y(current)} r={16} fill={C.primary} stroke="#fff" strokeWidth={6} />
+    </svg>
+  );
+}
+
+/** Một cảnh của Reel: 1 = câu mở đầu + ảnh sản phẩm, 2 = lịch sử giá, 3 = kết luận + giá + lời kêu gọi */
+export async function reelFrame(scene: 1 | 2 | 3, o: ReelFrameData) {
+  const cut = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trim()}…` : s);
+  const img = scene === 1 ? await imageData(o.imageUrl) : null;
+  const plat = PLATFORMS[o.platform]?.label ?? o.platform;
+  let body: React.ReactElement;
+  if (scene === 1) {
+    body = (
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", fontFamily: FAMILY, background: GRAD, padding: "200px 64px 240px", gap: 30 }}>
+        <ReelBrand light />
+        <div style={{ display: "flex", fontSize: 96, fontWeight: 800, color: "#fff", lineHeight: 1.05 }}>{o.hook}</div>
+        {o.sub ? <div style={{ display: "flex", fontSize: 54, fontWeight: 800, color: "rgba(255,255,255,0.92)", lineHeight: 1.15 }}>{o.sub}</div> : null}
+        <div style={{ display: "flex", flexDirection: "column", background: "#fff", borderRadius: 48, padding: 32, gap: 18, marginTop: 10 }}>
+          <div style={{ display: "flex", width: 888, height: 700, alignItems: "center", justifyContent: "center", borderRadius: 32, overflow: "hidden", background: "#fff" }}>
+            {img ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={img} width={700} height={700} style={{ objectFit: "contain" }} alt="" />
+            ) : (
+              <div style={{ display: "flex", fontSize: 64, color: C.muted, fontWeight: 800 }}>{plat}</div>
+            )}
+          </div>
+          <div style={{ display: "flex", fontSize: 44, fontWeight: 800, color: C.text, lineHeight: 1.2 }}>{cut(o.name, 70)}</div>
+          <div style={{ display: "flex", fontSize: 34, fontWeight: 700, color: C.muted }}>{`Trên ${plat}`}</div>
+        </div>
+      </div>
+    );
+  } else if (scene === 2) {
+    const stat = (label: string, v: number, color: string) => (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "#fff", borderRadius: 28, padding: "22px 24px", gap: 6, border: `3px solid ${C.border}` }}>
+        <div style={{ display: "flex", fontSize: 32, fontWeight: 700, color: C.muted }}>{label}</div>
+        <div style={{ display: "flex", fontSize: 50, fontWeight: 800, color }}>{vnd(v)}</div>
+      </div>
+    );
+    body = (
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", fontFamily: FAMILY, background: C.bg, padding: "200px 64px 240px", gap: 22, position: "relative" }}>
+        <ReelBrand light={false} />
+        <div style={{ display: "flex", fontSize: 76, fontWeight: 800, color: C.text, lineHeight: 1.08 }}>{`Giá ${o.chart.days} ngày qua`}</div>
+        <div style={{ display: "flex", fontSize: 38, fontWeight: 700, color: C.muted }}>{cut(o.name, 46)}</div>
+        <div style={{ position: "absolute", left: 64, top: REEL_PLOT.y - 48, width: 952, height: REEL_PLOT.h + 96, display: "flex", background: "#fff", borderRadius: 40, border: `3px solid ${C.border}` }} />
+        <div style={{ position: "absolute", left: REEL_PLOT.x, top: REEL_PLOT.y, width: REEL_PLOT.w, height: REEL_PLOT.h, display: "flex" }}>{reelChart(o.chart, o.price)}</div>
+        <div style={{ position: "absolute", left: 64, top: REEL_PLOT.y + REEL_PLOT.h + 84, width: 952, display: "flex", gap: 18 }}>
+          {stat("Thấp nhất", o.chart.low, C.save)}
+          {stat("Thường ngày", o.chart.usual, C.text)}
+          {stat("Hôm nay", o.price, C.primary)}
+        </div>
+      </div>
+    );
+  } else {
+    const tone = o.verdict.tone === "good" ? { bg: C.saveSoft, fg: C.save } : o.verdict.tone === "wait" ? { bg: "#fef3c7", fg: "#b45309" } : { bg: "#eef2ff", fg: "#3730a3" };
+    body = (
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", fontFamily: FAMILY, background: GRAD, padding: "200px 64px 240px", gap: 28 }}>
+        <ReelBrand light />
+        <div style={{ display: "flex", flexDirection: "column", background: "#fff", borderRadius: 48, padding: 44, gap: 22 }}>
+          <div style={{ display: "flex", alignSelf: "flex-start", background: tone.bg, color: tone.fg, fontSize: 46, fontWeight: 800, padding: "14px 30px", borderRadius: 999 }}>{o.verdict.title}</div>
+          <div style={{ display: "flex", fontSize: 150, fontWeight: 800, color: C.primary, lineHeight: 1 }}>{vnd(o.price)}</div>
+          {o.originalPrice && o.originalPrice > o.price ? (
+            <div style={{ display: "flex", gap: 14, fontSize: 40, color: C.muted }}>
+              Niêm yết <span style={{ textDecoration: "line-through" }}>{vnd(o.originalPrice)}</span>
+            </div>
+          ) : null}
+          {o.realDropPct >= 5 ? (
+            <div style={{ display: "flex", alignSelf: "flex-start", fontSize: 44, fontWeight: 800, color: C.save, background: C.saveSoft, padding: "10px 24px", borderRadius: 999 }}>{`Rẻ hơn giá thường ngày ${Math.round(o.realDropPct)}%`}</div>
+          ) : null}
+          {o.afterCode ? <div style={{ display: "flex", fontSize: 42, fontWeight: 800, color: C.text }}>{`Áp mã còn ${vnd(o.afterCode)}`}</div> : null}
+          {o.reasons.slice(0, 2).map((r, k) => (
+            <div key={k} style={{ display: "flex", gap: 14, fontSize: 36, color: C.text, lineHeight: 1.3 }}>
+              <div style={{ display: "flex", color: C.primary, fontWeight: 800 }}>•</div>
+              <div style={{ display: "flex", flex: 1 }}>{cut(r, 90)}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", flex: 1 }} />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+          <div style={{ display: "flex", background: "#fff", color: C.primary, fontSize: 50, fontWeight: 800, padding: "24px 48px", borderRadius: 999 }}>Link mua ở bình luận</div>
+          <div style={{ display: "flex", color: "#fff", fontSize: 42, fontWeight: 800 }}>{o.link}</div>
+        </div>
+      </div>
+    );
+  }
+  return new ImageResponse(body, { ...STORY_SIZE, fonts: await fonts() });
+}

@@ -54,6 +54,8 @@ pkg_install() {
 command -v curl >/dev/null || pkg_install curl
 command -v openssl >/dev/null || pkg_install openssl
 command -v ss >/dev/null || pkg_install iproute2 2>/dev/null || pkg_install iproute || true
+# ffmpeg: dựng video Reels tự động (không có thì web vẫn chạy, chỉ tắt phần Reels)
+command -v ffmpeg >/dev/null || pkg_install ffmpeg >/dev/null 2>&1 || warn "Không cài được ffmpeg – Reels tự động sẽ tạm tắt (cài tay rồi khởi động lại dịch vụ)"
 
 rand() { local s; s=$(openssl rand -base64 96 | tr -dc 'A-Za-z0-9'); echo "${s:0:${1:-32}}"; }
 port_busy() { ss -ltnH "( sport = :$1 )" 2>/dev/null | grep -q .; }
@@ -114,9 +116,9 @@ ok "PostgreSQL $(su - postgres -c "psql -qtAc 'show server_version'" | cut -d' '
 # -----------------------------------------------------------------------------
 step "3/6 Người dùng, thư mục, cấu hình .env"
 id "$APP_USER" >/dev/null 2>&1 || useradd --system --home-dir "$BASE" --shell /usr/sbin/nologin "$APP_USER"
-mkdir -p "$BASE/releases" "$BASE/models"
+mkdir -p "$BASE/releases" "$BASE/models" "$BASE/reels"
 # Mô hình nhận diện ảnh (Tìm bằng ảnh, ~90 MB) tải 1 lần, dùng chung cho mọi bản phát hành
-chown "$APP_USER:$APP_USER" "$BASE/models"
+chown "$APP_USER:$APP_USER" "$BASE/models" "$BASE/reels"
 ENV_FILE="$BASE/.env"
 
 if [ ! -f "$ENV_FILE" ]; then
@@ -228,6 +230,7 @@ User=$APP_USER
 Group=$APP_USER
 WorkingDirectory=$BASE/current
 Environment=IMAGE_MODEL_DIR=$BASE/models
+Environment=REELS_DIR=$BASE/reels
 EnvironmentFile=$ENV_FILE
 ExecStart=$NODE_BIN server.js
 Restart=always

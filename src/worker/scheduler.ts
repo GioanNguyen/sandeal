@@ -3,7 +3,8 @@ import { pollTelegram, runDigests, runSaleReminders } from "./digest";
 import { postGoldenHour } from "./social";
 import { runSync } from "./sync";
 import { runSaleStartAlerts, runWeeklySummary } from "./alerts";
-import { runImageIndex } from "./image-index";
+import { imageIndexing, runImageIndex } from "./image-index";
+import { postReel, prepareReels, reelHours, reelsEnabled } from "./reels";
 import { runReviewAi } from "@/lib/reviews/ai";
 
 const g = globalThis as unknown as { __sanDealCron?: boolean };
@@ -88,6 +89,44 @@ export function startScheduler({ runNow = false } = {}) {
     },
     { timezone: "Asia/Ho_Chi_Minh" },
   );
+
+  // Reels Facebook: dựng sẵn video vào giờ vắng (mặc định 5h20), đăng vào giờ vàng (mặc định 12h05, 21h05).
+  // Không dựng khi đang nhận diện ảnh sản phẩm (2 việc cùng tốn RAM): chờ tối đa 30 phút.
+  if (reelsEnabled()) {
+    const waitIdle = async () => {
+      for (let i = 0; i < 60 && imageIndexing(); i++) await new Promise((r) => setTimeout(r, 30_000));
+    };
+    const prepHour = Math.min(23, Math.max(0, Number(process.env.REELS_PREPARE_HOUR ?? 5) || 0));
+    cron.schedule(
+      `20 ${prepHour} * * *`,
+      async () => {
+        try {
+          await waitIdle();
+          const n = await prepareReels();
+          if (n) console.log(`[reels] đã dựng sẵn ${n} video`);
+        } catch (err) {
+          console.error("[reels] lỗi dựng sẵn:", (err as Error).message);
+        }
+      },
+      { timezone: "Asia/Ho_Chi_Minh" },
+    );
+    const hours = reelHours();
+    if (hours.length) {
+      cron.schedule(
+        `5 ${hours.join(",")} * * *`,
+        async () => {
+          try {
+            await waitIdle();
+            const r = await postReel();
+            console.log(r.ok ? `[reels] đã đăng Reel món ${r.productId} (video ${r.videoId})` : `[reels] không đăng được: ${r.error}`);
+          } catch (err) {
+            console.error("[reels] lỗi đăng:", (err as Error).message);
+          }
+        },
+        { timezone: "Asia/Ho_Chi_Minh" },
+      );
+    }
+  }
 
   // Liên kết Telegram cá nhân: đọc tin nhắn gửi tới bot mỗi 20 giây
   if (process.env.TELEGRAM_BOT_TOKEN) {
