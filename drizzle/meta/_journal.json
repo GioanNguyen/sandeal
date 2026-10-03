@@ -134,6 +134,13 @@
       "when": 1790928933332,
       "tag": "0018_indexnow",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791014689358,
+      "tag": "0019_product_hidden",
+      "breakpoints": true
     }
   ]
 }

@@ -7,7 +7,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { siteUrl } from "@/lib/mail";
 import { calcVouchers, compareOffers, dealsByIds, getProduct, similarDeals, soonestVoucher } from "@/lib/queries";
 import { alsoViewed, alternativesFor, cheaperSimilar, recentViewers, VIEWERS_MIN_PAGE } from "@/lib/discovery";
@@ -58,7 +58,7 @@ type Props = { params: Promise<{ id: string }>; searchParams?: Promise<{ watch?:
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = await getProduct(productIdFromParam((await params).id));
-  if (!p) return {};
+  if (!p || p.hidden) return { robots: { index: false, follow: false } };
   const title = `Lịch sử giá ${p.name} – có đang rẻ thật? (${vnd(p.price)}, ${PLATFORMS[p.platform]?.label ?? p.platform})`;
   const gone = isUnavailable(p, await platformLatest());
   // Mô tả riêng cho từng món, viết từ lịch sử giá của chính món đó (không dùng một câu chung cho mọi trang)
@@ -82,6 +82,9 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const sp = (await searchParams) ?? {};
   const [p, user] = await Promise.all([getProduct(productIdFromParam(id)), getCurrentUser()]);
   if (!p) notFound();
+  // Món quản trị viên đã ẩn: khách thấy 404, quản trị viên vẫn xem được (kèm ghi chú)
+  const adminView = !!user && isAdmin(user.email);
+  if (p.hidden && !adminView) notFound();
   // Đường dẫn cũ /product/12 hoặc tên đã đổi -> chuyển hẳn (301) sang đường dẫn có tên, giữ nguyên tham số
   const canonical = productPath(p);
   if (`/product/${decodeURIComponent(id)}` !== canonical) {
@@ -188,6 +191,12 @@ export default async function ProductPage({ params, searchParams }: Props) {
       <JsonLd data={jsonLd} />
       <RecordView id={p.id} price={p.price} category={p.category} />
       <Breadcrumbs items={[...(p.category ? [{ name: p.category, href: `/danh-muc/${slugify(p.category)}` }] : []), { name: p.name }]} />
+      {adminView && (
+        <p className={p.hidden ? "form-msg" : "muted"} role={p.hidden ? "alert" : undefined} style={{ fontSize: 14 }}>
+          {p.hidden ? <><b>Món này đang bị ẩn khỏi web</b>{p.hiddenReason ? ` (${p.hiddenReason})` : ""} – khách truy cập thấy trang 404. </> : null}
+          <Link href={`/admin/san-pham?q=${p.id}`}>Quản lý món này</Link>
+        </p>
+      )}
       <div className="detail">
         <div className="detail-media">
           <ProductImage src={p.imageUrl} images={p.images} alt={p.name} />

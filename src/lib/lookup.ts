@@ -100,3 +100,21 @@ export async function refreshMissing(limit = 40, now = new Date()): Promise<numb
   }
   return found;
 }
+
+/**
+ * Quản trị viên bấm "Kiểm tra lại" 1 món: tra cứu trực tiếp trên sàn theo mã, cập nhật giá / lần thấy cuối.
+ * Trả về false khi nguồn không tìm thấy món (có thể đã ngừng bán) hoặc chưa có nguồn nào hỗ trợ tra cứu theo mã.
+ */
+export async function recheckProduct(id: number): Promise<{ found: boolean; product?: Product }> {
+  await ensureMigrated();
+  const [p] = (await db.select().from(products).where(eq(products.id, id)).limit(1)) as Product[];
+  if (!p) return { found: false };
+  const latest = await platformLatest();
+  const got = await tryAdapters(
+    { platform: p.platform as ProductRef["platform"], externalId: p.externalId, url: p.affiliateUrl },
+    { restockCutoff: staleCutoff(latest.get(p.platform)), skipMock: true },
+  );
+  if (!got) return { found: false, product: p };
+  const [fresh] = (await db.select().from(products).where(eq(products.id, id)).limit(1)) as Product[];
+  return { found: true, product: fresh };
+}

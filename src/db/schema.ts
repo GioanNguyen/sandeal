@@ -35,6 +35,10 @@ export const products = pgTable(
     groupKey: text("group_key"),
     /** Nguồn giá: "api" (API affiliate/đồng bộ) | "ext" (người dùng tiện ích ghi nhận khi xem trang sản phẩm) */
     priceSource: text("price_source").notNull().default("api"),
+    /** Quản trị viên ẩn khỏi web (giá sai, hàng cấm, trùng…): không hiện trong mọi danh sách, trang sản phẩm trả 404 */
+    hidden: boolean("hidden").notNull().default(false),
+    hiddenReason: text("hidden_reason"),
+    hiddenAt: ts("hidden_at"),
   },
   (t) => [
     index("products_group_idx").on(t.groupKey),

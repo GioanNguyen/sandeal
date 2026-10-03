@@ -19,10 +19,12 @@ export const EXT_FRESH_DAYS = () => Math.max(1, Number(process.env.EXT_FRESH_DAY
 
 /** Điều kiện SQL: món vẫn còn thấy trên sàn (dùng trong mọi danh sách deal) */
 export const availableSql = () =>
-  sql`(case when ${products.priceSource} = 'ext'
+  sql`(not ${products.hidden} and case when ${products.priceSource} = 'ext'
     then ${products.lastSeenAt} >= now() - make_interval(days => ${EXT_FRESH_DAYS()})
     else ${products.lastSeenAt} >= (select max(p2.last_seen_at) from products p2 where p2.platform = ${products.platform} and p2.price_source <> 'ext') - make_interval(days => ${STALE_DAYS()})
   end)`;
+/** Điều kiện SQL: món không bị quản trị viên ẩn (dùng ở nơi vẫn hiện món đã vắng trên sàn, vd sitemap) */
+export const visibleSql = () => sql`not ${products.hidden}`;
 
 /** Lần đồng bộ mới nhất của từng sàn */
 export async function platformLatest(): Promise<Map<string, Date>> {

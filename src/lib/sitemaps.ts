@@ -18,6 +18,7 @@ import { reportWeeks } from "./weekly";
 import { recentDays } from "./daily";
 import { listBrands } from "./brands";
 import { monthRefs, monthStart } from "./voucherpages";
+import { visibleSql } from "./availability";
 
 export const PRODUCTS_PER_FILE = 10_000;
 type Url = { loc: string; lastmod?: Date | null; changefreq?: string; priority?: number };
@@ -51,6 +52,7 @@ async function productRows() {
     .select({ id: products.id, name: products.name, category: products.category, createdAt: products.createdAt, at: lastChange.at })
     .from(products)
     .leftJoin(lastChange, eq(lastChange.productId, products.id))
+    .where(visibleSql())
     .orderBy(desc(products.dealScore), products.id);
 }
 
@@ -62,7 +64,7 @@ const newest = (dates: (Date | null | undefined)[]) => {
 export async function sitemapFiles(): Promise<{ name: string; lastmod: Date | null }[]> {
   await ensureMigrated();
   const [{ at }] = await db.select({ at: max(pricePoints.capturedAt) }).from(pricePoints);
-  const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(products);
+  const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(products).where(visibleSql());
   const chunks = Math.max(1, Math.ceil(total / PRODUCTS_PER_FILE));
   return [
     { name: "pages.xml", lastmod: null },
