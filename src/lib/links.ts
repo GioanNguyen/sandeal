@@ -71,3 +71,22 @@ export async function refFromInput(input: string, fetchImpl: typeof fetch = fetc
   const full = await resolveShortLink(input, fetchImpl).catch(() => null);
   return full ? parseProductUrl(full) : null;
 }
+
+/**
+ * Link sản phẩm thường trên sàn (KHÔNG qua tiếp thị liên kết) – dùng trong trang quản trị để kiểm tra món
+ * mà không tạo lượt bấm affiliate. exact=false: không biết đúng trang sản phẩm (Shopee thiếu mã shop) nên dẫn tới trang tìm theo tên.
+ */
+export function plainProductUrl(p: { platform: string; externalId: string; name: string; productUrl?: string | null; affiliateUrl?: string | null }): { url: string; exact: boolean } {
+  if (p.productUrl && /^https:\/\//i.test(p.productUrl)) return { url: p.productUrl, exact: true };
+  // Link mua đôi khi chính là link sản phẩm dạng đầy đủ (món người dùng dán link, giá từ tiện ích…)
+  const fromAff = p.affiliateUrl ? parseProductUrl(p.affiliateUrl) : null;
+  if (fromAff && fromAff.platform === p.platform && fromAff.externalId === p.externalId) return { url: fromAff.url, exact: true };
+  if (/^\d+$/.test(p.externalId)) {
+    if (p.platform === "lazada") return { url: `https://www.lazada.vn/products/i${p.externalId}.html`, exact: true };
+    if (p.platform === "tiktok") return { url: `https://shop.tiktok.com/view/product/${p.externalId}`, exact: true };
+  }
+  const q = encodeURIComponent(p.name.slice(0, 120));
+  if (p.platform === "lazada") return { url: `https://www.lazada.vn/catalog/?q=${q}`, exact: false };
+  if (p.platform === "tiktok") return { url: `https://www.tiktok.com/search?q=${q}`, exact: false };
+  return { url: `https://shopee.vn/search?keyword=${q}`, exact: false };
+}

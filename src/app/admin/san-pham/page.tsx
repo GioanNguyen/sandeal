@@ -8,13 +8,19 @@ import { ProductAdminActions } from "@/components/ProductAdminActions";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { STALE_DAYS } from "@/lib/availability";
 import { PLATFORMS, vnd } from "@/lib/format";
-import { ISSUES, PAGE_SIZE, healthList, healthSummary, type HealthSort, type Issue } from "@/lib/producthealth";
+import { ISSUES, PAGE_SIZE, healthList, healthSummary, type HealthSort, type ImageFilter, type Issue } from "@/lib/producthealth";
+import { plainProductUrl } from "@/lib/links";
 import { productPath } from "@/lib/slug";
 
 export const metadata = { title: "Tình trạng sản phẩm", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
-type SP = { loc?: string; san?: string; q?: string; xep?: string; trang?: string };
+type SP = { loc?: string; san?: string; q?: string; xep?: string; anh?: string; trang?: string };
+const IMAGE_FILTERS: { key: ImageFilter; label: string }[] = [
+  { key: "co", label: "Đã có ảnh" },
+  { key: "chua", label: "Chưa có ảnh" },
+  { key: "loi", label: "Ảnh lỗi" },
+];
 const SORTS: { key: HealthSort; label: string }[] = [
   { key: "seen", label: "Thấy gần nhất" },
   { key: "views", label: "Xem nhiều (7 ngày)" },
@@ -44,11 +50,12 @@ export default async function ProductHealthPage({ searchParams }: { searchParams
   const platform = sp.san && PLATFORMS[sp.san] ? sp.san : undefined;
   const sort = (SORTS.find((s) => s.key === sp.xep)?.key ?? "seen") as HealthSort;
   const q = (sp.q ?? "").slice(0, 300);
-  const [sum, res] = await Promise.all([healthSummary(now), healthList({ issue, platform, q, sort, page: Number(sp.trang) || 1, now })]);
+  const image = IMAGE_FILTERS.find((f) => f.key === sp.anh)?.key;
+  const [sum, res] = await Promise.all([healthSummary(now), healthList({ issue, platform, q, sort, image, page: Number(sp.trang) || 1, now })]);
 
   const href = (patch: Partial<SP>) => {
     const u = new URLSearchParams();
-    const next = { loc: sp.loc, san: platform, q: q || undefined, xep: sort === "seen" ? undefined : sort, ...patch };
+    const next = { loc: sp.loc, san: platform, q: q || undefined, xep: sort === "seen" ? undefined : sort, anh: image, ...patch };
     for (const [k, v] of Object.entries(next)) if (v) u.set(k, String(v));
     const s = u.toString();
     return s ? `/admin/san-pham?${s}` : "/admin/san-pham";
@@ -119,12 +126,17 @@ export default async function ProductHealthPage({ searchParams }: { searchParams
             <option value="">Mọi sàn</option>
             {Object.entries(PLATFORMS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
+          <label className="sr-only" htmlFor="ph-anh">Ảnh sản phẩm</label>
+          <select id="ph-anh" name="anh" className="input" defaultValue={image ?? ""}>
+            <option value="">Ảnh: tất cả</option>
+            {IMAGE_FILTERS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+          </select>
           <label className="sr-only" htmlFor="ph-xep">Sắp xếp</label>
           <select id="ph-xep" name="xep" className="input" defaultValue={sort}>
             {SORTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
           </select>
           <button className="btn btn-primary">Lọc</button>
-          {(q || platform || sp.xep) && <Link className="btn btn-ghost" href={href({ q: undefined, san: undefined, xep: undefined, trang: undefined })}>Bỏ lọc</Link>}
+          {(q || platform || sp.xep || image) && <Link className="btn btn-ghost" href={href({ q: undefined, san: undefined, xep: undefined, anh: undefined, trang: undefined })}>Bỏ lọc</Link>}
         </form>
 
         <p className="muted" style={{ fontSize: 14 }}>
@@ -158,7 +170,20 @@ export default async function ProductHealthPage({ searchParams }: { searchParams
                   {p.originalPrice && p.originalPrice > p.price ? <s className="muted">{vnd(p.originalPrice)}</s> : null}
                   <span className="muted">thấy {ago(p.lastSeenAt, now)}</span>
                   <span className="muted">{views7} xem · {clicks7} bấm mua · {watchers} theo dõi</span>
-                  <a className="ph-go" href={p.affiliateUrl} target="_blank" rel="noopener nofollow">Mở trên sàn <Icon name="external" size={13} /></a>
+                  {(() => {
+                    const plain = plainProductUrl(p);
+                    const label = PLATFORMS[p.platform]?.label ?? "sàn";
+                    return (
+                      <span className="ph-links">
+                        <a className="ph-go" href={plain.url} target="_blank" rel="noopener noreferrer nofollow" title={plain.exact ? "Link sản phẩm thường – không tạo lượt bấm affiliate" : "Chưa có link sản phẩm thường: tìm theo tên trên sàn"}>
+                          {plain.exact ? `Mở trên ${label}` : `Tìm trên ${label}`} <Icon name="external" size={13} />
+                        </a>
+                        <a className="ph-aff" href={p.affiliateUrl} target="_blank" rel="noopener noreferrer nofollow" title="Link tiếp thị liên kết – chỉ mở khi cần kiểm tra link có chạy không">
+                          Link affiliate
+                        </a>
+                      </span>
+                    );
+                  })()}
                 </div>
               </li>
             ))}

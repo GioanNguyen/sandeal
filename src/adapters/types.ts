@@ -18,6 +18,8 @@ export interface ProductInput {
   sold?: number;
   commissionRate?: number;
   affiliateUrl: string;
+  /** Link sản phẩm thường (không phải link tiếp thị liên kết), nếu nguồn có */
+  productUrl?: string;
 }
 
 export interface VoucherInput {

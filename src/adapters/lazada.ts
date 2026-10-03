@@ -75,6 +75,7 @@ export function mapLazadaItem(i: LazadaItem): ProductInput | null {
     sold: i.sold ?? i.sales7d,
     commissionRate: rate > 1 ? rate / 100 : rate || undefined,
     affiliateUrl: i.trackingLink || i.productUrl || `https://www.lazada.vn/products/i${id}.html`,
+    productUrl: `https://www.lazada.vn/products/i${id}.html`,
   };
 }
 

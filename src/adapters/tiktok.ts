@@ -47,6 +47,7 @@ export function mapTikTokProduct(p: TikTokProduct, promotionLink?: string): Prod
     sold: p.units_sold,
     commissionRate: rate ? rate / 10_000 : undefined,
     affiliateUrl: promotionLink || p.detail_link || `https://shop.tiktok.com/view/product/${p.id}`,
+    productUrl: `https://shop.tiktok.com/view/product/${p.id}`,
   };
 }
 

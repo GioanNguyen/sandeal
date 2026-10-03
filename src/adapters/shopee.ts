@@ -102,6 +102,7 @@ export function mapShopeeNode(n: ShopeeNode): ProductInput {
     sold: n.sales,
     commissionRate: n.commissionRate != null ? Number(n.commissionRate) : undefined,
     affiliateUrl: n.offerLink || n.productLink || `https://shopee.vn/product/${n.shopId}/${n.itemId}`,
+    productUrl: n.shopId != null ? `https://shopee.vn/product/${n.shopId}/${n.itemId}` : undefined,
   };
 }
 

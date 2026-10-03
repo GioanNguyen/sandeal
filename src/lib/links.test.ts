@@ -30,3 +30,14 @@ test("mở link rút gọn qua chuyển hướng, chặn host lạ", async () =>
   assert.equal((await refFromInput("https://s.shopee.vn/abc", fake))?.externalId, "6");
   assert.equal(await refFromInput("https://vt.tiktok.com/zz", fake), null);
 });
+
+test("link sản phẩm thường cho quản trị: ưu tiên link nguồn, suy từ mã, không có thì tìm theo tên", async () => {
+  const { plainProductUrl } = await import("./links");
+  assert.deepEqual(plainProductUrl({ platform: "shopee", externalId: "222", name: "x", productUrl: "https://shopee.vn/product/111/222", affiliateUrl: "https://s.shopee.vn/abc" }), { url: "https://shopee.vn/product/111/222", exact: true });
+  assert.deepEqual(plainProductUrl({ platform: "shopee", externalId: "222", name: "x", affiliateUrl: "https://shopee.vn/Ao-thun-i.111.222" }), { url: "https://shopee.vn/product/111/222", exact: true });
+  assert.deepEqual(plainProductUrl({ platform: "lazada", externalId: "998877", name: "x", affiliateUrl: "https://c.lazada.vn/t/abc" }), { url: "https://www.lazada.vn/products/i998877.html", exact: true });
+  assert.deepEqual(plainProductUrl({ platform: "tiktok", externalId: "17293847", name: "x", affiliateUrl: "https://vt.tiktok.com/x" }), { url: "https://shop.tiktok.com/view/product/17293847", exact: true });
+  const s = plainProductUrl({ platform: "shopee", externalId: "222", name: "Ốp lưng iPhone 15", affiliateUrl: "https://s.shopee.vn/abc" });
+  assert.equal(s.exact, false);
+  assert.equal(s.url, "https://shopee.vn/search?keyword=%E1%BB%90p%20l%C6%B0ng%20iPhone%2015");
+});

@@ -26,6 +26,8 @@ export const products = pgTable(
     sold: integer("sold"),
     commissionRate: doublePrecision("commission_rate"),
     affiliateUrl: text("affiliate_url").notNull(),
+    /** Link sản phẩm thường trên sàn (không qua tiếp thị liên kết) – để quản trị viên kiểm tra mà không tạo lượt bấm affiliate */
+    productUrl: text("product_url"),
     dealScore: doublePrecision("deal_score").notNull().default(0),
     realDropPct: doublePrecision("real_drop_pct").notNull().default(0),
     lastSeenAt: ts("last_seen_at").notNull().defaultNow(),

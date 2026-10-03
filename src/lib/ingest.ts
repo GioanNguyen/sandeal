@@ -37,6 +37,8 @@ export async function upsertProduct(p: ProductInput, now = new Date(), opts: { r
     sold: p.sold ?? null,
     commissionRate: p.commissionRate ?? null,
     affiliateUrl: p.affiliateUrl,
+    // Chỉ ghi khi nguồn có (undefined = giữ link cũ)
+    ...(p.productUrl ? { productUrl: p.productUrl } : {}),
     lastSeenAt: now,
     // Dữ liệu từ API luôn đè nguồn "ext" (món người dùng góp nay có trong nguồn chính thức)
     priceSource: opts.priceSource ?? "api",

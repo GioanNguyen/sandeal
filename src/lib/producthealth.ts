@@ -11,7 +11,7 @@ import { refFromInput } from "./links";
 
 const DAY = 86_400_000;
 
-export type Issue = "gone" | "hidden" | "no_image" | "no_category" | "bad_link" | "bad_price" | "price_jump" | "new";
+export type Issue = "gone" | "hidden" | "no_image" | "bad_image" | "no_category" | "bad_link" | "bad_price" | "price_jump" | "new";
 
 export const ISSUES: { key: Issue; label: string; hint: string; tone: "bad" | "warn" | "info" }[] = [
   { key: "gone", label: "Không còn thấy trên sàn", hint: "Lần đồng bộ gần nhất của sàn không còn món này (hết hàng, ngừng bán hoặc hết khuyến mãi). Trang vẫn giữ nhưng không mời mua.", tone: "warn" },
@@ -20,6 +20,7 @@ export const ISSUES: { key: Issue; label: string; hint: string; tone: "bad" | "w
   { key: "price_jump", label: "Giá đổi gấp đôi / còn nửa", hint: "Trong 7 ngày có mức giá gấp đôi hoặc chỉ bằng nửa giá hiện tại – nên mở sàn kiểm tra giá có đúng không.", tone: "warn" },
   { key: "bad_link", label: "Link mua không hợp lệ", hint: "Link không phải http(s) hoặc là link mẫu (example.com) – khách bấm “Mua” sẽ không tới được sàn.", tone: "bad" },
   { key: "no_image", label: "Thiếu ảnh", hint: "Không có ảnh sản phẩm – thẻ deal và ảnh chia sẻ kém hấp dẫn.", tone: "warn" },
+  { key: "bad_image", label: "Ảnh lỗi", hint: "Có link ảnh nhưng tải không được (link hỏng, không phải ảnh) – phát hiện khi web lập chỉ mục “Tìm bằng ảnh”, nên chỉ có số liệu khi tính năng này đang chạy.", tone: "warn" },
   { key: "no_category", label: "Thiếu danh mục", hint: "Không vào được trang danh mục, không so sánh được với món cùng loại.", tone: "info" },
   { key: "new", label: "Mới thêm (< 7 ngày)", hint: "Chưa đủ lịch sử để biết giá thường ngày.", tone: "info" },
 ];
@@ -34,6 +35,9 @@ export function issueSql(key: Issue, now = new Date()): SQL {
       return sql`(not ${products.hidden} and not ${availableSql()})`;
     case "no_image":
       return sql`coalesce(${products.imageUrl}, '') = ''`;
+    case "bad_image":
+      return sql`(coalesce(${products.imageUrl}, '') <> '' and exists (select 1 from product_embeddings e where e.product_id = ${products.id}
+        and e.image_url = ${products.imageUrl} and e.vec is null and e.failures >= 1))`;
     case "no_category":
       return sql`coalesce(${products.category}, '') = ''`;
     case "bad_link":
@@ -97,6 +101,7 @@ export interface HealthRow {
   p: Product;
   available: boolean;
   priceJump: boolean;
+  badImage: boolean;
   views7: number;
   clicks7: number;
   watchers: number;
@@ -104,7 +109,7 @@ export interface HealthRow {
 }
 
 /** Vấn đề của 1 món, tính từ dữ liệu đã có (khớp với issueSql) */
-export function rowIssues(p: Pick<Product, "hidden" | "imageUrl" | "category" | "affiliateUrl" | "price" | "originalPrice" | "discountPct" | "createdAt">, flags: { available: boolean; priceJump: boolean }, now = new Date()): Issue[] {
+export function rowIssues(p: Pick<Product, "hidden" | "imageUrl" | "category" | "affiliateUrl" | "price" | "originalPrice" | "discountPct" | "createdAt">, flags: { available: boolean; priceJump: boolean; badImage?: boolean }, now = new Date()): Issue[] {
   const out: Issue[] = [];
   if (p.hidden) out.push("hidden");
   else if (!flags.available) out.push("gone");
@@ -112,6 +117,7 @@ export function rowIssues(p: Pick<Product, "hidden" | "imageUrl" | "category" | 
   if (flags.priceJump) out.push("price_jump");
   if (!/^https?:\/\/[^/\s]+\.[a-z]{2,}/i.test(p.affiliateUrl) || /^https?:\/\/(www\.)?(example\.(com|org|net)|e\.com)(\/|$)/i.test(p.affiliateUrl)) out.push("bad_link");
   if (!p.imageUrl) out.push("no_image");
+  else if (flags.badImage) out.push("bad_image");
   if (!p.category) out.push("no_category");
   if (p.createdAt.getTime() >= now.getTime() - 7 * DAY) out.push("new");
   return out;
@@ -131,7 +137,10 @@ async function searchCond(q: string): Promise<SQL | undefined> {
   return or(ilike(products.name, `%${s.replace(/[%_\\]/g, (c) => `\\${c}`)}%`), ilike(products.shopName, `%${s}%`));
 }
 
-export async function healthList(opts: { issue?: Issue | "available" | "all"; platform?: string; q?: string; sort?: HealthSort; page?: number; now?: Date } = {}) {
+/** Lọc theo ảnh: có ảnh (tải được), chưa có ảnh, ảnh lỗi */
+export type ImageFilter = "co" | "chua" | "loi";
+
+export async function healthList(opts: { issue?: Issue | "available" | "all"; platform?: string; q?: string; sort?: HealthSort; page?: number; image?: ImageFilter; now?: Date } = {}) {
   await ensureMigrated();
   const now = opts.now ?? new Date();
   const since = new Date(now.getTime() - 7 * DAY);
@@ -141,6 +150,10 @@ export async function healthList(opts: { issue?: Issue | "available" | "all"; pl
   const conds: (SQL | undefined)[] = [
     opts.issue && opts.issue !== "all" ? (opts.issue === "available" ? availableSql() : issueSql(opts.issue, now)) : undefined,
     opts.platform ? eq(products.platform, opts.platform) : undefined,
+    opts.image === "chua" ? issueSql("no_image", now)
+    : opts.image === "loi" ? issueSql("bad_image", now)
+    : opts.image === "co" ? sql`(not ${issueSql("no_image", now)} and not ${issueSql("bad_image", now)})`
+    : undefined,
     opts.q ? await searchCond(opts.q) : undefined,
   ];
   const where = and(...conds.filter(Boolean));
@@ -153,14 +166,14 @@ export async function healthList(opts: { issue?: Issue | "available" | "all"; pl
   const page = Math.max(1, Math.floor(opts.page ?? 1));
   const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(products).where(where);
   const rows = await db
-    .select({ p: products, available: sql<boolean>`${availableSql()}`, priceJump: sql<boolean>`${issueSql("price_jump", now)}`, views7: views, clicks7: clicksN, watchers })
+    .select({ p: products, available: sql<boolean>`${availableSql()}`, priceJump: sql<boolean>`${issueSql("price_jump", now)}`, badImage: sql<boolean>`${issueSql("bad_image", now)}`, views7: views, clicks7: clicksN, watchers })
     .from(products)
     .where(where)
     .orderBy(...order)
     .limit(PAGE_SIZE)
     .offset((page - 1) * PAGE_SIZE);
   const list: HealthRow[] = rows.map((r) => {
-    const flags = { available: !!r.available, priceJump: !!r.priceJump };
+    const flags = { available: !!r.available, priceJump: !!r.priceJump, badImage: !!r.badImage };
     return { p: r.p as Product, ...flags, views7: Number(r.views7), clicks7: Number(r.clicks7), watchers: Number(r.watchers), issues: rowIssues(r.p as Product, flags, now) };
   });
   return { total: Number(total), page, pages: Math.max(1, Math.ceil(Number(total) / PAGE_SIZE)), list };

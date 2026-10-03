@@ -88,6 +88,27 @@ test("đếm và lọc theo tình trạng; vấn đề tính bằng SQL khớp v
   assert.deepEqual(all.list.find((r) => r.p.id === ids.ok)!.issues, []);
 });
 
+test("lọc theo ảnh: đã có ảnh, chưa có ảnh, ảnh lỗi (tải không được khi lập chỉ mục tìm bằng ảnh)", async () => {
+  const [ok] = await dbm.db.select().from(schema.products).where((await import("drizzle-orm")).eq(schema.products.id, ids.badlink));
+  // Ảnh của món "link mẫu" tải lỗi 2 lần
+  await dbm.db.insert(schema.productEmbeddings).values({ productId: ids.badlink, imageUrl: ok.imageUrl!, model: "m", vec: null, failures: 2 });
+  // Món khác đã có vector (ảnh tốt); một món từng lỗi nhưng đã đổi ảnh khác -> không tính lỗi
+  await dbm.db.insert(schema.productEmbeddings).values({ productId: ids.badprice, imageUrl: "https://cf.shopee.vn/file/cu.jpg", model: "m", vec: null, failures: 3 });
+  const list = async (image: "co" | "chua" | "loi") => (await ph.healthList({ image, now: NOW })).list.map((r) => r.p.id).sort();
+  assert.deepEqual(await list("loi"), [ids.badlink]);
+  assert.deepEqual(await list("chua"), [ids.noimg]);
+  const co = await list("co");
+  assert.equal(co.length, 5);
+  assert.ok(!co.includes(ids.badlink) && !co.includes(ids.noimg) && co.includes(ids.badprice));
+  // Kết hợp với ô tìm
+  assert.deepEqual((await ph.healthList({ image: "loi", q: "link mẫu", now: NOW })).list.map((r) => r.p.id), [ids.badlink]);
+  assert.equal((await ph.healthList({ image: "loi", q: "nồi cơm", now: NOW })).total, 0);
+  const s = await ph.healthSummary(NOW);
+  assert.equal(s.counts.bad_image, 1);
+  const row = (await ph.healthList({ q: String(ids.badlink), now: NOW })).list[0];
+  assert.ok(row.issues.includes("bad_image") && !row.issues.includes("no_image"));
+});
+
 test("tìm theo tên, mã món, link trang Săn Deal", async () => {
   assert.deepEqual((await ph.healthList({ q: "giá gạch", now: NOW })).list.map((r) => r.p.id), [ids.badprice]);
   assert.deepEqual((await ph.healthList({ q: String(ids.jump), now: NOW })).list.map((r) => r.p.id), [ids.jump]);
@@ -105,4 +126,15 @@ test("món bị ẩn: không có trong danh sách deal; hiện lại thì có l�
   const [row] = await dbm.db.select().from(schema.products).where(eq(schema.products.id, ids.hide));
   assert.equal(row.hiddenReason, null);
   assert.equal(row.hiddenAt, null);
+});
+
+test("link sản phẩm thường: lưu khi nguồn có, lần đồng bộ sau thiếu thì giữ link cũ", async () => {
+  const { eq } = await import("drizzle-orm");
+  const base = { platform: "shopee" as const, externalId: "555", name: "Món có link thường", price: 100_000, discountPct: 0, affiliateUrl: "https://s.shopee.vn/x" };
+  const id = await ingest.upsertProduct({ ...base, productUrl: "https://shopee.vn/product/9/555" }, NOW);
+  await ingest.upsertProduct(base, NOW);
+  const [row] = await dbm.db.select().from(schema.products).where(eq(schema.products.id, id));
+  assert.equal(row.productUrl, "https://shopee.vn/product/9/555");
+  const { mapShopeeNode } = await import("../adapters/shopee");
+  assert.equal(mapShopeeNode({ itemId: 7, shopId: 3, productName: "a", priceMin: "1000" } as never).productUrl, "https://shopee.vn/product/3/7");
 });
