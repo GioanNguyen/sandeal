@@ -144,6 +144,8 @@ export function mapShopeeCsv(text: string): CsvResult {
       commissionRate: rate ?? undefined,
       // Link ưu đãi (s.shopee.vn) là link affiliate; không có thì dùng link sản phẩm (không tính hoa hồng)
       affiliateUrl: /^https:\/\/s\.shopee\.vn\//.test(offer) ? offer : productUrl,
+      // Link sản phẩm thường (cột "Link sản phẩm") – trang quản trị dùng để mở món mà không tạo lượt bấm affiliate
+      productUrl: shopId ? `https://shopee.vn/product/${shopId}/${id}` : undefined,
     });
   });
   return { items, skipped };

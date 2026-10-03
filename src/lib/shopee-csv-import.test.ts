@@ -23,6 +23,7 @@ test("nhập CSV Shopee vào DB", async () => {
   assert.equal(p1.price, 1_079_000);
   assert.equal(p1.affiliateUrl, "https://s.shopee.vn/5q8Xo0ertj");
   assert.equal(p1.commissionRate, 0.13);
+  assert.equal(p1.productUrl, "https://shopee.vn/product/1286901283/28407466123", "link sản phẩm thường lấy từ cột Link sản phẩm");
 
   // Ảnh có từ nguồn khác (tiện ích) -> lần nhập sau giữ nguyên, giá mới vào lịch sử
   await dbm.db.update(products).set({ imageUrl: "https://down-vn.img.susercontent.com/file/a", originalPrice: 1_500_000 }).where(eq(products.id, p1.id));
