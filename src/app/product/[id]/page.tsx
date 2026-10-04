@@ -51,6 +51,7 @@ import { categoryStats, productStory } from "@/lib/productstory";
 import { ProductStory } from "@/components/ProductStory";
 import { FollowBox } from "@/components/FollowBox";
 import { brandOf, brandPath } from "@/lib/brands";
+import { productJsonLd } from "@/lib/productld";
 
 export const dynamic = "force-dynamic";
 
@@ -165,30 +166,23 @@ export default async function ProductPage({ params, searchParams }: Props) {
 
   const pageUrl = `${siteUrl()}${productPath(p)}`;
   const imgs = [p.imageUrl, ...(p.images ?? [])].filter((u): u is string => !!u && u.startsWith("http")).slice(0, 5);
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Product",
+  // Trang so giá: AggregateOffer (xem lib/productld.ts); món vắng trên sàn không khai giá
+  const jsonLd = productJsonLd({
     name: p.name,
     url: pageUrl,
     sku: `${p.platform}-${p.externalId}`,
-    image: imgs.length ? imgs : undefined,
-    category: p.category ?? undefined,
+    images: imgs,
+    category: p.category,
     description: story.paragraphs[0] || `${p.name} trên ${platformLabel}: giá hiện tại ${vnd(p.price)}.`,
-    // Không khai aggregateRating: sàn chỉ cho điểm sao, không cho số lượt đánh giá – Google yêu cầu cả hai
-    // Món không còn thấy trên sàn: không khai giá bán/tình trạng hàng (không biết chắc) thay vì khai sai "còn hàng"
-    offers: gone ? undefined : {
-      "@type": "Offer",
-      url: pageUrl,
-      price: p.price,
-      priceCurrency: "VND",
-      availability: "https://schema.org/InStock",
-      seller: { "@type": "Organization", name: p.shopName ? `${p.shopName} (${platformLabel})` : platformLabel },
-    },
-  };
+    price: p.price,
+    otherPrices: offers.length >= 2 ? offers.map((o) => o.price) : [],
+    brand: brand?.name,
+    gone,
+  });
 
   return (
     <>
-      <JsonLd data={jsonLd} />
+      {jsonLd && <JsonLd data={jsonLd} />}
       <RecordView id={p.id} price={p.price} category={p.category} />
       <Breadcrumbs items={[...(p.category ? [{ name: p.category, href: `/danh-muc/${slugify(p.category)}` }] : []), { name: p.name }]} />
       {adminView && (
