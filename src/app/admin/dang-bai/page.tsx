@@ -19,6 +19,13 @@ import { channels, draftsForProduct, lastPosted, pickDeals, raiseDraft, repostDa
 export const metadata = { title: "Đăng bài mạng xã hội", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
+/** "07:34 · 05/10" (giờ Việt Nam) */
+function hhmmDm(d: Date) {
+  const t = d.toLocaleTimeString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", hour12: false });
+  const [dd, mm] = d.toLocaleDateString("en-GB", { timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit" }).split("/");
+  return `${t} · ${dd}/${mm}`;
+}
+
 /** "3 giờ trước", "2 ngày trước" */
 function ago(at: Date, now: Date) {
   const m = Math.max(1, Math.round((now.getTime() - at.getTime()) / 60_000));
@@ -181,15 +188,16 @@ export default async function SocialAdmin({ searchParams }: { searchParams: Prom
       <section className="panel" style={{ marginTop: 24 }}>
         <h2><Icon name="clock" /> Đã đăng gần đây</h2>
         {history.length ? (
+          <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Thời gian</th><th>Kênh</th><th>Sản phẩm</th><th>Kết quả</th></tr></thead>
+            <thead><tr><th className="nw">Thời gian</th><th className="nw">Kênh</th><th>Sản phẩm</th><th className="nw">Kết quả</th></tr></thead>
             <tbody>
               {history.map(({ post, name }) => (
                 <tr key={post.id}>
-                  <td>{post.postedAt.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}</td>
-                  <td>{post.channel}</td>
-                  <td><Link href={productPath({ id: post.productId, name })}>{name}</Link></td>
-                  <td>
+                  <td className="nw">{hhmmDm(post.postedAt)}</td>
+                  <td className="nw">{post.channel}</td>
+                  <td><Link className="ph-clamp" href={productPath({ id: post.productId, name })}>{name}</Link></td>
+                  <td className={post.error ? "hist-err" : "nw"}>
                     {post.error ? <span className="status">Lỗi: {post.error}</span> : <span className="status status-completed">Đã đăng</span>}
                     {!post.error && post.channel.startsWith("facebook") && post.channel !== REEL_CHANNEL && post.externalId && <> <a href={`https://www.facebook.com/${post.externalId}`} target="_blank" rel="noreferrer">Xem bài</a></>}
                     {!post.error && post.channel === REEL_CHANNEL && post.externalId && <> <a href={`https://www.facebook.com/reel/${post.externalId}`} target="_blank" rel="noreferrer">Xem Reel</a></>}
@@ -198,6 +206,7 @@ export default async function SocialAdmin({ searchParams }: { searchParams: Prom
               ))}
             </tbody>
           </table>
+          </div>
         ) : (
           <p className="muted">Chưa có bài nào.</p>
         )}
