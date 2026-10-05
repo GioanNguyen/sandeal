@@ -2,7 +2,7 @@ import { and, count, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
 import Link from "next/link";
 import { AdminTabs } from "@/components/AdminTabs";
 import { redirect } from "next/navigation";
-import { clicks, conversions, priceObservations, products, users, watches } from "@/db/schema";
+import { clicks, conversionItems, priceObservations, products, users, watches } from "@/db/schema";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { db, ensureMigrated } from "@/lib/db";
 import { PLATFORMS, shortDate, vnd } from "@/lib/format";
@@ -35,27 +35,28 @@ export default async function AdminPage() {
   }
   await ensureMigrated();
   const since = new Date(Date.now() - DAYS * 86_400_000);
-  const okConv = and(gte(conversions.purchasedAt, since), ne(conversions.status, "cancelled"));
+  // Đơn hàng: từng dòng sản phẩm (API + CSV, không trùng) – xem lib/revenue.ts
+  const okConv = and(gte(conversionItems.purchasedAt, since), ne(conversionItems.status, "cancelled"));
   // Múi giờ viết thẳng vào SQL (không dùng tham số) để SELECT và GROUP BY là cùng một biểu thức
   const tz = sql.raw(`'${TZ}'`);
   const clickDay = sql<string>`to_char(${clicks.createdAt} at time zone ${tz}, 'YYYY-MM-DD')`;
-  const convDay = sql<string>`to_char(${conversions.purchasedAt} at time zone ${tz}, 'YYYY-MM-DD')`;
+  const convDay = sql<string>`to_char(${conversionItems.purchasedAt} at time zone ${tz}, 'YYYY-MM-DD')`;
 
   const [[clk], [conv], [usr], clicksByDay, commByDay, byPlatformClicks, byPlatformConv, topProducts, recent] = await Promise.all([
     db.select({ n: count() }).from(clicks).where(gte(clicks.createdAt, since)),
     db
-      .select({ n: count(), amount: sql<number>`coalesce(sum(${conversions.orderAmount}),0)`, comm: sql<number>`coalesce(sum(${conversions.commission}),0)` })
-      .from(conversions)
+      .select({ n: sql<number>`count(distinct ${conversionItems.orderId})`, amount: sql<number>`coalesce(sum(${conversionItems.price} * ${conversionItems.qty}),0)`, comm: sql<number>`coalesce(sum(${conversionItems.commission}),0)` })
+      .from(conversionItems)
       .where(okConv),
     db.select({ users: count(), watches: sql<number>`(select count(*) from ${watches})` }).from(users),
     db.select({ day: clickDay, n: count() }).from(clicks).where(gte(clicks.createdAt, since)).groupBy(clickDay),
-    db.select({ day: convDay, v: sql<number>`sum(${conversions.commission})` }).from(conversions).where(okConv).groupBy(convDay),
+    db.select({ day: convDay, v: sql<number>`sum(${conversionItems.commission})` }).from(conversionItems).where(okConv).groupBy(convDay),
     db.select({ platform: clicks.platform, n: count() }).from(clicks).where(gte(clicks.createdAt, since)).groupBy(clicks.platform),
     db
-      .select({ platform: conversions.platform, n: count(), comm: sql<number>`sum(${conversions.commission})` })
-      .from(conversions)
+      .select({ platform: conversionItems.platform, n: sql<number>`count(distinct ${conversionItems.orderId})`, comm: sql<number>`sum(${conversionItems.commission})` })
+      .from(conversionItems)
       .where(okConv)
-      .groupBy(conversions.platform),
+      .groupBy(conversionItems.platform),
     db
       .select({ id: products.id, name: products.name, platform: products.platform, n: count() })
       .from(clicks)
@@ -64,7 +65,20 @@ export default async function AdminPage() {
       .groupBy(products.id, products.name, products.platform)
       .orderBy(desc(count()))
       .limit(10),
-    db.select().from(conversions).orderBy(desc(conversions.purchasedAt)).limit(10),
+    db
+      .select({
+        id: sql<string>`${conversionItems.platform} || ':' || ${conversionItems.orderId}`,
+        platform: conversionItems.platform,
+        purchasedAt: sql<Date>`max(${conversionItems.purchasedAt})`,
+        // Đơn có dòng chờ thì cả đơn đang chờ; hết chờ mà còn dòng hoàn thành thì hoàn thành
+        status: sql<string>`case when bool_or(${conversionItems.status} = 'pending') then 'pending' when bool_or(${conversionItems.status} = 'completed') then 'completed' else 'cancelled' end`,
+        orderAmount: sql<number>`sum(${conversionItems.price} * ${conversionItems.qty})`,
+        commission: sql<number>`sum(${conversionItems.commission}) filter (where ${conversionItems.status} <> 'cancelled')`,
+      })
+      .from(conversionItems)
+      .groupBy(conversionItems.platform, conversionItems.orderId)
+      .orderBy(desc(sql`max(${conversionItems.purchasedAt})`))
+      .limit(10),
   ]);
 
   // Giá người dùng tiện ích góp trong 24 giờ
@@ -179,11 +193,11 @@ export default async function AdminPage() {
             <tbody>
               {recent.map((c) => (
                 <tr key={c.id}>
-                  <td>{shortDate(c.purchasedAt)}</td>
+                  <td>{shortDate(new Date(c.purchasedAt))}</td>
                   <td>{PLATFORMS[c.platform]?.label ?? c.platform}</td>
                   <td><span className={`status status-${c.status}`}>{statusLabel[c.status] ?? c.status}</span></td>
-                  <td className="num">{vnd(c.orderAmount)}</td>
-                  <td className="num">{vnd(c.commission)}</td>
+                  <td className="num">{vnd(Number(c.orderAmount))}</td>
+                  <td className="num">{vnd(Number(c.commission ?? 0))}</td>
                 </tr>
               ))}
             </tbody>

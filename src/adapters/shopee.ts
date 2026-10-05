@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { lineStatus } from "@/lib/convstatus";
 import type { ConversionInput, ProductInput, SourceAdapter } from "./types";
 
 /**
@@ -109,19 +110,29 @@ export function mapShopeeNode(n: ShopeeNode): ProductInput {
 const CONVERSION_QUERY = `query ($start: Int64, $end: Int64, $scrollId: String) {
   conversionReport(purchaseTimeStart: $start, purchaseTimeEnd: $end, limit: 500, scrollId: $scrollId) {
     nodes {
-      conversionId purchaseTime totalCommission conversionStatus
-      orders { orderId orderStatus items { itemPrice qty itemTotalCommission } }
+      conversionId purchaseTime totalCommission conversionStatus __CONV_FIELDS__
+      orders { orderId orderStatus items { itemPrice qty itemTotalCommission __ITEM_FIELDS__ } }
     }
     pageInfo { hasNextPage scrollId }
   }
 }`;
+// Trường chi tiết (mã sản phẩm, giờ bấm, sub_id) để ghép đơn với món và kênh; API cũ không có thì tự bỏ
+const CONV_FIELDS = "clickTime utmContent";
+const ITEM_FIELDS = "itemId itemName shopId modelId completeTime displayItemStatus";
+let convDetail = true;
 
 interface ShopeeConversion {
   conversionId: string | number;
   purchaseTime: number;
   totalCommission?: string | number;
   conversionStatus?: string;
-  orders?: { orderId: string; orderStatus?: string; items?: { itemPrice?: string | number; qty?: number }[] }[];
+  clickTime?: number;
+  utmContent?: string;
+  orders?: {
+    orderId: string;
+    orderStatus?: string;
+    items?: { itemPrice?: string | number; qty?: number; itemTotalCommission?: string | number; itemId?: string | number; itemName?: string; shopId?: string | number; modelId?: string | number; completeTime?: number; displayItemStatus?: string }[];
+  }[];
 }
 
 export function mapShopeeConversion(c: ShopeeConversion): ConversionInput {
@@ -136,6 +147,26 @@ export function mapShopeeConversion(c: ShopeeConversion): ConversionInput {
     status: st.includes("CANCEL") || st.includes("INVALID") ? "cancelled" : st.includes("COMPLETE") ? "completed" : "pending",
     purchasedAt: new Date(c.purchaseTime * 1000),
     raw: c,
+    orders: (c.orders ?? []).map((o) => ({
+      orderId: String(o.orderId),
+      lines: (o.items ?? []).map((i, k) => {
+        const status = lineStatus(i.displayItemStatus || o.orderStatus || c.conversionStatus);
+        return {
+          lineKey: i.itemId ? `${i.itemId}${i.modelId ? `:${i.modelId}` : ""}` : `#${k + 1}`,
+          itemId: i.itemId ? String(i.itemId) : null,
+          itemName: i.itemName ?? null,
+          shopId: i.shopId ? String(i.shopId) : null,
+          price: Number(i.itemPrice ?? 0),
+          qty: i.qty ?? 1,
+          commission: Number(i.itemTotalCommission ?? 0),
+          status,
+          purchasedAt: new Date(c.purchaseTime * 1000),
+          completedAt: i.completeTime ? new Date(i.completeTime * 1000) : null,
+          clickedAt: c.clickTime ? new Date(c.clickTime * 1000) : null,
+          subIds: c.utmContent || null,
+        };
+      }),
+    })),
   };
 }
 
@@ -186,10 +217,18 @@ export const shopeeAdapter: SourceAdapter = {
     let scrollId: string | undefined;
     // Shopee giới hạn khoảng thời gian ~90 ngày/lần và scrollId hết hạn sau ~30 giây
     for (let page = 0; page < 20; page++) {
-      const data = await gql<{ conversionReport: { nodes: ShopeeConversion[]; pageInfo: { hasNextPage: boolean; scrollId?: string } } }>(
-        CONVERSION_QUERY,
-        { start: Math.floor(since.getTime() / 1000), end: Math.floor(Date.now() / 1000), scrollId },
-      );
+      type Report = { conversionReport: { nodes: ShopeeConversion[]; pageInfo: { hasNextPage: boolean; scrollId?: string } } };
+      const vars = { start: Math.floor(since.getTime() / 1000), end: Math.floor(Date.now() / 1000), scrollId };
+      const q = (detail: boolean) => CONVERSION_QUERY.replace("__CONV_FIELDS__", detail ? CONV_FIELDS : "").replace("__ITEM_FIELDS__", detail ? ITEM_FIELDS : "");
+      let data: Report;
+      try {
+        data = await gql<Report>(q(convDetail), vars);
+      } catch (err) {
+        if (!convDetail || !/field|Cannot query|unknown/i.test((err as Error).message)) throw err;
+        console.warn("[shopee] báo cáo đơn không có trường chi tiết, dùng bản cơ bản:", (err as Error).message.slice(0, 200));
+        convDetail = false;
+        data = await gql<Report>(q(false), vars);
+      }
       out.push(...data.conversionReport.nodes.map(mapShopeeConversion));
       if (!data.conversionReport.pageInfo.hasNextPage) break;
       scrollId = data.conversionReport.pageInfo.scrollId;

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { clicks, products } from "@/db/schema";
 import { db, ensureMigrated } from "@/lib/db";
+import { channelFromCookie } from "@/lib/channel";
 
 /** Ghi nhận lượt bấm rồi chuyển sang link affiliate */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -14,7 +15,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!p) return redirectTo("/");
   const ua = req.headers.get("user-agent") ?? "";
   if (!/bot|crawl|spider|preview/i.test(ua)) {
-    await db.insert(clicks).values({ productId: p.id, platform: p.platform, referer: req.headers.get("referer") });
+    await db.insert(clicks).values({ productId: p.id, platform: p.platform, referer: req.headers.get("referer"), channel: channelFromCookie(req.headers.get("cookie")) });
   }
   return NextResponse.redirect(p.url, 302);
 }

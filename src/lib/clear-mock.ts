@@ -26,6 +26,7 @@ export async function clearMockData(): Promise<ClearReport> {
   const mockProducts = sql`select id from products where external_id like 'mock-%' or name like '%(dữ liệu mẫu #%'`;
   return db.transaction(async (tx) => {
     const n = async (q: ReturnType<typeof sql>) => ((await tx.execute(q)).rows as unknown[]).length;
+    await tx.execute(sql`delete from conversion_items where source = 'mock'`);
     return {
       clicks: await n(sql`delete from clicks where product_id in (${mockProducts}) returning id`),
       products: await n(sql`delete from products where id in (${mockProducts}) returning id`),

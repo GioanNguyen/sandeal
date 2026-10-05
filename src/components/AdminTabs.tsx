@@ -2,6 +2,7 @@ import Link from "next/link";
 
 const TABS = [
   { href: "/admin", label: "Thống kê" },
+  { href: "/admin/doanh-thu", label: "Doanh thu" },
   { href: "/admin/san-pham", label: "Sản phẩm" },
   { href: "/admin/nganh-hang", label: "Ngành hàng" },
   { href: "/admin/nhu-cau", label: "Nhu cầu" },

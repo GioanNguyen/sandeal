@@ -1939,3 +1939,10 @@ html[data-theme="dark"] .rv-pc-h.bad { color: #fb7185; }
   .demand-table td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); font-weight: 400; font-size: 13px; }
   .code-block { white-space: pre-wrap; word-break: break-all; }
 }
+
+/* Quản trị › Doanh thu */
+.rev-source { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between; font-size: 14px; margin-bottom: 16px; }
+.rev-source > div:first-child { flex: 1 1 420px; }
+.rev-msg { white-space: normal; font-size: 13px; }
+.seg { max-width: 100%; overflow-x: auto; }
+.seg a { white-space: nowrap; flex: none; }

@@ -154,9 +154,11 @@ export const clicks = pgTable(
     voucherId: integer("voucher_id").references(() => vouchers.id, { onDelete: "set null" }),
     platform: text("platform").notNull(),
     referer: text("referer"),
+    /** Kênh khách tới site (facebook, google, zalo…, "direct") – từ cookie gắn lúc vào trang, để biết đơn đến từ đâu */
+    channel: text("channel"),
     createdAt: ts("created_at").notNull().defaultNow(),
   },
-  (t) => [index("clicks_created_idx").on(t.createdAt)],
+  (t) => [index("clicks_created_idx").on(t.createdAt), index("clicks_product_idx").on(t.productId, t.createdAt)],
 );
 
 /** Đơn hàng / hoa hồng lấy từ báo cáo của mạng affiliate */
@@ -174,6 +176,46 @@ export const conversions = pgTable(
     raw: jsonb("raw"),
   },
   (t) => [uniqueIndex("conversions_src_ext_uq").on(t.source, t.externalId), index("conversions_time_idx").on(t.purchasedAt)],
+);
+
+/**
+ * Từng dòng sản phẩm trong đơn có hoa hồng (từ API báo cáo của sàn hoặc tệp CSV tải ở trang affiliate).
+ * Một đơn chỉ giữ dữ liệu của lần nhập gần nhất (nhập lại thì thay cả đơn) để API và CSV không cộng trùng.
+ * productId/clickId/channel: ghép với món đang theo dõi và lượt bấm "Mua" trên site để biết đơn đến từ đâu.
+ */
+export const conversionItems = pgTable(
+  "conversion_items",
+  {
+    id: serial("id").primaryKey(),
+    source: text("source").notNull(),
+    platform: text("platform").notNull(),
+    orderId: text("order_id").notNull(),
+    /** Mã dòng trong đơn: mã sản phẩm + phân loại (hoặc số thứ tự khi nguồn không có mã) */
+    lineKey: text("line_key").notNull(),
+    itemId: text("item_id"),
+    itemName: text("item_name"),
+    shopId: text("shop_id"),
+    price: doublePrecision("price").notNull().default(0),
+    qty: integer("qty").notNull().default(1),
+    commission: doublePrecision("commission").notNull().default(0),
+    /** pending | completed | cancelled */
+    status: text("status").notNull().default("pending"),
+    purchasedAt: ts("purchased_at").notNull(),
+    completedAt: ts("completed_at"),
+    clickedAt: ts("clicked_at"),
+    subIds: text("sub_ids"),
+    productId: integer("product_id").references(() => products.id, { onDelete: "set null" }),
+    clickId: integer("click_id"),
+    channel: text("channel"),
+    /** exact: khách bấm Mua đúng món này · cart: bấm món khác cùng sàn rồi mua thêm · none: không tìm được lượt bấm */
+    attribution: text("attribution"),
+    importedAt: ts("imported_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("conversion_items_line_uq").on(t.platform, t.orderId, t.lineKey),
+    index("conversion_items_time_idx").on(t.purchasedAt),
+    index("conversion_items_product_idx").on(t.productId),
+  ],
 );
 
 export const rateLimits = pgTable("rate_limits", {

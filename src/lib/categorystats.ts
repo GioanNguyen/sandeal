@@ -7,7 +7,7 @@
  * Mọi số đếm dùng JOIN/WHERE (không đặt truy vấn con trong SELECT – drizzle không ghi tên bảng ở đó, xem producthealth.ts).
  */
 import { and, gte, ne, sql } from "drizzle-orm";
-import { clicks, conversions, productViews, products, watches } from "@/db/schema";
+import { clicks, conversionItems, productViews, products, watches } from "@/db/schema";
 import { availableSql } from "./availability";
 import { db, ensureMigrated } from "./db";
 
@@ -95,7 +95,7 @@ export async function categoryStats(days = 30, now = new Date()): Promise<Catego
       .innerJoin(products, sql`${products.id} = ${watches.productId}`)
       .where(gte(watches.createdAt, since))
       .groupBy(catExpr),
-    db.select({ n: sql<number>`count(*)::int` }).from(conversions).where(and(gte(conversions.purchasedAt, since), ne(conversions.status, "cancelled"))),
+    db.select({ n: sql<number>`count(distinct ${conversionItems.orderId})::int` }).from(conversionItems).where(and(gte(conversionItems.purchasedAt, since), ne(conversionItems.status, "cancelled"))),
     db.select({ n: sql<number>`count(*)::int` }).from(clicks).where(gte(clicks.createdAt, since)),
   ]);
   const m = (rows: { category: string | null; n: number }[]) => {

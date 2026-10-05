@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { CHANNEL_COOKIE, CHANNEL_MAX_AGE, detectChannel } from "@/lib/channel";
 
 /**
  * Khoá cả site bằng mật khẩu (HTTP Basic Auth) khi đặt BASIC_AUTH_USER + BASIC_AUTH_PASSWORD trong .env.
@@ -66,6 +67,13 @@ export function middleware(req: NextRequest) {
     headers.set("x-pathname", req.nextUrl.pathname);
     const res = NextResponse.next({ request: { headers } });
     if (noindex) res.headers.set("X-Robots-Tag", "noindex, follow");
+    // Khách vào từ nguồn ngoài (Facebook, Google…): nhớ kênh để lượt bấm "Mua" ghi được đơn đến từ đâu
+    if (req.method === "GET" && !NO_ROBOTS_HEADER.test(req.nextUrl.pathname)) {
+      const ch = detectChannel(req.nextUrl, req.headers.get("referer"), (req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? req.nextUrl.host).split(":")[0].toLowerCase());
+      if (ch && req.cookies.get(CHANNEL_COOKIE)?.value !== ch) {
+        res.cookies.set(CHANNEL_COOKIE, ch, { maxAge: CHANNEL_MAX_AGE, path: "/", sameSite: "lax", httpOnly: true, secure: req.nextUrl.protocol === "https:" });
+      }
+    }
     return res;
   }
   const url = req.nextUrl.clone();

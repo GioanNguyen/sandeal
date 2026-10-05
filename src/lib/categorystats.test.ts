@@ -29,7 +29,7 @@ test("số liệu theo ngành: hoa hồng / đơn, lượt xem, bấm mua, cản
   const phone = await add("3", "Điện thoại", 5_000_000, 0.025);
   const none = await add("4", undefined, 100_000);
 
-  const { productViews, clicks, watches, users, conversions } = schema;
+  const { productViews, clicks, watches, users, conversionItems } = schema;
   const views = (pid: number, n: number) => Array.from({ length: n }, (_, i) => ({ visitor: `v${pid}-${i}`, productId: pid, day: "d", createdAt: h(1) }));
   await dbm.db.insert(productViews).values([...views(nail1, 60), ...views(nail2, 40), ...views(phone, 20), ...views(none, 5)]);
   // lượt xem cũ hơn kỳ 30 ngày: không tính
@@ -67,8 +67,8 @@ test("số liệu theo ngành: hoa hồng / đơn, lượt xem, bấm mua, cản
 
   // Đủ đơn hàng: dùng tỉ lệ chốt thật (≥100 lượt bấm, ≥5 đơn)
   await dbm.db.insert(clicks).values([...Array(90)].map(() => ({ productId: nail2, platform: "shopee", createdAt: h(1) })));
-  await dbm.db.insert(conversions).values([...Array(6)].map((_, i) => ({ source: "shopee", externalId: `o${i}`, platform: "shopee", purchasedAt: h(3), status: "completed" })));
-  await dbm.db.insert(conversions).values({ source: "shopee", externalId: "huy", platform: "shopee", purchasedAt: h(3), status: "cancelled" });
+  await dbm.db.insert(conversionItems).values([...Array(6)].map((_, i) => ({ source: "api", orderId: `o${i}`, lineKey: "#1", platform: "shopee", purchasedAt: h(3), status: "completed" })));
+  await dbm.db.insert(conversionItems).values({ source: "api", orderId: "huy", lineKey: "#1", platform: "shopee", purchasedAt: h(3), status: "cancelled" });
   const st2 = await cs.categoryStats(30, NOW);
   assert.deepEqual(st2.cr, { value: 6 / 104, fromOrders: true });
 });

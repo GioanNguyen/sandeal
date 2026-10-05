@@ -48,6 +48,8 @@ export interface ConversionInput {
   status: "pending" | "completed" | "cancelled";
   purchasedAt: Date;
   raw?: unknown;
+  /** Chi tiết từng đơn con và từng sản phẩm (khi nguồn có) – lưu vào conversion_items */
+  orders?: { orderId: string; lines: import("@/lib/revenue").ConversionLine[] }[];
 }
 
 /** Mỗi nguồn dữ liệu (sàn / mạng affiliate) là một adapter */
