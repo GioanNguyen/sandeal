@@ -1923,3 +1923,19 @@ html[data-theme="dark"] .rv-pc-h.bad { color: #fb7185; }
   .ph-list li { grid-template-columns: 22px 56px 1fr; }
   .bulk-bar { position: static; }
 }
+
+/* Quản trị › Nhu cầu */
+.demand-acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.demand-acts .chip { min-height: 32px; padding: 0 10px; font-size: 13px; }
+.demand-act { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.demand-act .vs { white-space: normal; font-size: 13px; }
+.demand-table td { vertical-align: top; }
+.code-block { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 13px; overflow-x: auto; white-space: pre; margin: 8px 0 0; }
+@media (max-width: 640px) {
+  .demand-table thead { display: none; }
+  .demand-table, .demand-table tbody, .demand-table tr, .demand-table td { display: block; width: 100%; }
+  .demand-table tr { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .demand-table td, .demand-table td.num { border: 0; padding: 2px 0; text-align: left; }
+  .demand-table td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); font-weight: 400; font-size: 13px; }
+  .code-block { white-space: pre-wrap; word-break: break-all; }
+}

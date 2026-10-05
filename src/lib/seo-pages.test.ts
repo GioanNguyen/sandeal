@@ -84,7 +84,7 @@ test("nhận thương hiệu từ tên: khớp nguyên chữ, dòng con về hã
 test("trang thương hiệu: chỉ thương hiệu có từ 3 món còn bán; số liệu theo sàn, giảm thật, rẻ nhất", async () => {
   const now = new Date();
   const add = (id: string, name: string, price: number, platform: "shopee" | "lazada", drop = 0) =>
-    ingest.upsertProduct({ platform, externalId: id, name, price, discountPct: 0, affiliateUrl: "https://e.com", category: "Phụ kiện điện thoại", shopType: platform === "shopee" ? "mall" : undefined }, now);
+    ingest.upsertProduct({ platform, externalId: id, name, price, discountPct: 0, affiliateUrl: "https://e.com", imageUrl: "https://cf.shopee.vn/file/x.jpg", category: "Phụ kiện điện thoại", shopType: platform === "shopee" ? "mall" : undefined }, now);
   await add("990001", "Sạc dự phòng Anker 10000mAh", 450_000, "shopee");
   await add("990002", "Củ sạc Anker 20W", 190_000, "shopee");
   await add("990003", "Cáp Anker USB-C 1m", 120_000, "lazada");
@@ -152,7 +152,7 @@ test("IndexNow: gửi trang mới/đổi từ lần gửi trước, trang thươ
 
   // 1 món đổi giá sau đó: chỉ gửi món đó (+ thương hiệu), không gửi lại trang tổng hợp trong ngày
   const t2 = new Date(t0.getTime() + 2 * 3_600_000);
-  await ingest.upsertProduct({ platform: "shopee", externalId: "990002", name: "Củ sạc Anker 20W", price: 170_000, discountPct: 0, affiliateUrl: "https://e.com", category: "Phụ kiện điện thoại", shopType: "mall" }, t2);
+  await ingest.upsertProduct({ platform: "shopee", externalId: "990002", name: "Củ sạc Anker 20W", price: 170_000, discountPct: 0, affiliateUrl: "https://e.com", imageUrl: "https://cf.shopee.vn/file/x.jpg", category: "Phụ kiện điện thoại", shopType: "mall" }, t2);
   const r3 = await inow.runIndexNow(new Date(t2.getTime() + 1000), f);
   assert.equal(r3.status, 200);
   const list = calls[1].body.urlList;

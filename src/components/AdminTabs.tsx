@@ -4,10 +4,11 @@ const TABS = [
   { href: "/admin", label: "Thống kê" },
   { href: "/admin/san-pham", label: "Sản phẩm" },
   { href: "/admin/nganh-hang", label: "Ngành hàng" },
+  { href: "/admin/nhu-cau", label: "Nhu cầu" },
   { href: "/admin/dang-bai", label: "Đăng bài" },
   { href: "/admin/huong-dan", label: "Hướng dẫn" },
   { href: "/admin/toc-do", label: "Tốc độ" },
-  { href: "/admin/tim-kiem", label: "Tìm kiếm" },
+  { href: "/admin/tim-kiem", label: "SEO" },
 ];
 
 export function AdminTabs({ current }: { current: string }) {

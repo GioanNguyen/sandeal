@@ -52,6 +52,7 @@ import { ProductStory } from "@/components/ProductStory";
 import { FollowBox } from "@/components/FollowBox";
 import { brandOf, brandPath } from "@/lib/brands";
 import { productJsonLd } from "@/lib/productld";
+import { PRODUCT_NOINDEX_LABEL, productNoindexReason } from "@/lib/seoquality";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +76,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: { canonical: productPath(p) },
     openGraph: { title, description, type: "website" },
     twitter: { card: "summary_large_image", title, description },
+    // Trang mỏng (chưa ảnh, ít giá) hoặc vắng trên sàn quá lâu: không index nhưng vẫn cho đi theo link
+    ...(productNoindexReason({ ...p, points: p.prices.length }) ? { robots: { index: false, follow: true } } : {}),
   };
 }
 
@@ -86,6 +89,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
   // Món quản trị viên đã ẩn: khách thấy 404, quản trị viên vẫn xem được (kèm ghi chú)
   const adminView = !!user && isAdmin(user.email);
   if (p.hidden && !adminView) notFound();
+  const noindex = adminView ? productNoindexReason({ ...p, points: p.prices.length }) : null;
   // Đường dẫn cũ /product/12 hoặc tên đã đổi -> chuyển hẳn (301) sang đường dẫn có tên, giữ nguyên tham số
   const canonical = productPath(p);
   if (`/product/${decodeURIComponent(id)}` !== canonical) {
@@ -188,6 +192,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
       {adminView && (
         <p className={p.hidden ? "form-msg" : "muted"} role={p.hidden ? "alert" : undefined} style={{ fontSize: 14 }}>
           {p.hidden ? <><b>Món này đang bị ẩn khỏi web</b>{p.hiddenReason ? ` (${p.hiddenReason})` : ""} – khách truy cập thấy trang 404. </> : null}
+          {noindex && noindex !== "hidden" ? <>Google chưa index trang này: {PRODUCT_NOINDEX_LABEL[noindex].toLowerCase()}. </> : null}
           <Link href={`/admin/san-pham?q=${p.id}`}>Quản lý món này</Link>
         </p>
       )}

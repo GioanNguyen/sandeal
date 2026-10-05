@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
-import { approveGuide, draftGuide, guideAiEnabled, rejectGuide, unscheduleGuide } from "@/worker/guide-ai";
+import { approveGuide, draftGuide, guideAiEnabled, queryTopic, rejectGuide, unscheduleGuide } from "@/worker/guide-ai";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,13 +8,13 @@ export const maxDuration = 300;
 
 /**
  * Bài hướng dẫn AI soạn (trang /admin/huong-dan):
- *   {action:"draft"} soạn 1 bài nháp ngay · {action:"approve",id} duyệt · {action:"reject",id} bỏ
+ *   {action:"draft"} soạn 1 bài nháp ngay ({action:"draft",q} theo từ khoá khách tìm) · {action:"approve",id} duyệt · {action:"reject",id} bỏ
  *   {action:"redo",id} bỏ bài này và soạn bài khác · {action:"unschedule",id} huỷ lịch bài đã duyệt (chưa đăng)
  */
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user || !isAdmin(user.email)) return NextResponse.json({ error: "Không có quyền" }, { status: 403 });
-  const { action, id } = (await req.json().catch(() => ({}))) as { action?: string; id?: number };
+  const { action, id, q } = (await req.json().catch(() => ({}))) as { action?: string; id?: number; q?: string };
   const n = Number(id);
   switch (action) {
     case "approve": {
@@ -30,7 +30,9 @@ export async function POST(req: Request) {
     case "draft": {
       if (!guideAiEnabled()) return NextResponse.json({ error: "Chưa cấu hình ANTHROPIC_API_KEY (hoặc đã tắt bằng GUIDES_AI=0)" }, { status: 400 });
       if (action === "redo") await rejectGuide(n);
-      const r = await draftGuide();
+      // q: soạn bài theo từ khoá khách đang tìm (Quản trị › Nhu cầu)
+      const term = action === "draft" && typeof q === "string" ? q.trim().slice(0, 60) : "";
+      const r = await draftGuide(new Date(), fetch, term.length >= 2 ? queryTopic(term) : undefined);
       return r.ok ? NextResponse.json(r) : NextResponse.json({ error: r.error }, { status: 502 });
     }
   }

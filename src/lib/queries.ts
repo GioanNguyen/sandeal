@@ -4,6 +4,7 @@ import { db, ensureMigrated } from "./db";
 import { slugify } from "./slug";
 import { availableSql } from "./availability";
 import { voucherGain, type CalcVoucher } from "./voucher";
+import { nameMatch } from "./textsearch";
 
 const DAY = 86_400_000;
 
@@ -44,7 +45,8 @@ function dealWhere(f: DealFilter) {
   const conds: SQL[] = [availableSql()];
   if (f.platform) conds.push(eq(products.platform, f.platform));
   if (f.category) conds.push(eq(products.category, f.category));
-  if (f.q) conds.push(ilike(products.name, `%${f.q.replace(/[%_]/g, "")}%`));
+  // Gõ không dấu vẫn ra (vd "quat mini" -> "Quạt mini")
+  if (f.q) conds.push(nameMatch(products.name, f.q));
   if (f.minDrop) conds.push(gte(products.realDropPct, f.minDrop));
   if (f.maxPrice) conds.push(lte(products.price, f.maxPrice));
   if (f.categories?.length) conds.push(inArray(products.category, f.categories));

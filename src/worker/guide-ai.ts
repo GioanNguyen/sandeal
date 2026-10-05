@@ -21,6 +21,7 @@ import { shortName } from "@/lib/productstory";
 import { raiseReport } from "@/lib/salepages";
 import { upcomingSales, type SaleEvent } from "@/lib/sales";
 import { slugify } from "@/lib/slug";
+import { nameMatch } from "@/lib/textsearch";
 
 const DAY = 86_400_000;
 export const guideAiEnabled = () => !!process.env.ANTHROPIC_API_KEY && process.env.GUIDES_AI !== "0";
@@ -59,6 +60,19 @@ export interface Topic {
   idea: string;
   scene: string;
   sale?: SaleEvent;
+  /** Bài theo từ khoá khách đang tìm (Quản trị › Nhu cầu) */
+  query?: string;
+}
+
+/** Chủ đề bài theo từ khoá khách đang tìm trên site / Google */
+export function queryTopic(q: string): Topic {
+  const t = q.replace(/\s+/g, " ").trim().slice(0, 60);
+  return {
+    key: `q-${slugify(t).slice(0, 60)}`,
+    idea: `Khách đang tìm "${t}": hướng dẫn chọn mua ${t} – nên chọn loại nào, mức giá hợp lý bao nhiêu, mua lúc nào rẻ, cần tránh gì. Dựa vào số liệu giá thật trong <so_lieu> (mục khachDangTim)`,
+    scene: "compare",
+    query: t,
+  };
 }
 
 /** Chọn chủ đề cho bài đăng ngày `publish`: đợt sale lớn sắp tới (nếu chưa viết) trước, rồi lần lượt các chủ đề bền */
@@ -105,8 +119,23 @@ export async function guideFacts(publish: Date, topic: Topic, now = new Date()) 
       };
     }
   }
+  // Bài theo từ khoá: các món khớp đang bán (giá thật, mức giảm thật) để AI viết đúng thị trường
+  let khachDangTim: Record<string, unknown> | null = null;
+  if (topic.query) {
+    const match = await db.select().from(products).where(and(availableSql(), nameMatch(products.name, topic.query))).orderBy(desc(products.dealScore)).limit(40);
+    const prices = match.map((p) => p.price).sort((a, b) => a - b);
+    khachDangTim = {
+      tuKhoa: topic.query,
+      soMonDangBan: match.length,
+      giaThapNhat: prices.length ? vnd(prices[0]) : null,
+      giaPhoBien: prices.length ? vnd(prices[Math.floor(prices.length / 2)]) : null,
+      giaCaoNhat: prices.length ? vnd(prices[prices.length - 1]) : null,
+      viDu: match.slice(0, 6).map((p) => ({ ten: shortName(p.name), san: PLATFORMS[p.platform]?.label ?? p.platform, gia: vnd(p.price), giamThat: p.realDropPct >= 1 ? `${Math.round(p.realDropPct)}%` : "không giảm" })),
+    };
+  }
   return {
     ngayDang: ddmm(publish),
+    khachDangTim,
     soMonDangTheoDoi: Number(counts?.tracked ?? 0),
     soMonGiamThatTu10Pct: Number(counts?.deals ?? 0),
     danhMucDangGiamNhieu: cats.map((c) => ({ danhMuc: c.category, soMon: Number(c.n), giamThatTrungVi: `${Math.round(Number(c.drop))}%` })),
@@ -261,12 +290,18 @@ async function notifyAdmins(title: string, description: string) {
 }
 
 /** Soạn 1 bài nháp. Trả về id bài, hoặc lỗi (không ném lỗi để worker không dừng) */
-export async function draftGuide(now = new Date(), fetchImpl: typeof fetch = fetch): Promise<{ ok: true; id: number; title: string } | { ok: false; error: string }> {
+export async function draftGuide(now = new Date(), fetchImpl: typeof fetch = fetch, override?: Topic): Promise<{ ok: true; id: number; title: string } | { ok: false; error: string }> {
   if (!guideAiEnabled()) return { ok: false, error: "Chưa có ANTHROPIC_API_KEY (hoặc đã tắt bằng GUIDES_AI=0)" };
   await ensureMigrated();
   const slot = await nextFreeSlot(now);
   const publish = new Date(`${slot}T08:00:00+07:00`);
-  const topic = pickTopic(await usedTopics(), publish);
+  const used = await usedTopics();
+  if (override) {
+    // Bài cũ đã bị bỏ thì được soạn lại
+    const [dup] = await db.select({ id: aiGuides.id }).from(aiGuides).where(and(eq(aiGuides.topic, override.key), sql`${aiGuides.status} <> 'rejected'`)).limit(1);
+    if (dup) return { ok: false, error: "Đã có bài (nháp hoặc đã duyệt) cho từ khoá này – xem ở Quản trị › Hướng dẫn" };
+  }
+  const topic = override ?? pickTopic(used, publish);
   if (!topic) return { ok: false, error: "Đã dùng hết chủ đề có sẵn – thêm chủ đề vào TOPIC_POOL trong src/worker/guide-ai.ts" };
   try {
     const facts = await guideFacts(publish, topic, now);

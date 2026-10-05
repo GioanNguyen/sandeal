@@ -4,6 +4,7 @@ import { productViews, products, searchLog, type Product } from "@/db/schema";
 import { db, ensureMigrated } from "./db";
 import { enrichDeals, listCategories, type DealRow } from "./queries";
 import { availableSql } from "./availability";
+import { nameMatch } from "./textsearch";
 
 const DAY = 86_400_000;
 
@@ -54,8 +55,8 @@ export async function suggest(q: string): Promise<Suggestion> {
     db
       .select({ id: products.id, name: products.name, imageUrl: products.imageUrl, price: products.price, platform: products.platform, realDropPct: products.realDropPct })
       .from(products)
-      .where(ilike(products.name, `%${term}%`))
-      .orderBy(desc(sql`${products.name} ilike ${term + "%"}`), desc(products.dealScore))
+      .where(nameMatch(products.name, term))
+      .orderBy(desc(nameMatch(products.name, term, "prefix")), desc(products.dealScore))
       .limit(6),
     listCategories(),
   ]);

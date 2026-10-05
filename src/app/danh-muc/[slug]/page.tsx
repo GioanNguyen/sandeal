@@ -7,6 +7,7 @@ import { PLATFORMS } from "@/lib/format";
 import { categoryStats, listCategories, listDeals } from "@/lib/queries";
 import { vnd } from "@/lib/format";
 import { LoadMore } from "@/components/Personal";
+import { categoryAvailable, categoryIndexable } from "@/lib/seoquality";
 
 export const dynamic = "force-dynamic";
 const PAGE_SIZE = 24;
@@ -21,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const cat = await findCategory((await params).slug);
   if (!cat) return {};
   const title = `Deal ${cat.name} giảm thật hôm nay – Shopee, Lazada, TikTok Shop`;
-  const st = await categoryStats(cat.name);
+  const [st, avail] = await Promise.all([categoryStats(cat.name), categoryAvailable()]);
   return {
     title,
     description: st.realCount
@@ -29,6 +30,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       : `${cat.count} sản phẩm ${cat.name.toLowerCase()} trên Shopee, Lazada, TikTok Shop, xếp theo mức giảm thật so với giá 30 ngày.`,
     alternates: { canonical: `/danh-muc/${cat.slug}` },
     openGraph: { title },
+    // Danh mục chỉ còn vài món đang bán: trang mỏng, chưa cho index
+    robots: categoryIndexable(avail.get(cat.name) ?? 0) ? undefined : { index: false, follow: true },
   };
 }
 

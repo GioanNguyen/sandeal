@@ -19,6 +19,7 @@ import { guidePublishAt } from "./guides";
 import { livePublishedGuides } from "./guides-db";
 import { siteUrl } from "./mail";
 import { productPath } from "./slug";
+import { productIndexableSql } from "./seoquality";
 import { VOUCHER_PLATFORMS, currentMonthRef, monthRefs } from "./voucherpages";
 
 const ENDPOINT = "https://api.indexnow.org/indexnow";
@@ -93,7 +94,7 @@ export async function changedUrls(since: Date, now = new Date(), withHubs = fals
   const rows = await db
     .select({ id: products.id, name: products.name })
     .from(products)
-    .where(and(availableSql(), or(gt(products.createdAt, since), inArray(products.id, changed))))
+    .where(and(availableSql(), productIndexableSql(now), or(gt(products.createdAt, since), inArray(products.id, changed))))
     .orderBy(desc(products.dealScore))
     .limit(MAX_URLS - 100);
   for (const p of rows) out.push(`${site}${productPath(p)}`);

@@ -12,6 +12,7 @@ import { getPriceTopic, priceTopics, topicName } from "@/lib/pricepages";
 import { nextSale } from "@/lib/sales";
 import { productPath } from "@/lib/slug";
 import { perBase, unitPrice, unitPriceText } from "@/lib/unitprice";
+import { topicIndexable } from "@/lib/seoquality";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const name = topicName(d.topic);
   const title = `Giá ${name} hôm nay: rẻ nhất ${vnd(d.now.min)} – so sánh Shopee, Lazada, TikTok Shop`;
   const description = `Giá ${name} hôm nay từ ${vnd(d.now.min)} đến ${vnd(d.now.max)} (${d.topic.count} mẫu). Biểu đồ giá thấp nhất ${d.trackedDays >= 7 ? `${Math.min(90, d.trackedDays)} ngày qua` : "từ khi theo dõi"}, sàn nào rẻ nhất và nên mua lúc nào.`;
-  return { title, description, alternates: { canonical: `/gia/${d.topic.slug}` }, openGraph: { title, description } };
+  return {
+    title,
+    description,
+    alternates: { canonical: `/gia/${d.topic.slug}` },
+    openGraph: { title, description },
+    // Ít mẫu còn bán hoặc mới theo dõi vài ngày: chưa đủ để so giá, chưa cho index
+    robots: topicIndexable(d.cheapest.length, d.trackedDays) ? undefined : { index: false, follow: true },
+  };
 }
 
 export default async function PriceTopicPage({ params }: Props) {

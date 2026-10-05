@@ -18,7 +18,7 @@ import { reportWeeks } from "./weekly";
 import { recentDays } from "./daily";
 import { listBrands } from "./brands";
 import { monthRefs, monthStart } from "./voucherpages";
-import { visibleSql } from "./availability";
+import { categoryAvailable, categoryIndexable, productIndexableSql, SEO_RULES } from "./seoquality";
 
 export const PRODUCTS_PER_FILE = 10_000;
 type Url = { loc: string; lastmod?: Date | null; changefreq?: string; priority?: number };
@@ -52,7 +52,8 @@ async function productRows() {
     .select({ id: products.id, name: products.name, category: products.category, createdAt: products.createdAt, at: lastChange.at })
     .from(products)
     .leftJoin(lastChange, eq(lastChange.productId, products.id))
-    .where(visibleSql())
+    // Chỉ trang index được (bỏ món đã ẩn, vắng quá lâu, trang mỏng) – xem seoquality.ts
+    .where(productIndexableSql())
     .orderBy(desc(products.dealScore), products.id);
 }
 
@@ -64,7 +65,7 @@ const newest = (dates: (Date | null | undefined)[]) => {
 export async function sitemapFiles(): Promise<{ name: string; lastmod: Date | null }[]> {
   await ensureMigrated();
   const [{ at }] = await db.select({ at: max(pricePoints.capturedAt) }).from(pricePoints);
-  const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(products).where(visibleSql());
+  const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(products).where(productIndexableSql());
   const chunks = Math.max(1, Math.ceil(total / PRODUCTS_PER_FILE));
   return [
     { name: "pages.xml", lastmod: null },
@@ -126,7 +127,8 @@ export async function sitemapUrls(name: string): Promise<Url[] | null> {
       .leftJoin(pricePoints, eq(pricePoints.productId, products.id))
       .where(isNotNull(products.category))
       .groupBy(products.category);
-    return rows.map((r) => ({ loc: `${base}/danh-muc/${slugify(r.category!)}`, lastmod: r.at, changefreq: "daily", priority: 0.8 }));
+    const avail = await categoryAvailable();
+    return rows.filter((r) => categoryIndexable(avail.get(r.category!) ?? 0)).map((r) => ({ loc: `${base}/danh-muc/${slugify(r.category!)}`, lastmod: r.at, changefreq: "daily", priority: 0.8 }));
   }
   if (name === "reports.xml") {
     const [weeks, days] = await Promise.all([reportWeeks(12), recentDays(30)]);
@@ -149,7 +151,7 @@ export async function sitemapUrls(name: string): Promise<Url[] | null> {
   }
   if (name === "topics.xml") {
     const [topics, rows] = await Promise.all([priceTopics(), productRows()]);
-    return topics.map((t) => {
+    return topics.filter((t) => t.count >= SEO_RULES.topicMin).map((t) => {
       const pre = t.label.toLowerCase();
       const at = newest(rows.filter((r) => r.name.toLowerCase().startsWith(pre)).map((r) => r.at));
       return { loc: `${base}/gia/${t.slug}`, lastmod: at, changefreq: "daily", priority: 0.7 };
