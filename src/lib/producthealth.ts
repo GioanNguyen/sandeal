@@ -3,8 +3,8 @@
  * món còn thấy trên sàn hay đã vắng, món bị ẩn, thiếu ảnh/danh mục, link mua không hợp lệ, giá bất thường…
  * Mỗi "vấn đề" là một điều kiện SQL để vừa đếm, vừa lọc danh sách.
  */
-import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
-import { products, type Product } from "@/db/schema";
+import { and, asc, desc, eq, gte, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
+import { clicks, productViews, products, watches, type Product } from "@/db/schema";
 import { availableSql } from "./availability";
 import { db, ensureMigrated } from "./db";
 import { refFromInput } from "./links";
@@ -61,36 +61,50 @@ export interface HealthSummary {
   platforms: { platform: string; total: number; available: number; gone: number; hidden: number; lastSync: Date | null }[];
 }
 
+/*
+ * Lưu ý: drizzle viết cột trong phần SELECT không kèm tên bảng ("id" thay vì "products"."id"). Đặt các điều kiện có truy vấn con
+ * (select … from product_views v where v.product_id = "id") vào SELECT thì "id" bị hiểu là cột của bảng con – đếm sai.
+ * Vì vậy mọi số đếm ở đây đều đặt điều kiện trong WHERE / ORDER BY (drizzle có ghi tên bảng), không đặt trong SELECT.
+ */
+const countWhere = async (cond?: SQL) => Number((await db.select({ n: sql<number>`count(*)::int` }).from(products).where(cond))[0]?.n ?? 0);
+const countByPlatform = async (cond?: SQL) =>
+  new Map((await db.select({ platform: products.platform, n: sql<number>`count(*)::int` }).from(products).where(cond).groupBy(products.platform)).map((r) => [r.platform, Number(r.n)]));
+
 export async function healthSummary(now = new Date()): Promise<HealthSummary> {
   await ensureMigrated();
-  const n = (cond: SQL) => sql<number>`count(*) filter (where ${cond})::int`;
-  const [row] = await db
-    .select({
-      total: sql<number>`count(*)::int`,
-      available: n(availableSql()),
-      needsCheck: n(sql`(${issueSql("bad_price", now)} or ${issueSql("price_jump", now)} or ${issueSql("bad_link", now)})`),
-      ...(Object.fromEntries(ISSUES.map((i) => [i.key, n(issueSql(i.key, now))])) as Record<Issue, SQL<number>>),
-    })
-    .from(products);
-  const plats = await db
-    .select({
-      platform: products.platform,
-      total: sql<number>`count(*)::int`,
-      available: n(availableSql()),
-      gone: n(issueSql("gone", now)),
-      hidden: n(issueSql("hidden", now)),
-      lastSync: sql<Date | string | null>`max(${products.lastSeenAt}) filter (where ${products.priceSource} <> 'ext')`,
-    })
-    .from(products)
-    .groupBy(products.platform)
-    .orderBy(products.platform);
-  const counts = Object.fromEntries(ISSUES.map((i) => [i.key, Number((row as Record<string, unknown>)[i.key] ?? 0)])) as Record<Issue, number>;
+  const [total, available, needsCheck, ...issueCounts] = await Promise.all([
+    countWhere(),
+    countWhere(availableSql()),
+    countWhere(sql`(${issueSql("bad_price", now)} or ${issueSql("price_jump", now)} or ${issueSql("bad_link", now)})`),
+    ...ISSUES.map((i) => countWhere(issueSql(i.key, now))),
+  ]);
+  const [plats, avail, gone, hidden] = await Promise.all([
+    db
+      .select({
+        platform: products.platform,
+        total: sql<number>`count(*)::int`,
+        lastSync: sql<Date | string | null>`max(${products.lastSeenAt}) filter (where ${products.priceSource} <> 'ext')`,
+      })
+      .from(products)
+      .groupBy(products.platform)
+      .orderBy(products.platform),
+    countByPlatform(availableSql()),
+    countByPlatform(issueSql("gone", now)),
+    countByPlatform(issueSql("hidden", now)),
+  ]);
   return {
-    total: Number(row?.total ?? 0),
-    available: Number(row?.available ?? 0),
-    needsCheck: Number(row?.needsCheck ?? 0),
-    counts,
-    platforms: plats.map((p) => ({ ...p, total: Number(p.total), available: Number(p.available), gone: Number(p.gone), hidden: Number(p.hidden), lastSync: p.lastSync ? new Date(p.lastSync) : null })),
+    total,
+    available,
+    needsCheck,
+    counts: Object.fromEntries(ISSUES.map((i, k) => [i.key, issueCounts[k]])) as Record<Issue, number>,
+    platforms: plats.map((p) => ({
+      platform: p.platform,
+      total: Number(p.total),
+      available: avail.get(p.platform) ?? 0,
+      gone: gone.get(p.platform) ?? 0,
+      hidden: hidden.get(p.platform) ?? 0,
+      lastSync: p.lastSync ? new Date(p.lastSync) : null,
+    })),
   };
 }
 
@@ -140,7 +154,22 @@ async function searchCond(q: string): Promise<SQL | undefined> {
 /** Lọc theo ảnh: có ảnh (tải được), chưa có ảnh, ảnh lỗi */
 export type ImageFilter = "co" | "chua" | "loi";
 
-export async function healthList(opts: { issue?: Issue | "available" | "all"; platform?: string; q?: string; sort?: HealthSort; page?: number; image?: ImageFilter; now?: Date } = {}) {
+/** Giá trị lọc danh mục cho món chưa có danh mục */
+export const NO_CATEGORY = "__none";
+
+/** Danh mục đang có (kèm số món), nhiều món trước – cho ô lọc danh mục */
+export async function categoryOptions(): Promise<{ name: string; n: number }[]> {
+  await ensureMigrated();
+  const rows = await db
+    .select({ name: products.category, n: sql<number>`count(*)::int` })
+    .from(products)
+    .where(sql`coalesce(${products.category}, '') <> ''`)
+    .groupBy(products.category)
+    .orderBy(desc(sql`count(*)`), asc(products.category));
+  return rows.map((r) => ({ name: r.name!, n: Number(r.n) }));
+}
+
+export async function healthList(opts: { issue?: Issue | "available" | "all"; platform?: string; q?: string; sort?: HealthSort; page?: number; image?: ImageFilter; category?: string; now?: Date } = {}) {
   await ensureMigrated();
   const now = opts.now ?? new Date();
   const since = new Date(now.getTime() - 7 * DAY);
@@ -150,6 +179,7 @@ export async function healthList(opts: { issue?: Issue | "available" | "all"; pl
   const conds: (SQL | undefined)[] = [
     opts.issue && opts.issue !== "all" ? (opts.issue === "available" ? availableSql() : issueSql(opts.issue, now)) : undefined,
     opts.platform ? eq(products.platform, opts.platform) : undefined,
+    opts.category === NO_CATEGORY ? issueSql("no_category", now) : opts.category ? eq(products.category, opts.category) : undefined,
     opts.image === "chua" ? issueSql("no_image", now)
     : opts.image === "loi" ? issueSql("bad_image", now)
     : opts.image === "co" ? sql`(not ${issueSql("no_image", now)} and not ${issueSql("bad_image", now)})`
@@ -165,16 +195,40 @@ export async function healthList(opts: { issue?: Issue | "available" | "all"; pl
     : [desc(products.lastSeenAt), asc(products.id)];
   const page = Math.max(1, Math.floor(opts.page ?? 1));
   const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(products).where(where);
-  const rows = await db
-    .select({ p: products, available: sql<boolean>`${availableSql()}`, priceJump: sql<boolean>`${issueSql("price_jump", now)}`, badImage: sql<boolean>`${issueSql("bad_image", now)}`, views7: views, clicks7: clicksN, watchers })
+  const rows = (await db
+    .select()
     .from(products)
     .where(where)
     .orderBy(...order)
     .limit(PAGE_SIZE)
-    .offset((page - 1) * PAGE_SIZE);
-  const list: HealthRow[] = rows.map((r) => {
-    const flags = { available: !!r.available, priceJump: !!r.priceJump, badImage: !!r.badImage };
-    return { p: r.p as Product, ...flags, views7: Number(r.views7), clicks7: Number(r.clicks7), watchers: Number(r.watchers), issues: rowIssues(r.p as Product, flags, now) };
+    .offset((page - 1) * PAGE_SIZE)) as Product[];
+  // Số liệu từng món: truy vấn riêng theo danh sách mã của trang (xem lưu ý ở trên)
+  const ids = rows.map((r) => r.id);
+  const idsIn = (cond: SQL) => (ids.length ? db.select({ id: products.id }).from(products).where(and(inArray(products.id, ids), cond)) : Promise.resolve([]));
+  const countIn = async (table: typeof productViews | typeof clicks | typeof watches, sinceCond: boolean) => {
+    if (!ids.length) return new Map<number, number>();
+    const pid = table.productId;
+    const rs = await db
+      .select({ id: pid, n: sql<number>`count(*)::int` })
+      .from(table)
+      .where(and(inArray(pid, ids), sinceCond && "createdAt" in table ? gte(table.createdAt, since) : undefined))
+      .groupBy(pid);
+    return new Map(rs.map((r) => [Number(r.id), Number(r.n)]));
+  };
+  const [availRows, jumpRows, badImgRows, viewN, clickN, watchN] = await Promise.all([
+    idsIn(availableSql()),
+    idsIn(issueSql("price_jump", now)),
+    idsIn(issueSql("bad_image", now)),
+    countIn(productViews, true),
+    countIn(clicks, true),
+    countIn(watches, false),
+  ]);
+  const avail = new Set(availRows.map((r) => r.id));
+  const jump = new Set(jumpRows.map((r) => r.id));
+  const badImg = new Set(badImgRows.map((r) => r.id));
+  const list: HealthRow[] = rows.map((p) => {
+    const flags = { available: avail.has(p.id), priceJump: jump.has(p.id), badImage: badImg.has(p.id) };
+    return { p, ...flags, views7: viewN.get(p.id) ?? 0, clicks7: clickN.get(p.id) ?? 0, watchers: watchN.get(p.id) ?? 0, issues: rowIssues(p, flags, now) };
   });
   return { total: Number(total), page, pages: Math.max(1, Math.ceil(Number(total) / PAGE_SIZE)), list };
 }

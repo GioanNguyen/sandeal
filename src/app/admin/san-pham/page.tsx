@@ -8,19 +8,14 @@ import { ProductAdminActions } from "@/components/ProductAdminActions";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { STALE_DAYS } from "@/lib/availability";
 import { PLATFORMS, vnd } from "@/lib/format";
-import { ISSUES, PAGE_SIZE, healthList, healthSummary, type HealthSort, type ImageFilter, type Issue } from "@/lib/producthealth";
+import { ISSUES, NO_CATEGORY, PAGE_SIZE, categoryOptions, healthList, healthSummary, type HealthSort, type Issue } from "@/lib/producthealth";
 import { plainProductUrl } from "@/lib/links";
 import { productPath } from "@/lib/slug";
 
 export const metadata = { title: "Tình trạng sản phẩm", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
-type SP = { loc?: string; san?: string; q?: string; xep?: string; anh?: string; trang?: string };
-const IMAGE_FILTERS: { key: ImageFilter; label: string }[] = [
-  { key: "co", label: "Đã có ảnh" },
-  { key: "chua", label: "Chưa có ảnh" },
-  { key: "loi", label: "Ảnh lỗi" },
-];
+type SP = { loc?: string; san?: string; q?: string; xep?: string; dm?: string; trang?: string };
 const SORTS: { key: HealthSort; label: string }[] = [
   { key: "seen", label: "Thấy gần nhất" },
   { key: "views", label: "Xem nhiều (7 ngày)" },
@@ -50,12 +45,13 @@ export default async function ProductHealthPage({ searchParams }: { searchParams
   const platform = sp.san && PLATFORMS[sp.san] ? sp.san : undefined;
   const sort = (SORTS.find((s) => s.key === sp.xep)?.key ?? "seen") as HealthSort;
   const q = (sp.q ?? "").slice(0, 300);
-  const image = IMAGE_FILTERS.find((f) => f.key === sp.anh)?.key;
-  const [sum, res] = await Promise.all([healthSummary(now), healthList({ issue, platform, q, sort, image, page: Number(sp.trang) || 1, now })]);
+  const cats = await categoryOptions();
+  const category = sp.dm === NO_CATEGORY || cats.some((c) => c.name === sp.dm) ? sp.dm : undefined;
+  const [sum, res] = await Promise.all([healthSummary(now), healthList({ issue, platform, q, sort, category, page: Number(sp.trang) || 1, now })]);
 
   const href = (patch: Partial<SP>) => {
     const u = new URLSearchParams();
-    const next = { loc: sp.loc, san: platform, q: q || undefined, xep: sort === "seen" ? undefined : sort, anh: image, ...patch };
+    const next = { loc: sp.loc, san: platform, q: q || undefined, xep: sort === "seen" ? undefined : sort, dm: category, ...patch };
     for (const [k, v] of Object.entries(next)) if (v) u.set(k, String(v));
     const s = u.toString();
     return s ? `/admin/san-pham?${s}` : "/admin/san-pham";
@@ -126,17 +122,18 @@ export default async function ProductHealthPage({ searchParams }: { searchParams
             <option value="">Mọi sàn</option>
             {Object.entries(PLATFORMS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
-          <label className="sr-only" htmlFor="ph-anh">Ảnh sản phẩm</label>
-          <select id="ph-anh" name="anh" className="input" defaultValue={image ?? ""}>
-            <option value="">Ảnh: tất cả</option>
-            {IMAGE_FILTERS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+          <label className="sr-only" htmlFor="ph-dm">Danh mục</label>
+          <select id="ph-dm" name="dm" className="input" defaultValue={category ?? ""}>
+            <option value="">Mọi danh mục</option>
+            {cats.map((c) => <option key={c.name} value={c.name}>{c.name} ({c.n})</option>)}
+            {sum.counts.no_category > 0 && <option value={NO_CATEGORY}>Chưa có danh mục ({sum.counts.no_category})</option>}
           </select>
           <label className="sr-only" htmlFor="ph-xep">Sắp xếp</label>
           <select id="ph-xep" name="xep" className="input" defaultValue={sort}>
             {SORTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
           </select>
           <button className="btn btn-primary">Lọc</button>
-          {(q || platform || sp.xep || image) && <Link className="btn btn-ghost" href={href({ q: undefined, san: undefined, xep: undefined, anh: undefined, trang: undefined })}>Bỏ lọc</Link>}
+          {(q || platform || sp.xep || category) && <Link className="btn btn-ghost" href={href({ q: undefined, san: undefined, xep: undefined, dm: undefined, trang: undefined })}>Bỏ lọc</Link>}
         </form>
 
         <p className="muted" style={{ fontSize: 14 }}>

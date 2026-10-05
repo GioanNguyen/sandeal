@@ -138,3 +138,45 @@ test("link sản phẩm thường: lưu khi nguồn có, lần đồng bộ sau 
   const { mapShopeeNode } = await import("../adapters/shopee");
   assert.equal(mapShopeeNode({ itemId: 7, shopId: 3, productName: "a", priceMin: "1000" } as never).productUrl, "https://shopee.vn/product/3/7");
 });
+
+test("số lượt xem / bấm mua / theo dõi đúng từng món, sắp xếp theo lượt xem và bấm mua", async () => {
+  const { productViews, clicks, watches, users } = schema;
+  const d = (h: number) => new Date(NOW.getTime() - h * 3_600_000);
+  // ok: 3 khách xem (1 lượt cũ hơn 7 ngày không tính), 2 bấm mua; jump: 1 xem, 5 bấm mua; 1 người theo dõi món ok
+  await dbm.db.insert(productViews).values([
+    { visitor: "a", productId: ids.ok, day: "d1", createdAt: d(1) },
+    { visitor: "b", productId: ids.ok, day: "d1", createdAt: d(2) },
+    { visitor: "c", productId: ids.ok, day: "d1", createdAt: d(3) },
+    { visitor: "old", productId: ids.ok, day: "d0", createdAt: d(24 * 9) },
+    { visitor: "a", productId: ids.jump, day: "d1", createdAt: d(1) },
+  ]);
+  await dbm.db.insert(clicks).values([
+    ...[1, 2].map(() => ({ productId: ids.ok, platform: "shopee", createdAt: d(1) })),
+    ...[1, 2, 3, 4, 5].map(() => ({ productId: ids.jump, platform: "shopee", createdAt: d(1) })),
+  ]);
+  const [u] = await dbm.db.insert(users).values({ email: "w@x.vn" }).returning();
+  await dbm.db.insert(watches).values({ userId: u.id, productId: ids.ok, targetPrice: 1 });
+
+  const byViews = (await ph.healthList({ sort: "views", now: NOW })).list;
+  assert.equal(byViews[0].p.id, ids.ok);
+  assert.deepEqual([byViews[0].views7, byViews[0].clicks7, byViews[0].watchers], [3, 2, 1]);
+  const j = byViews.find((r) => r.p.id === ids.jump)!;
+  assert.deepEqual([j.views7, j.clicks7, j.watchers], [1, 5, 0]);
+  assert.ok(j.issues.includes("price_jump"), "cờ giá đổi mạnh đúng cho từng dòng");
+  assert.equal((await ph.healthList({ sort: "clicks", now: NOW })).list[0].p.id, ids.jump);
+  const zero = byViews.find((r) => r.p.id === ids.badprice)!;
+  assert.deepEqual([zero.views7, zero.clicks7, zero.watchers], [0, 0, 0]);
+});
+
+test("lọc theo danh mục: danh sách danh mục kèm số món, lọc đúng danh mục và món chưa có danh mục", async () => {
+  const cats = await ph.categoryOptions();
+  assert.equal(cats[0].name, "Nhà cửa", "danh mục nhiều món nhất đứng đầu");
+  assert.ok(cats.every((c) => c.name && c.n > 0));
+  const nha = await ph.healthList({ category: "Nhà cửa", now: NOW });
+  assert.equal(nha.total, cats[0].n);
+  assert.ok(nha.list.every((r) => r.p.category === "Nhà cửa"));
+  const none = await ph.healthList({ category: ph.NO_CATEGORY, now: NOW });
+  assert.ok(none.list.length > 0 && none.list.every((r) => !r.p.category));
+  assert.deepEqual((await ph.healthList({ category: "Nhà cửa", q: "giá gạch", now: NOW })).list.map((r) => r.p.id), [ids.badprice], "kết hợp với ô tìm");
+  assert.equal((await ph.healthList({ category: "Không có", now: NOW })).total, 0);
+});

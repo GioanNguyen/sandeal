@@ -1869,7 +1869,8 @@ html[data-theme="dark"] .rv-pc-h.bad { color: #fb7185; }
 .ph-search { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .ph-search #ph-q { flex: 1 1 320px; width: auto; min-width: 0; }
 .ph-search select.input { flex: 0 0 165px; width: 165px; }
-@media (max-width: 720px) { .ph-search select.input { flex: 1 1 140px; width: auto; } }
+.ph-search #ph-dm { flex: 0 1 230px; width: 230px; min-width: 150px; }
+@media (max-width: 720px) { .ph-search select.input, .ph-search #ph-dm { flex: 1 1 140px; width: auto; } }
 .ph-bad { color: var(--hot); }
 .ph-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .ph-list li { display: grid; grid-template-columns: 72px 1fr auto; gap: 14px; align-items: start; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
