@@ -1903,3 +1903,7 @@ html[data-theme="dark"] .rv-pc-h.bad { color: #fb7185; }
 .table th.nw, .table td.nw { white-space: nowrap; width: 1%; }
 .table td.hist-err { min-width: 180px; max-width: 320px; font-size: 13px; }
 .ph-clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* Quản trị › Ngành hàng */
+.cat-table td.num, .cat-table th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cat-table small { font-weight: 400; }
+.cat-table tr.cat-thin td { opacity: .55; }
