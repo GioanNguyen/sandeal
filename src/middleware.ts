@@ -6,7 +6,7 @@ import { CHANNEL_COOKIE, CHANNEL_MAX_AGE, detectChannel } from "@/lib/channel";
  * Dùng khi site đang chạy thử, chưa muốn công khai. Bỏ trống 2 biến này là mở cho mọi người.
  * Trừ /api/ext/*: tiện ích trình duyệt gọi từ trang Shopee/Lazada, không gửi kèm mật khẩu được.
  */
-const OPEN_PATHS = [/^\/api\/ext\//];
+const OPEN_PATHS = [/^\/api\/ext\//, /^\/api\/health$/];
 /** Không gắn X-Robots-Tag: API, chuyển hướng mua hàng, ảnh chia sẻ, sitemap */
 const NO_ROBOTS_HEADER = /^\/(api|go|sitemap|robots|manifest)|opengraph-image|twitter-image/;
 

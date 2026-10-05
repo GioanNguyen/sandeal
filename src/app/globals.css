@@ -1946,3 +1946,19 @@ html[data-theme="dark"] .rv-pc-h.bad { color: #fb7185; }
 .rev-msg { white-space: normal; font-size: 13px; }
 .seg { max-width: 100%; overflow-x: auto; }
 .seg a { white-space: nowrap; flex: none; }
+
+/* Quản trị › Hôm nay */
+.todo-alerts { border-color: var(--primary); background: var(--primary-soft); margin-bottom: 16px; }
+.todo-alerts ul { margin: 0; padding-left: 18px; display: grid; gap: 10px; }
+.todo-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.todo-list li { display: grid; grid-template-columns: 92px 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.todo-body .muted { font-size: 13.5px; margin-top: 2px; }
+.todo-level { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; text-align: center; background: var(--surface-2); color: var(--muted); }
+.todo-high { border-left: 4px solid var(--primary) !important; }
+.todo-high .todo-level { background: var(--primary-soft); color: var(--primary); }
+.todo-normal .todo-level { background: var(--save-soft); color: var(--save); }
+@media (max-width: 640px) {
+  .todo-list li { grid-template-columns: 1fr; gap: 6px; }
+  .todo-level { justify-self: start; }
+  .todo-list .btn { justify-self: start; }
+}

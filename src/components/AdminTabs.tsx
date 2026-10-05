@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 const TABS = [
+  { href: "/admin/hom-nay", label: "Hôm nay" },
   { href: "/admin", label: "Thống kê" },
   { href: "/admin/doanh-thu", label: "Doanh thu" },
   { href: "/admin/san-pham", label: "Sản phẩm" },

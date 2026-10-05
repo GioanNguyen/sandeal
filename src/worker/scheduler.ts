@@ -14,6 +14,8 @@ import { afterJitter, postJitterMin } from "@/lib/jitter";
 import { giaAoEnabled, giaAoSchedule, postGiaAo } from "./giaao";
 import { autoCategoryEnabled, runAutoCategory } from "./autocategory";
 import { imageFillEnabled, runFillImages } from "./fillimages";
+import { recordJob, trackJob } from "@/lib/ops";
+import { runDailyBrief, runWatchdog } from "./watchdog";
 
 const g = globalThis as unknown as { __sanDealCron?: boolean };
 
@@ -26,7 +28,9 @@ export function startScheduler({ runNow = false } = {}) {
     if (running) return; // không chạy chồng
     running = true;
     try {
-      await runSync();
+      // Ghi kết quả để trang Hôm nay hiện và báo quản trị viên khi lỗi liên tiếp / đứng lâu
+      const r = await runSync().catch((err) => ({ errors: [(err as Error).message], products: 0, vouchers: 0, ms: 0 }));
+      await recordJob("sync", { ok: !r.errors.length, error: r.errors.join(" · ") || null, summary: `${r.products} món, ${r.vouchers} mã, ${Math.round(r.ms / 1000)} giây` });
     } finally {
       running = false;
     }
@@ -40,8 +44,7 @@ export function startScheduler({ runNow = false } = {}) {
     "7 * * * *",
     async () => {
       try {
-        const d = await runDigests();
-        const r = await runSaleReminders();
+        const { d, r } = await trackJob("digest", async () => ({ d: await runDigests(), r: await runSaleReminders() }));
         if (d || r) console.log(`[notify] bản tin: ${d}, nhắc sale: ${r}`);
       } catch (err) {
         console.error("[notify] lỗi:", err);
@@ -74,7 +77,7 @@ export function startScheduler({ runNow = false } = {}) {
     `0 ${hours} * * *`,
     async () => {
       try {
-        const n = await afterJitter("social", () => postGoldenHour());
+        const n = await afterJitter("social", () => trackJob("social", () => postGoldenHour(), (n) => `${n} bài`));
         if (n) console.log(`[social] đã đăng ${n} bài`);
       } catch (err) {
         console.error("[social] lỗi:", err);
@@ -132,6 +135,8 @@ export function startScheduler({ runNow = false } = {}) {
               return postReel();
             });
             console.log(r.ok ? `[reels] đã đăng Reel món ${r.productId} (video ${r.videoId})` : `[reels] không đăng được: ${r.error}`);
+            // Chỉ tính là lỗi khi đã chọn được món mà đăng hỏng (không có deal phù hợp thì không phải sự cố)
+            if (r.ok || "productId" in r) await recordJob("reels", { ok: r.ok, error: r.ok ? null : r.error, summary: r.ok ? `món ${r.productId}` : null });
           } catch (err) {
             console.error("[reels] lỗi đăng:", (err as Error).message);
           }
@@ -150,6 +155,7 @@ export function startScheduler({ runNow = false } = {}) {
         try {
           const r = await afterJitter("gia-ao", () => postGiaAo());
           console.log(r.ok ? `[gia-ao] đã đăng bài ${r.kind} (${r.id})` : `[gia-ao] không đăng: ${r.error}`);
+          if (r.ok || "kind" in r) await recordJob("giaao", { ok: r.ok, error: r.ok ? null : r.error ?? null });
         } catch (err) {
           console.error("[gia-ao] lỗi:", (err as Error).message);
         }
@@ -163,7 +169,7 @@ export function startScheduler({ runNow = false } = {}) {
     "12 8-21 * * *",
     async () => {
       try {
-        await shareDueGuides(new Date(), () => afterJitter("guides", async () => undefined));
+        await trackJob("guides", () => shareDueGuides(new Date(), () => afterJitter("guides", async () => undefined)));
       } catch (err) {
         console.error("[guides] lỗi đăng bài:", (err as Error).message);
       }
@@ -193,7 +199,7 @@ export function startScheduler({ runNow = false } = {}) {
     "45 */2 * * *",
     async () => {
       try {
-        const r = await runIndexNow();
+        const r = await trackJob("indexnow", () => runIndexNow());
         if (r.sent) console.log(`[indexnow] đã báo ${r.sent} trang (HTTP ${r.status})`);
       } catch (err) {
         console.error("[indexnow] lỗi:", (err as Error).message);
@@ -209,7 +215,7 @@ export function startScheduler({ runNow = false } = {}) {
       "25 * * * *",
       async () => {
         try {
-          const r = await runAutoCategory();
+          const r = await trackJob("autocat", () => runAutoCategory());
           if (r.byRules || r.byAi || r.normalized) console.log(`[autocat] từ khoá ${r.byRules}, AI ${r.byAi}, gộp tên ${r.normalized}, còn ${r.left} món chưa có danh mục`);
           if (r.aiError) console.warn("[autocat] AI lỗi:", r.aiError);
         } catch (err) {
@@ -224,7 +230,7 @@ export function startScheduler({ runNow = false } = {}) {
       "50 * * * *",
       async () => {
         try {
-          const r = await runFillImages();
+          const r = await trackJob("images", () => runFillImages());
           if (r.filled) console.log(`[images] đã lấy ảnh ${r.filled}/${r.checked} món`);
         } catch (err) {
           console.error("[images] lỗi:", (err as Error).message);
@@ -236,6 +242,21 @@ export function startScheduler({ runNow = false } = {}) {
 
   // Số đo tốc độ trang: xoá bản ghi quá 60 ngày, mỗi đêm 3h40
   cron.schedule("40 3 * * *", () => void pruneVitals().catch((err) => console.error("[vitals] lỗi dọn dữ liệu:", (err as Error).message)), { timezone: "Asia/Ho_Chi_Minh" });
+
+  // Canh chừng (đồng bộ đứng, bài đăng lỗi, đơn huỷ tăng vọt) mỗi 30 phút + tin tóm tắt mỗi sáng cho quản trị viên
+  cron.schedule(
+    "*/30 * * * *",
+    async () => {
+      try {
+        const a = await runWatchdog();
+        if (a.length) console.warn("[watchdog] đã báo:", a.join(", "));
+        await runDailyBrief();
+      } catch (err) {
+        console.error("[watchdog] lỗi:", (err as Error).message);
+      }
+    },
+    { timezone: "Asia/Ho_Chi_Minh" },
+  );
 
   // Liên kết Telegram cá nhân: đọc tin nhắn gửi tới bot mỗi 20 giây
   if (process.env.TELEGRAM_BOT_TOKEN) {
