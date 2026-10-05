@@ -12,6 +12,8 @@ import { pruneVitals } from "@/lib/vitals";
 import { pruneIndexNow, runIndexNow } from "@/lib/indexnow";
 import { afterJitter, postJitterMin } from "@/lib/jitter";
 import { giaAoEnabled, giaAoSchedule, postGiaAo } from "./giaao";
+import { autoCategoryEnabled, runAutoCategory } from "./autocategory";
+import { imageFillEnabled, runFillImages } from "./fillimages";
 
 const g = globalThis as unknown as { __sanDealCron?: boolean };
 
@@ -200,6 +202,37 @@ export function startScheduler({ runNow = false } = {}) {
     { timezone: "Asia/Ho_Chi_Minh" },
   );
   cron.schedule("50 3 * * *", () => void pruneIndexNow().catch(() => 0), { timezone: "Asia/Ho_Chi_Minh" });
+
+  // Làm đầy dữ liệu: tự xếp danh mục (phút 25) và lấy ảnh cho món thiếu ảnh (phút 50) mỗi giờ
+  if (autoCategoryEnabled()) {
+    cron.schedule(
+      "25 * * * *",
+      async () => {
+        try {
+          const r = await runAutoCategory();
+          if (r.byRules || r.byAi || r.normalized) console.log(`[autocat] từ khoá ${r.byRules}, AI ${r.byAi}, gộp tên ${r.normalized}, còn ${r.left} món chưa có danh mục`);
+          if (r.aiError) console.warn("[autocat] AI lỗi:", r.aiError);
+        } catch (err) {
+          console.error("[autocat] lỗi:", (err as Error).message);
+        }
+      },
+      { timezone: "Asia/Ho_Chi_Minh" },
+    );
+  }
+  if (imageFillEnabled()) {
+    cron.schedule(
+      "50 * * * *",
+      async () => {
+        try {
+          const r = await runFillImages();
+          if (r.filled) console.log(`[images] đã lấy ảnh ${r.filled}/${r.checked} món`);
+        } catch (err) {
+          console.error("[images] lỗi:", (err as Error).message);
+        }
+      },
+      { timezone: "Asia/Ho_Chi_Minh" },
+    );
+  }
 
   // Số đo tốc độ trang: xoá bản ghi quá 60 ngày, mỗi đêm 3h40
   cron.schedule("40 3 * * *", () => void pruneVitals().catch((err) => console.error("[vitals] lỗi dọn dữ liệu:", (err as Error).message)), { timezone: "Asia/Ho_Chi_Minh" });

@@ -1,9 +1,10 @@
-import { and, desc, eq, gte, lt } from "drizzle-orm";
+import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import type { ProductInput, VoucherInput } from "@/adapters/types";
 import { pricePoints, products, vouchers } from "@/db/schema";
 import { db } from "./db";
 import { computeDealScore } from "./score";
 import { parseDiscount } from "./voucher";
+import { canonicalCategory } from "./autocategory";
 
 /** Ghi sản phẩm/voucher vào DB (dùng chung cho worker và tính năng dán link) */
 const DAY = 86_400_000;
@@ -12,6 +13,25 @@ const DAY = 86_400_000;
  * `restockCutoff`: món thấy lần cuối trước mốc này là đang "không còn thấy trên sàn";
  * nay thấy lại thì báo cho người đang theo dõi (xem availability.ts). Worker truyền mốc tính lúc bắt đầu đồng bộ.
  */
+/**
+ * Khi cập nhật món đã có: nguồn không có ảnh / danh mục thì GIỮ giá trị cũ (ảnh lấy bổ sung, danh mục tự xếp không bị xoá);
+ * danh mục quản trị viên gán tay ("manual") không bị nguồn ghi đè. Nguồn có danh mục thì xoá đánh dấu "auto"/"ai".
+ */
+function updateSet<T extends { imageUrl: string | null; images: string[] | null; category: string | null }>(data: T) {
+  const { imageUrl, images, category, ...rest } = data;
+  return {
+    ...rest,
+    ...(imageUrl ? { imageUrl } : {}),
+    ...(images?.length ? { images } : {}),
+    ...(category
+      ? {
+          category: sql`case when ${products.categorySource} = 'manual' then ${products.category} else ${category} end`,
+          categorySource: sql`case when ${products.categorySource} = 'manual' then 'manual' else null end`,
+        }
+      : {}),
+  };
+}
+
 export async function upsertProduct(p: ProductInput, now = new Date(), opts: { restockCutoff?: Date | null; priceSource?: "api" | "ext" } = {}) {
   let wasGone = false;
   if (opts.restockCutoff) {
@@ -24,12 +44,13 @@ export async function upsertProduct(p: ProductInput, now = new Date(), opts: { r
   }
   const data = {
     name: p.name,
-    imageUrl: p.imageUrl ?? null,
+    imageUrl: p.imageUrl || null,
     images: p.images?.filter(Boolean).slice(0, 4) ?? null,
     shopName: p.shopName ?? null,
     shopType: p.shopType ?? null,
     shopRating: p.shopRating ?? null,
-    category: p.category ?? null,
+    // Tên danh mục tiếng Anh của sàn -> tên chuẩn tiếng Việt
+    category: p.category ? (canonicalCategory(p.category) ?? p.category) : null,
     price: p.price,
     originalPrice: p.originalPrice ?? null,
     discountPct: p.discountPct,
@@ -46,7 +67,7 @@ export async function upsertProduct(p: ProductInput, now = new Date(), opts: { r
   const [row] = await db
     .insert(products)
     .values({ platform: p.platform, externalId: p.externalId, createdAt: now, ...data })
-    .onConflictDoUpdate({ target: [products.platform, products.externalId], set: data })
+    .onConflictDoUpdate({ target: [products.platform, products.externalId], set: updateSet(data) })
     .returning({ id: products.id });
 
   const [last] = await db

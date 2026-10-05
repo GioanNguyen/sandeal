@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { importShopeeCsv } from "@/lib/shopee-csv";
+import { runAutoCategory } from "@/worker/autocategory";
+import { runFillImages } from "@/worker/fillimages";
 
 export const maxDuration = 300;
 
@@ -25,5 +27,7 @@ export async function POST(req: Request) {
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 400 });
   }
+  // Món mới từ file: xếp danh mục và lấy ảnh ngay (chạy nền, không bắt chờ)
+  void runAutoCategory().then(() => runFillImages()).catch((err) => console.error("[import-csv] làm đầy dữ liệu lỗi:", (err as Error).message));
   return NextResponse.json(total);
 }

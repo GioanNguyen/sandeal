@@ -169,17 +169,25 @@ export async function categoryOptions(): Promise<{ name: string; n: number }[]> 
   return rows.map((r) => ({ name: r.name!, n: Number(r.n) }));
 }
 
-export async function healthList(opts: { issue?: Issue | "available" | "all"; platform?: string; q?: string; sort?: HealthSort; page?: number; image?: ImageFilter; category?: string; now?: Date } = {}) {
-  await ensureMigrated();
-  const now = opts.now ?? new Date();
-  const since = new Date(now.getTime() - 7 * DAY);
-  const views = sql<number>`(select count(*)::int from product_views v where v.product_id = ${products.id} and v.created_at >= ${since})`;
-  const clicksN = sql<number>`(select count(*)::int from clicks c where c.product_id = ${products.id} and c.created_at >= ${since})`;
-  const watchers = sql<number>`(select count(*)::int from watches w where w.product_id = ${products.id})`;
+/** Bộ lọc của danh sách sản phẩm (dùng chung cho danh sách và thao tác hàng loạt "tất cả món khớp bộ lọc") */
+export interface HealthFilter {
+  issue?: Issue | "available" | "all";
+  platform?: string;
+  q?: string;
+  image?: ImageFilter;
+  category?: string;
+}
+
+/** Món đã được tự xếp danh mục (từ khoá hoặc AI) – để quản trị viên xem lại */
+export const AUTO_CATEGORY = "__auto";
+
+export async function healthWhere(opts: HealthFilter, now = new Date()): Promise<SQL | undefined> {
   const conds: (SQL | undefined)[] = [
     opts.issue && opts.issue !== "all" ? (opts.issue === "available" ? availableSql() : issueSql(opts.issue, now)) : undefined,
     opts.platform ? eq(products.platform, opts.platform) : undefined,
-    opts.category === NO_CATEGORY ? issueSql("no_category", now) : opts.category ? eq(products.category, opts.category) : undefined,
+    opts.category === NO_CATEGORY ? issueSql("no_category", now)
+    : opts.category === AUTO_CATEGORY ? sql`${products.categorySource} in ('auto', 'ai')`
+    : opts.category ? eq(products.category, opts.category) : undefined,
     opts.image === "chua" ? issueSql("no_image", now)
     : opts.image === "loi" ? issueSql("bad_image", now)
     : opts.image === "co" ? sql`(not ${issueSql("no_image", now)} and not ${issueSql("bad_image", now)})`
@@ -187,6 +195,17 @@ export async function healthList(opts: { issue?: Issue | "available" | "all"; pl
     opts.q ? await searchCond(opts.q) : undefined,
   ];
   const where = and(...conds.filter(Boolean));
+  return and(...conds.filter(Boolean));
+}
+
+export async function healthList(opts: HealthFilter & { sort?: HealthSort; page?: number; now?: Date } = {}) {
+  await ensureMigrated();
+  const now = opts.now ?? new Date();
+  const since = new Date(now.getTime() - 7 * DAY);
+  const views = sql<number>`(select count(*)::int from product_views v where v.product_id = ${products.id} and v.created_at >= ${since})`;
+  const clicksN = sql<number>`(select count(*)::int from clicks c where c.product_id = ${products.id} and c.created_at >= ${since})`;
+  const watchers = sql<number>`(select count(*)::int from watches w where w.product_id = ${products.id})`;
+  const where = await healthWhere(opts, now);
   const order =
     opts.sort === "views" ? [desc(views), desc(products.lastSeenAt)]
     : opts.sort === "clicks" ? [desc(clicksN), desc(products.lastSeenAt)]
@@ -243,4 +262,45 @@ export async function setHidden(id: number, hidden: boolean, reason?: string | n
     .where(eq(products.id, id))
     .returning({ id: products.id });
   return rows.length > 0;
+}
+
+/** Tối đa số món một lần thao tác hàng loạt */
+export const BULK_MAX = 5000;
+
+/** Mã các món khớp bộ lọc (thao tác "tất cả món khớp bộ lọc") */
+export async function idsMatching(filter: HealthFilter, now = new Date(), max = BULK_MAX): Promise<number[]> {
+  await ensureMigrated();
+  const where = await healthWhere(filter, now);
+  return (await db.select({ id: products.id }).from(products).where(where).orderBy(asc(products.id)).limit(max)).map((r) => r.id);
+}
+
+/** Gán danh mục tay cho nhiều món (đánh dấu "manual": nguồn đồng bộ không ghi đè) */
+export async function setCategoryMany(ids: number[], category: string): Promise<number> {
+  await ensureMigrated();
+  const c = category.replace(/\s+/g, " ").trim().slice(0, 80);
+  if (!c || !ids.length) return 0;
+  const rows = await db.update(products).set({ category: c, categorySource: "manual" }).where(inArray(products.id, ids)).returning({ id: products.id });
+  return rows.length;
+}
+
+/** Ẩn / hiện lại nhiều món */
+export async function setHiddenMany(ids: number[], hidden: boolean, reason?: string | null, now = new Date()): Promise<number> {
+  await ensureMigrated();
+  if (!ids.length) return 0;
+  const r = (reason ?? "").replace(/\s+/g, " ").trim().slice(0, 200) || null;
+  const rows = await db
+    .update(products)
+    .set(hidden ? { hidden: true, hiddenReason: r, hiddenAt: now } : { hidden: false, hiddenReason: null, hiddenAt: null })
+    .where(inArray(products.id, ids))
+    .returning({ id: products.id });
+  return rows.length;
+}
+
+/** Số món theo nguồn danh mục (để xem việc tự xếp) */
+export async function categorySourceCounts(): Promise<{ auto: number; ai: number; manual: number; none: number }> {
+  await ensureMigrated();
+  const rows = await db.select({ s: products.categorySource, n: sql<number>`count(*)::int` }).from(products).where(sql`coalesce(${products.category}, '') <> ''`).groupBy(products.categorySource);
+  const get = (k: string) => Number(rows.find((r) => r.s === k)?.n ?? 0);
+  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(products).where(sql`coalesce(${products.category}, '') = ''`);
+  return { auto: get("auto"), ai: get("ai"), manual: get("manual"), none: Number(n) };
 }

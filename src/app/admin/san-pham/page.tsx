@@ -8,7 +8,11 @@ import { ProductAdminActions } from "@/components/ProductAdminActions";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { STALE_DAYS } from "@/lib/availability";
 import { PLATFORMS, vnd } from "@/lib/format";
-import { ISSUES, NO_CATEGORY, PAGE_SIZE, categoryOptions, healthList, healthSummary, type HealthSort, type Issue } from "@/lib/producthealth";
+import { AUTO_CATEGORY, ISSUES, NO_CATEGORY, PAGE_SIZE, categoryOptions, categorySourceCounts, healthList, healthSummary, type HealthSort, type Issue } from "@/lib/producthealth";
+import { CATEGORIES } from "@/lib/autocategory";
+import { DataFillTools, ProductBulkBar } from "@/components/ProductBulkBar";
+import { autoCategoryAi } from "@/worker/autocategory";
+import { lookupPlatforms } from "@/worker/fillimages";
 import { plainProductUrl } from "@/lib/links";
 import { productPath } from "@/lib/slug";
 
@@ -46,8 +50,10 @@ export default async function ProductHealthPage({ searchParams }: { searchParams
   const sort = (SORTS.find((s) => s.key === sp.xep)?.key ?? "seen") as HealthSort;
   const q = (sp.q ?? "").slice(0, 300);
   const cats = await categoryOptions();
-  const category = sp.dm === NO_CATEGORY || cats.some((c) => c.name === sp.dm) ? sp.dm : undefined;
-  const [sum, res] = await Promise.all([healthSummary(now), healthList({ issue, platform, q, sort, category, page: Number(sp.trang) || 1, now })]);
+  const category = sp.dm === NO_CATEGORY || sp.dm === AUTO_CATEGORY || cats.some((c) => c.name === sp.dm) ? sp.dm : undefined;
+  const [sum, res, srcCounts] = await Promise.all([healthSummary(now), healthList({ issue, platform, q, sort, category, page: Number(sp.trang) || 1, now }), categorySourceCounts()]);
+  const imgPlatforms = lookupPlatforms();
+  const allCats = [...new Set([...CATEGORIES, ...cats.map((c) => c.name)])];
 
   const href = (patch: Partial<SP>) => {
     const u = new URLSearchParams();
@@ -100,6 +106,22 @@ export default async function ProductHealthPage({ searchParams }: { searchParams
         </div>
       </section>
 
+      <section className="section panel" aria-labelledby="fill-head">
+        <h2 id="fill-head"><Icon name="sparkles" /> Làm đầy dữ liệu</h2>
+        <ul className="fill-stats">
+          <li><b>{srcCounts.none.toLocaleString("vi-VN")}</b> món chưa có danh mục{srcCounts.none > 0 && <> · <Link href={href({ dm: NO_CATEGORY, loc: undefined, trang: undefined })}>xem</Link></>}</li>
+          <li><b>{(srcCounts.auto + srcCounts.ai).toLocaleString("vi-VN")}</b> món được tự xếp (từ khoá {srcCounts.auto}, AI {srcCounts.ai}){srcCounts.auto + srcCounts.ai > 0 && <> · <Link href={href({ dm: AUTO_CATEGORY, loc: undefined, trang: undefined })}>xem lại</Link></>}</li>
+          <li><b>{srcCounts.manual.toLocaleString("vi-VN")}</b> món gán danh mục tay</li>
+          <li><b>{sum.counts.no_image.toLocaleString("vi-VN")}</b> món thiếu ảnh{sum.counts.no_image > 0 && <> · <Link href={href({ loc: "no_image", dm: undefined, trang: undefined })}>xem</Link></>}</li>
+        </ul>
+        <p className="muted" style={{ fontSize: 14, margin: "0 0 10px" }}>
+          Tự động mỗi giờ: xếp danh mục theo từ khoá trong tên{autoCategoryAi() ? ", món khó hỏi AI (Claude Haiku)" : " (chưa bật AI: thêm ANTHROPIC_API_KEY để xếp cả món khó)"}; lấy ảnh{" "}
+          {imgPlatforms.size ? `qua API ${[...imgPlatforms].map((x) => PLATFORMS[x]?.label ?? x).join(", ")}` : "– chưa có nguồn tra cứu (cần SHOPEE_APP_ID, SHOPEE_SECRET của Shopee Affiliate Open API)"}. Tiện ích trình duyệt cũng tự bổ sung ảnh và danh mục khi có người xem trang sàn.
+          Danh mục gán tay không bị ghi đè.
+        </p>
+        <DataFillTools canFetchImages={imgPlatforms.size > 0} />
+      </section>
+
       <section className="section" aria-labelledby="list-head">
         <h2 id="list-head" className="sr-only">Danh sách sản phẩm</h2>
         <nav className="chips wrap ph-filters" aria-label="Lọc theo tình trạng">
@@ -127,6 +149,7 @@ export default async function ProductHealthPage({ searchParams }: { searchParams
             <option value="">Mọi danh mục</option>
             {cats.map((c) => <option key={c.name} value={c.name}>{c.name} ({c.n})</option>)}
             {sum.counts.no_category > 0 && <option value={NO_CATEGORY}>Chưa có danh mục ({sum.counts.no_category})</option>}
+            {srcCounts.auto + srcCounts.ai > 0 && <option value={AUTO_CATEGORY}>Danh mục tự xếp – xem lại ({srcCounts.auto + srcCounts.ai})</option>}
           </select>
           <label className="sr-only" htmlFor="ph-xep">Sắp xếp</label>
           <select id="ph-xep" name="xep" className="input" defaultValue={sort}>
@@ -140,10 +163,13 @@ export default async function ProductHealthPage({ searchParams }: { searchParams
           {res.total.toLocaleString("vi-VN")} món{res.total > PAGE_SIZE ? ` · trang ${res.page}/${res.pages}` : ""}
         </p>
 
+        {res.list.length > 0 && <ProductBulkBar total={res.total} filter={{ loc: sp.loc, san: platform, q: q || undefined, dm: category }} categories={allCats} />}
+
         {res.list.length ? (
           <ul className="ph-list">
             {res.list.map(({ p, available, views7, clicks7, watchers, issues }) => (
               <li key={p.id} className={p.hidden ? "is-hidden" : !available ? "is-gone" : undefined}>
+                <label className="ph-check"><input type="checkbox" form="bulk" name="id" value={p.id} aria-label={`Chọn ${p.name}`} /></label>
                 <Link href={productPath(p)} className="ph-thumb" target="_blank"><CardImage src={p.imageUrl} alt={p.name} /></Link>
                 <div className="ph-main">
                   <Link href={productPath(p)} target="_blank" className="ph-name">{p.name}</Link>
@@ -152,7 +178,7 @@ export default async function ProductHealthPage({ searchParams }: { searchParams
                     <span>#{p.id}</span>
                     <span>mã sàn {p.externalId}</span>
                     {p.shopName && <span>{p.shopName}</span>}
-                    {p.category && <span>{p.category}</span>}
+                    {p.category && <span>{p.category}{p.categorySource === "auto" ? <em className="cat-src"> · tự xếp</em> : p.categorySource === "ai" ? <em className="cat-src"> · AI xếp</em> : null}</span>}
                     {p.priceSource === "ext" && <span title="Giá do người dùng tiện ích ghi nhận">giá từ tiện ích</span>}
                   </div>
                   <div className="ph-issues">

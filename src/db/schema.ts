@@ -41,6 +41,8 @@ export const products = pgTable(
     hidden: boolean("hidden").notNull().default(false),
     hiddenReason: text("hidden_reason"),
     hiddenAt: ts("hidden_at"),
+    /** Nguồn danh mục: null = từ sàn/nguồn dữ liệu · "auto" = đoán theo từ khoá · "ai" = AI đoán · "manual" = quản trị viên gán (nguồn không ghi đè) */
+    categorySource: text("category_source"),
   },
   (t) => [
     index("products_group_idx").on(t.groupKey),
