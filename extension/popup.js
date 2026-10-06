@@ -32,4 +32,32 @@
       ver.textContent = `Phiên bản ${mine} (mới nhất)`;
     }
   } catch (e) {}
+
+  // Cập nhật ảnh hàng loạt (quản trị viên)
+  const st = document.getElementById("b-status"), cnt = document.getElementById("b-count");
+  const startBtn = document.getElementById("b-start"), stopBtn = document.getElementById("b-stop");
+  const show = (s) => {
+    if (!s) return;
+    st.textContent = s.status || "";
+    cnt.textContent = `Đã cập nhật ${s.ok || 0} · không đọc được ${s.fail || 0} · hôm nay ${s.day?.n || 0} món${s.remaining != null ? ` · còn ~${s.remaining} món thiếu ảnh` : ""}`;
+    startBtn.hidden = !!s.running;
+    stopBtn.hidden = !s.running;
+    startBtn.textContent = s.ok || s.fail ? "Tiếp tục" : "Bắt đầu";
+    if (s.running) document.getElementById("batch").open = true;
+  };
+  const refresh = () => chrome.runtime.sendMessage({ type: "batch-status" }).then((r) => r?.ok && show(r.state)).catch(() => 0);
+  startBtn.onclick = async () => {
+    startBtn.disabled = true;
+    st.textContent = "Đang kiểm tra…";
+    const r = await chrome.runtime.sendMessage({ type: "batch-start" }).catch((e) => ({ ok: false, error: String(e) }));
+    startBtn.disabled = false;
+    if (!r?.ok) { st.textContent = r?.error || "Lỗi"; return; }
+    show(r.state);
+  };
+  stopBtn.onclick = async () => {
+    const r = await chrome.runtime.sendMessage({ type: "batch-stop" }).catch(() => null);
+    if (r?.ok) show(r.state);
+  };
+  refresh();
+  setInterval(refresh, 2000);
 })();

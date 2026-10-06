@@ -222,10 +222,41 @@
     tick();
   }
 
+  /**
+   * Tab của chế độ "Cập nhật hàng loạt": chỉ đọc dữ liệu trang rồi báo về nền tiện ích, không hiện ô Săn Deal.
+   * Gặp trang xác minh / đăng nhập thì báo để dừng cả lượt chạy.
+   */
+  let batchSent = false;
+  async function batchCollect(href) {
+    if (batchSent) return;
+    const blocked = () => /\/verify\/|captcha|\/buyer\/login|\/login\b/i.test(location.pathname + location.search) || /xác minh|captcha|đăng nhập/i.test(document.title);
+    await new Promise((ok) => setTimeout(ok, 2500));
+    for (let i = 0; i < 20; i++) {
+      if (batchSent) return;
+      if (blocked()) { batchSent = true; chrome.runtime.sendMessage({ type: "batch-result", url: location.href, blocked: true }).catch(() => null); return; }
+      const d = isProductUrl(location.href) && self.SanDealExtract && self.SanDealExtract.fromDocument(document, location.href);
+      // Đợi cả ảnh (trang tải dần) – tối đa ~20 giây
+      if (d && d.price > 0 && (d.image || i >= 12)) {
+        batchSent = true;
+        chrome.runtime.sendMessage({ type: "batch-result", url: location.href, data: d }).catch(() => null);
+        return;
+      }
+      await new Promise((ok) => setTimeout(ok, 1000));
+    }
+    batchSent = true;
+    chrome.runtime.sendMessage({ type: "batch-result", url: href, data: null }).catch(() => null);
+  }
+
+  let batchMode = null;
   async function check() {
     const href = location.href;
     if (href === lastUrl) return;
     lastUrl = href;
+    if (batchMode === null) {
+      const r = await chrome.runtime.sendMessage({ type: "batch-hello", url: href }).catch(() => null);
+      batchMode = !!(r && r.batch);
+    }
+    if (batchMode) return batchCollect(href);
     if (!isProductUrl(href)) return unmount();
     render({ kind: "loading" });
     const r = await chrome.runtime.sendMessage({ type: "lookup", url: href }).catch((e) => ({ ok: false, error: String(e) }));

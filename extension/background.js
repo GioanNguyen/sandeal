@@ -1,4 +1,4 @@
-importScripts("config.js");
+importScripts("config.js", "batch.js");
 
 const cache = new Map(); // url -> { at, data }
 const TTL = 10 * 60 * 1000;
@@ -79,6 +79,32 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     observe(msg.payload)
       .then((data) => reply({ ok: true, data }))
       .catch((err) => reply({ ok: false, error: String(err.message || err) }));
+    return true;
+  }
+  // Cập nhật hàng loạt (quản trị viên)
+  if (msg?.type === "batch-hello") {
+    loadBatch().then((s) => reply({ batch: !!(s.running && s.current && _sender.tab && _sender.tab.id === s.tabId) }));
+    return true;
+  }
+  if (msg?.type === "batch-result") {
+    loadBatch().then((s) => {
+      if (_sender.tab && _sender.tab.id === s.tabId) finishItem(msg);
+      reply({ ok: true });
+    });
+    return true;
+  }
+  if (msg?.type === "batch-start") {
+    startBatch()
+      .then((s) => reply({ ok: true, state: s }))
+      .catch((err) => reply({ ok: false, error: String(err.message || err) }));
+    return true;
+  }
+  if (msg?.type === "batch-stop") {
+    stopBatch("Đã tạm dừng").then(() => loadBatch()).then((s) => reply({ ok: true, state: s }));
+    return true;
+  }
+  if (msg?.type === "batch-status") {
+    loadBatch().then((s) => reply({ ok: true, state: s, limits: BATCH }));
     return true;
   }
   if (msg?.type === "server") {

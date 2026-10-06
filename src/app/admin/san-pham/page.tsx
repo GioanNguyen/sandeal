@@ -120,6 +120,13 @@ export default async function ProductHealthPage({ searchParams }: { searchParams
           Danh mục gán tay không bị ghi đè.
         </p>
         <DataFillTools canFetchImages={imgPlatforms.size > 0} />
+        {sum.counts.no_image > 0 && (
+          <p className="muted" style={{ fontSize: 14, margin: "12px 0 0" }}>
+            <b>Chưa có API?</b> Dùng <Link href="/tien-ich">tiện ích Săn Deal</Link> (bản 1.7.0 trở lên) › bấm biểu tượng tiện ích › <b>Quản trị: cập nhật ảnh hàng loạt</b> › Bắt đầu.
+            Tiện ích tự mở lần lượt từng món thiếu ảnh (món nhiều người xem trước) bằng link thường, mỗi món cách 30–60 giây, tối đa 80 món/giờ và 300 món/ngày,
+            tự dừng khi Shopee hỏi xác minh. Không cần bấm từng link nữa.
+          </p>
+        )}
       </section>
 
       <section className="section" aria-labelledby="list-head">
