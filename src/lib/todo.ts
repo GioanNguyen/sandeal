@@ -11,6 +11,7 @@ import { draftGuides, liveUpcomingGuides } from "./guides-db";
 import { guidePublishAt } from "./guides";
 import { categorySourceCounts, issueSql } from "./producthealth";
 import { productIndexableSql } from "./seoquality";
+import { STALE_PRICE_DAYS, stalePriceSummary } from "./extqueue";
 
 const DAY = 86_400_000;
 const TZ_MS = 7 * 3_600_000;
@@ -38,7 +39,7 @@ export async function todoList(now = new Date()): Promise<TodoItem[]> {
   await ensureMigrated();
   const items: TodoItem[] = [];
   const avail = (k: Parameters<typeof issueSql>[0]) => cnt(sql`(${availableSql()} and ${issueSql(k, now)})`);
-  const [drafts, upcoming, badPrice, badLink, priceJump, noImage, noCat, catSrc, demand, fbErr, lastImport, anyLine, bare] = await Promise.all([
+  const [drafts, upcoming, badPrice, badLink, priceJump, noImage, noCat, catSrc, demand, fbErr, lastImport, anyLine, bare, stale, lastFeed] = await Promise.all([
     draftGuides(),
     liveUpcomingGuides(now),
     avail("bad_price"),
@@ -55,6 +56,13 @@ export async function todoList(now = new Date()): Promise<TodoItem[]> {
     db.select({ at: conversionItems.importedAt, source: conversionItems.source }).from(conversionItems).where(sql`${conversionItems.source} <> 'mock'`).orderBy(desc(conversionItems.importedAt)).limit(1),
     db.select({ n: count() }).from(conversionItems).where(sql`${conversionItems.source} <> 'mock'`),
     cnt(sql`not ${productIndexableSql(now)} and not ${products.hidden}`),
+    stalePriceSummary(now),
+    // Lần cuối giá sản phẩm được cập nhật từ nguồn chính (CSV / API), theo từng sàn
+    db
+      .select({ platform: products.platform, at: sql<Date | string | null>`max(${products.lastSeenAt})` })
+      .from(products)
+      .where(sql`${products.priceSource} <> 'ext' and ${products.externalId} not like 'mock-%'`)
+      .groupBy(products.platform),
   ]);
 
   // --- Cao: lỗi làm mất tiền / mất khách ngay ---
@@ -80,6 +88,34 @@ export async function todoList(now = new Date()): Promise<TodoItem[]> {
     else if (last && now.getTime() - last.at.getTime() > 7 * DAY)
       items.push({ key: "rev-stale", level: "normal", title: `Báo cáo hoa hồng đã ${Math.floor((now.getTime() - last.at.getTime()) / DAY)} ngày chưa cập nhật`, why: "Nhập tệp mới để cập nhật đơn chờ → đã chốt / bị huỷ.", href: "/admin/doanh-thu", action: "Nhập CSV mới" });
   }
+  // Giá sản phẩm: lâu chưa nhập CSV mới / món đang được quan tâm mà giá đã cũ
+  if (!hasApi) {
+    const old = lastFeed
+      .map((f) => ({ platform: f.platform, days: f.at ? Math.floor((now.getTime() - new Date(f.at).getTime()) / DAY) : null }))
+      .filter((f) => f.days != null && f.days >= STALE_PRICE_DAYS())
+      .sort((a, b) => (b.days ?? 0) - (a.days ?? 0));
+    if (old.length) {
+      const label: Record<string, string> = { shopee: "Shopee", lazada: "Lazada", tiktok: "TikTok Shop" };
+      items.push({
+        key: "csv-stale",
+        level: old[0].days! >= 7 ? "high" : "normal",
+        title: `Đã ${old[0].days} ngày chưa nhập CSV sản phẩm ${old.map((o) => label[o.platform] ?? o.platform).join(", ")}`,
+        why: `Giá trên site cũ dần và món sẽ bị coi là “không còn thấy trên sàn”.${stale.byCategory.length ? ` Nên xuất trước các ngành: ${stale.byCategory.slice(0, 4).map((c) => c.category).join(", ")}.` : ""}`,
+        href: "/admin",
+        action: "Nhập CSV",
+      });
+    }
+  }
+  if (stale.total)
+    items.push({
+      key: "stale-price",
+      level: stale.total >= 20 ? "normal" : "low",
+      count: stale.total,
+      title: `${stale.total} món khách đang quan tâm có giá đã cũ (quá ${STALE_PRICE_DAYS()} ngày)`,
+      why: `Nhiều nhất ở ${stale.byCategory.slice(0, 3).map((c) => `${c.category} (${c.n})`).join(", ")}. Nhập CSV mới các ngành này, hoặc để tiện ích “Cập nhật ảnh & giá hàng loạt” tự mở lại từng món.`,
+      href: "/admin/san-pham",
+      action: "Xem cách cập nhật",
+    });
   if (noImage) items.push({ key: "no-image", level: noImage > 50 ? "normal" : "low", count: noImage, title: `${noImage} món đang bán chưa có ảnh`, why: "Thẻ deal kém hấp dẫn và trang có thể chưa được Google index.", href: "/admin/san-pham?loc=no_image", action: "Lấy ảnh" });
   if (noCat) items.push({ key: "no-cat", level: "low", count: noCat, title: `${noCat} món đang bán chưa có danh mục`, why: "Không vào được trang danh mục. Bấm “Tự xếp danh mục ngay” hoặc gán hàng loạt.", href: "/admin/san-pham?dm=__none", action: "Xếp danh mục" });
 

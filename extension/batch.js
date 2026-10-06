@@ -1,5 +1,6 @@
 /**
- * Chế độ "Cập nhật hàng loạt" (chỉ quản trị viên): mở lần lượt từng món thiếu ảnh trong 1 tab phụ, đọc dữ liệu
+ * Chế độ "Cập nhật hàng loạt" (chỉ quản trị viên): mở lần lượt từng món thiếu ảnh hoặc giá đã cũ (món khách đang
+ * quan tâm) trong 1 tab phụ, đọc dữ liệu
  * công khai của trang (như Góp giá) rồi gửi về máy chủ. Chạy chậm như người thật để không bị sàn giới hạn:
  *   - mỗi món cách nhau ngẫu nhiên 30–60 giây (đồng hồ của Chrome không cho ngắn hơn 30 giây)
  *   - tối đa 80 món / giờ, 300 món / ngày
@@ -73,8 +74,9 @@ async function startBatch() {
   const q = await queueFetch(BATCH.fetchSize);
   s.queue = q.items;
   s.remaining = q.remaining;
+  s.counts = q.counts || null;
   if (!s.queue.length) {
-    s.status = "Không còn món nào thiếu ảnh có link sản phẩm";
+    s.status = "Không còn món nào thiếu ảnh hay giá cũ (có link sản phẩm)";
     await saveBatch(s);
     return s;
   }
@@ -116,14 +118,15 @@ async function nextItem() {
       const q = await queueFetch(BATCH.fetchSize);
       s.queue = q.items;
       s.remaining = q.remaining;
+      s.counts = q.counts || null;
     } catch (e) {
       return stopBatch(`Dừng: ${e.message || e}`);
     }
-    if (!s.queue.length) return stopBatch("Xong – không còn món nào thiếu ảnh có link sản phẩm");
+    if (!s.queue.length) return stopBatch("Xong – không còn món nào thiếu ảnh hay giá cũ (có link sản phẩm)");
   }
   const item = s.queue.shift();
   s.current = { ...item, startedAt: now };
-  s.status = `Đang mở: ${item.name.slice(0, 60)}`;
+  s.status = `Đang mở (${item.reason === "price" ? `giá cũ ${item.staleDays ?? "?"} ngày` : "thiếu ảnh"}): ${item.name.slice(0, 60)}`;
   s.tabId = await ensureTab(s, item.url);
   await saveBatch(s);
   chrome.alarms.create("batch-timeout", { when: now + BATCH.pageTimeout });
