@@ -104,7 +104,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     return true;
   }
   if (msg?.type === "batch-status") {
-    loadBatch().then((s) => reply({ ok: true, state: s, limits: BATCH }));
+    Promise.all([loadBatch(), isAdminBrowser()]).then(([s, admin]) => reply({ ok: true, state: s, limits: BATCH, admin }));
     return true;
   }
   if (msg?.type === "server") {

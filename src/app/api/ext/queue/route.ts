@@ -7,6 +7,7 @@ const NO_STORE = { "Cache-Control": "no-store" };
 
 /**
  * Tiện ích trình duyệt – chế độ cập nhật hàng loạt (chỉ quản trị viên, dùng cookie đăng nhập của web):
+ *   GET  ?check=1       -> { admin: true } (403 nếu không phải quản trị viên)
  *   GET  ?limit=20      -> { items: [{id, name, platform, url}], remaining }
  *   POST { tried: [id] } -> ghi nhận đã mở (món vẫn thiếu ảnh thì 24 giờ sau mới đưa lại)
  */
@@ -17,7 +18,10 @@ async function admin() {
 
 export async function GET(req: Request) {
   if (!(await admin())) return NextResponse.json({ error: "Cần đăng nhập tài khoản quản trị trên web Săn Deal (cùng trình duyệt này)" }, { status: 403, headers: NO_STORE });
-  const limit = Number(new URL(req.url).searchParams.get("limit")) || 20;
+  const sp = new URL(req.url).searchParams;
+  // Tiện ích hỏi "có phải quản trị viên không" để hiện mục cập nhật hàng loạt (người dùng thường không thấy)
+  if (sp.get("check")) return NextResponse.json({ admin: true }, { headers: NO_STORE });
+  const limit = Number(sp.get("limit")) || 20;
   return NextResponse.json(await imageQueue({ limit }), { headers: NO_STORE });
 }
 

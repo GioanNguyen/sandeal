@@ -45,7 +45,17 @@
     startBtn.textContent = s.ok || s.fail ? "Tiếp tục" : "Bắt đầu";
     if (s.running) document.getElementById("batch").open = true;
   };
-  const refresh = () => chrome.runtime.sendMessage({ type: "batch-status" }).then((r) => r?.ok && show(r.state)).catch(() => 0);
+  // Chỉ hiện với trình duyệt đang đăng nhập tài khoản quản trị (hoặc khi đang chạy dở); người dùng thường không thấy mục này
+  const box = document.getElementById("batch");
+  const refresh = () =>
+    chrome.runtime
+      .sendMessage({ type: "batch-status" })
+      .then((r) => {
+        if (!r?.ok) return;
+        box.hidden = !(r.admin || r.state?.running);
+        if (!box.hidden) show(r.state);
+      })
+      .catch(() => 0);
   startBtn.onclick = async () => {
     startBtn.disabled = true;
     st.textContent = "Đang kiểm tra…";

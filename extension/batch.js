@@ -37,6 +37,21 @@ async function queueTried(id) {
   await fetch(`${base}/api/ext/queue`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tried: [id] }) }).catch(() => null);
 }
 
+/** Trình duyệt này đang đăng nhập tài khoản quản trị trên web Săn Deal? */
+let adminCache = null;
+async function isAdminBrowser() {
+  // Là quản trị viên: nhớ 10 phút; chưa phải (hoặc chưa đăng nhập): hỏi lại sau 1 phút
+  if (adminCache && Date.now() - adminCache.at < (adminCache.v ? 10 * 60_000 : 60_000)) return adminCache.v;
+  let v = false;
+  try {
+    const base = await self.sanDealServer();
+    const res = await fetch(`${base}/api/ext/queue?check=1`, { credentials: "include", cache: "no-store" });
+    v = res.ok && (await res.json().catch(() => ({}))).admin === true;
+  } catch (e) {}
+  adminCache = { at: Date.now(), v };
+  return v;
+}
+
 function schedule(ms) {
   chrome.alarms.create("batch-next", { when: Date.now() + ms });
 }
