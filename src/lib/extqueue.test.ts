@@ -33,7 +33,8 @@ test("món thiếu ảnh có link sản phẩm, món được quan tâm trước
   assert.deepEqual(r.items.map((x) => x.id), [hot, quiet]);
   assert.ok(r.items.every((x) => x.reason === "image"));
   assert.equal(r.items[0].url, "https://shopee.vn/product/9/2", "link thường, không phải link affiliate");
-  assert.equal(r.remaining, 3);
+  assert.equal(r.remaining, 2, "chỉ đếm món tiện ích mở được (món không biết link sản phẩm thì không tính)");
+  assert.deepEqual(await q.imageGapCounts(), { all: 3, available: 3, openable: 2 });
 
   assert.equal((await q.markTried([hot], now)).stillMissing, 1);
   assert.deepEqual((await q.extQueue({ now })).items.map((x) => x.id), [quiet]);

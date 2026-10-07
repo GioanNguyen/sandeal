@@ -39,7 +39,7 @@
   const show = (s) => {
     if (!s) return;
     st.textContent = s.status || "";
-    cnt.textContent = `Đã cập nhật ${s.ok || 0} · không đọc được ${s.fail || 0} · hôm nay ${s.day?.n || 0} món${s.counts ? ` · còn ${s.counts.image} món thiếu ảnh, ${s.counts.price} món giá cũ` : s.remaining != null ? ` · còn ~${s.remaining} món` : ""}`;
+    cnt.textContent = `Đã cập nhật ${s.ok || 0} · không đọc được ${s.fail || 0} · hôm nay ${s.day?.n || 0} món${s.counts ? ` · cần mở: ${s.counts.image} món thiếu ảnh, ${s.counts.price} món giá cũ` : s.remaining != null ? ` · còn ~${s.remaining} món` : ""}`;
     startBtn.hidden = !!s.running;
     stopBtn.hidden = !s.running;
     startBtn.textContent = s.ok || s.fail ? "Tiếp tục" : "Bắt đầu";
@@ -47,6 +47,21 @@
   };
   // Chỉ hiện với trình duyệt đang đăng nhập tài khoản quản trị (hoặc khi đang chạy dở); người dùng thường không thấy mục này
   const box = document.getElementById("batch");
+  const gapEl = document.createElement("p");
+  gapEl.style.fontSize = "12px";
+  cnt.after(gapEl);
+  // Số còn lại lấy mới từ máy chủ mỗi lần mở khung và mỗi 30 giây (khớp với Quản trị › Sản phẩm)
+  const loadCounts = () =>
+    chrome.runtime
+      .sendMessage({ type: "batch-counts" })
+      .then((r) => {
+        const g = r?.ok && r.data?.gap;
+        gapEl.textContent = g
+          ? `Trên web: ${g.all} món thiếu ảnh – ${g.available} món đang bán, tiện ích mở được ${g.openable} món${g.available > g.openable ? ` (${g.available - g.openable} món chỉ có link rút gọn, cần nhập lại CSV có cột link sản phẩm)` : ""}.`
+          : "";
+        refresh();
+      })
+      .catch(() => 0);
   const refresh = () =>
     chrome.runtime
       .sendMessage({ type: "batch-status" })
@@ -70,4 +85,6 @@
   };
   refresh();
   setInterval(refresh, 2000);
+  loadCounts();
+  setInterval(loadCounts, 30000);
 })();

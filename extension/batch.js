@@ -3,7 +3,7 @@
  * quan tâm) trong 1 tab phụ, đọc dữ liệu
  * công khai của trang (như Góp giá) rồi gửi về máy chủ. Chạy chậm như người thật để không bị sàn giới hạn:
  *   - mỗi món cách nhau ngẫu nhiên 30–60 giây (đồng hồ của Chrome không cho ngắn hơn 30 giây)
- *   - tối đa 80 món / giờ, 300 món / ngày
+ *   - tối đa 80 món / giờ (đủ thì nghỉ rồi tự chạy tiếp), không giới hạn số món trong ngày
  *   - gặp trang xác minh (captcha) hoặc bắt đăng nhập: dừng ngay, để người dùng tự xử lý rồi bấm Tiếp tục
  * Luôn mở link sản phẩm thường (không phải link affiliate) để không tạo lượt bấm ảo.
  */
@@ -11,7 +11,8 @@ const BATCH = {
   minDelay: 30_000,
   maxDelay: 60_000,
   perHour: 80,
-  perDay: 300,
+  /** 0 = không giới hạn số món trong ngày */
+  perDay: 0,
   pageTimeout: 45_000,
   fetchSize: 20,
 };
@@ -51,6 +52,14 @@ async function isAdminBrowser() {
   } catch (e) {}
   adminCache = { at: Date.now(), v };
   return v;
+}
+
+/** Số món còn lại – hỏi máy chủ mỗi lần mở khung tiện ích (không dùng số lưu tạm, vì vừa nhập CSV là số đổi) */
+async function queueCounts() {
+  const base = await self.sanDealServer();
+  const res = await fetch(`${base}/api/ext/queue?counts=1`, { credentials: "include", cache: "no-store" });
+  if (!res.ok) return null;
+  return res.json().catch(() => null);
 }
 
 function schedule(ms) {
@@ -106,7 +115,7 @@ async function nextItem() {
   const now = Date.now();
   s.hour = s.hour.filter((t) => now - t < 3_600_000);
   if (s.day.key !== vnDay()) s.day = { key: vnDay(), n: 0 };
-  if (s.day.n >= BATCH.perDay) return stopBatch(`Đã đủ ${BATCH.perDay} món hôm nay – mai chạy tiếp để an toàn`);
+  if (BATCH.perDay && s.day.n >= BATCH.perDay) return stopBatch(`Đã đủ ${BATCH.perDay} món hôm nay – mai chạy tiếp để an toàn`);
   if (s.hour.length >= BATCH.perHour) {
     const wait = 3_600_000 - (now - s.hour[0]) + 5_000;
     s.status = `Nghỉ ${Math.ceil(wait / 60_000)} phút (đã đủ ${BATCH.perHour} món trong 1 giờ)`;

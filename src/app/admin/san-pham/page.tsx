@@ -15,6 +15,7 @@ import { autoCategoryAi } from "@/worker/autocategory";
 import { lookupPlatforms } from "@/worker/fillimages";
 import { plainProductUrl } from "@/lib/links";
 import { productPath } from "@/lib/slug";
+import { imageGapCounts } from "@/lib/extqueue";
 
 export const metadata = { title: "Tình trạng sản phẩm", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -51,7 +52,7 @@ export default async function ProductHealthPage({ searchParams }: { searchParams
   const q = (sp.q ?? "").slice(0, 300);
   const cats = await categoryOptions();
   const category = sp.dm === NO_CATEGORY || sp.dm === AUTO_CATEGORY || cats.some((c) => c.name === sp.dm) ? sp.dm : undefined;
-  const [sum, res, srcCounts] = await Promise.all([healthSummary(now), healthList({ issue, platform, q, sort, category, page: Number(sp.trang) || 1, now }), categorySourceCounts()]);
+  const [sum, res, srcCounts, gap] = await Promise.all([healthSummary(now), healthList({ issue, platform, q, sort, category, page: Number(sp.trang) || 1, now }), categorySourceCounts(), imageGapCounts()]);
   const imgPlatforms = lookupPlatforms();
   const allCats = [...new Set([...CATEGORIES, ...cats.map((c) => c.name)])];
 
@@ -112,7 +113,16 @@ export default async function ProductHealthPage({ searchParams }: { searchParams
           <li><b>{srcCounts.none.toLocaleString("vi-VN")}</b> món chưa có danh mục{srcCounts.none > 0 && <> · <Link href={href({ dm: NO_CATEGORY, loc: undefined, trang: undefined })}>xem</Link></>}</li>
           <li><b>{(srcCounts.auto + srcCounts.ai).toLocaleString("vi-VN")}</b> món được tự xếp (từ khoá {srcCounts.auto}, AI {srcCounts.ai}){srcCounts.auto + srcCounts.ai > 0 && <> · <Link href={href({ dm: AUTO_CATEGORY, loc: undefined, trang: undefined })}>xem lại</Link></>}</li>
           <li><b>{srcCounts.manual.toLocaleString("vi-VN")}</b> món gán danh mục tay</li>
-          <li><b>{sum.counts.no_image.toLocaleString("vi-VN")}</b> món thiếu ảnh{sum.counts.no_image > 0 && <> · <Link href={href({ loc: "no_image", dm: undefined, trang: undefined })}>xem</Link></>}</li>
+          <li>
+            <b>{gap.all.toLocaleString("vi-VN")}</b> món thiếu ảnh{gap.all > 0 && <> · <Link href={href({ loc: "no_image", dm: undefined, trang: undefined })}>xem</Link></>}
+            {gap.all > 0 && (
+              <span className="muted">
+                {" "}– {gap.available.toLocaleString("vi-VN")} món đang bán, tiện ích mở được {gap.openable.toLocaleString("vi-VN")} món
+                {gap.available > gap.openable ? ` (${(gap.available - gap.openable).toLocaleString("vi-VN")} món chỉ có link rút gọn: nhập lại CSV có cột “Link sản phẩm”)` : ""}
+                {gap.all > gap.available ? `; ${(gap.all - gap.available).toLocaleString("vi-VN")} món đã vắng trên sàn / đã ẩn không cần ảnh` : ""}
+              </span>
+            )}
+          </li>
         </ul>
         <p className="muted" style={{ fontSize: 14, margin: "0 0 10px" }}>
           Tự động mỗi giờ: xếp danh mục theo từ khoá trong tên{autoCategoryAi() ? ", món khó hỏi AI (Claude Haiku)" : " (chưa bật AI: thêm ANTHROPIC_API_KEY để xếp cả món khó)"}; lấy ảnh{" "}
@@ -123,7 +133,7 @@ export default async function ProductHealthPage({ searchParams }: { searchParams
         <p className="muted" style={{ fontSize: 14, margin: "12px 0 0" }}>
           <b>Chưa có API?</b> Dùng <Link href="/tien-ich">tiện ích Săn Deal</Link> (bản 1.7.0 trở lên, đăng nhập web bằng tài khoản quản trị) › bấm biểu tượng tiện ích ›{" "}
           <b>Quản trị: cập nhật ảnh &amp; giá hàng loạt</b> › Bắt đầu. Tiện ích tự mở lần lượt từng món thiếu ảnh và món khách đang quan tâm mà giá đã cũ
-          (món nhiều người xem trước) bằng link thường, mỗi món cách 30–60 giây, tối đa 80 món/giờ và 300 món/ngày, tự dừng khi Shopee hỏi xác minh.
+          (món nhiều người xem trước) bằng link thường, mỗi món cách 30–60 giây, tối đa 80 món/giờ (không giới hạn trong ngày), tự dừng khi Shopee hỏi xác minh.
         </p>
       </section>
 

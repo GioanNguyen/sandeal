@@ -103,6 +103,20 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     stopBatch("Đã tạm dừng").then(() => loadBatch()).then((s) => reply({ ok: true, state: s }));
     return true;
   }
+  if (msg?.type === "batch-counts") {
+    queueCounts()
+      .then(async (c) => {
+        if (c && c.counts) {
+          const s = await loadBatch();
+          s.counts = c.counts;
+          s.remaining = c.counts.image + c.counts.price;
+          await saveBatch(s);
+        }
+        reply({ ok: !!c, data: c });
+      })
+      .catch(() => reply({ ok: false }));
+    return true;
+  }
   if (msg?.type === "batch-status") {
     Promise.all([loadBatch(), isAdminBrowser()]).then(([s, admin]) => reply({ ok: true, state: s, limits: BATCH, admin }));
     return true;

@@ -36,6 +36,15 @@ export interface QueueItem {
 
 const noImage = sql`coalesce(${products.imageUrl}, '') = ''`;
 
+/**
+ * Món mở được đúng trang sản phẩm (giống plainProductUrl với exact = true): có link sản phẩm, link mua là link sản phẩm
+ * đầy đủ, hoặc Lazada / TikTok có mã số. Món không thoả (chỉ có link rút gọn s.shopee.vn) tiện ích không mở được.
+ */
+export const openableSql = sql`(${products.productUrl} ~* '^https://'
+  or ${products.affiliateUrl} ~* '^https?://([a-z]+\.)?shopee\.vn/(product/[0-9]+/[0-9]+|.*-i\.[0-9]+\.[0-9]+)'
+  or ${products.affiliateUrl} ~* '^https?://([a-z]+\.)?lazada\.vn/.*-i[0-9]+'
+  or (${products.platform} in ('lazada', 'tiktok') and ${products.externalId} ~ '^[0-9]+$'))`;
+
 /** Mức quan tâm 30 ngày: lượt xem + 5 × bấm mua + 10 × người đang theo dõi giá */
 function interest(now: Date) {
   const since = new Date(now.getTime() - 30 * DAY);
@@ -54,8 +63,8 @@ function interest(now: Date) {
 function conditions(now: Date, score: SQL) {
   const staleCut = new Date(now.getTime() - STALE_PRICE_DAYS() * DAY);
   const tooOld = new Date(now.getTime() - MAX_STALE_DAYS * DAY);
-  const image = and(availableSql(), noImage)!;
-  const price = and(sql`not ${products.hidden}`, lt(products.lastSeenAt, staleCut), gte(products.lastSeenAt, tooOld), sql`${score} > 0`)!;
+  const image = and(availableSql(), noImage, openableSql)!;
+  const price = and(sql`not ${products.hidden}`, lt(products.lastSeenAt, staleCut), gte(products.lastSeenAt, tooOld), sql`${score} > 0`, openableSql)!;
   return { image, price, any: or(image, price)! };
 }
 
@@ -116,6 +125,17 @@ export async function extQueue(opts: { limit?: number; now?: Date } = {}): Promi
   }
   const counts = { image: Number(img.n), price: Number(prc.n) };
   return { items, remaining: counts.image + counts.price, counts };
+}
+
+/**
+ * Số món thiếu ảnh tách theo tình trạng – để trang quản trị và tiện ích nói cùng một con số:
+ *  all: mọi món chưa có ảnh · available: đang bán (đang hiện trên web) · openable: đang bán và tiện ích mở được trang
+ */
+export async function imageGapCounts(): Promise<{ all: number; available: number; openable: number }> {
+  await ensureMigrated();
+  const n = async (w: SQL) => Number((await db.select({ n: count() }).from(products).where(w))[0].n);
+  const [all, available, openable] = await Promise.all([n(noImage), n(and(availableSql(), noImage)!), n(and(availableSql(), noImage, openableSql)!)]);
+  return { all, available, openable };
 }
 
 /** Giữ tên cũ cho chỗ khác đang gọi */
