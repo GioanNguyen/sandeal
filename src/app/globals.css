@@ -361,10 +361,12 @@ html[data-theme="dark"] .lowest-tag { color: #0b1f16; }
 .inline-edit .btn { min-height: 40px; padding: 0 12px; font-size: 14px; }
 .kpis-4 { grid-template-columns: repeat(4, 1fr); }
 .kpi small { display: block; font-size: 12px; margin-top: 2px; }
-.admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+/* minmax(0, 1fr) + min-width: 0: chữ dài không ngắt được (vd. "6/7/8/X/XS/XR/…") không được kéo cột rộng hơn màn hình */
+.admin-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.admin-grid > * { min-width: 0; }
 .table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
 .table th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; padding: 8px 6px; border-bottom: 1px solid var(--border); }
-.table td { padding: 10px 6px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.table td { padding: 10px 6px; border-bottom: 1px solid var(--border); vertical-align: middle; overflow-wrap: anywhere; }
 .table tr:last-child td { border-bottom: 0; }
 .table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .table a:hover { color: var(--primary); }
@@ -378,7 +380,7 @@ html[data-theme="dark"] .lowest-tag { color: #0b1f16; }
 .data-table table { width: 100%; max-width: 320px; font-variant-numeric: tabular-nums; }
 .data-table td:last-child { text-align: right; }
 @media (max-width: 900px) {
-  .admin-grid { grid-template-columns: 1fr; }
+  .admin-grid { grid-template-columns: minmax(0, 1fr); }
   .kpis-4 { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 640px) {
