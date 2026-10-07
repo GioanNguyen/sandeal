@@ -32,18 +32,31 @@ export interface QueueItem {
   reason: QueueReason;
   /** Số ngày giá chưa cập nhật (món giá cũ) */
   staleDays?: number;
+  /** Mở qua link affiliate rút gọn vì chưa biết link sản phẩm (mở xong web lưu link sản phẩm) */
+  viaAffiliate?: boolean;
 }
 
 const noImage = sql`coalesce(${products.imageUrl}, '') = ''`;
 
 /**
- * Món mở được đúng trang sản phẩm (giống plainProductUrl với exact = true): có link sản phẩm, link mua là link sản phẩm
- * đầy đủ, hoặc Lazada / TikTok có mã số. Món không thoả (chỉ có link rút gọn s.shopee.vn) tiện ích không mở được.
+ * Món tiện ích mở được đúng trang sản phẩm: có link sản phẩm, link mua là link sản phẩm đầy đủ, Lazada / TikTok có
+ * mã số (giống plainProductUrl với exact = true) – hoặc chỉ có link affiliate rút gọn s.shopee.vn (nhập CSV không có
+ * cột "Link sản phẩm"): mở link đó, sàn tự chuyển tới trang sản phẩm, web lưu lại link sản phẩm cho món (observe.ts).
  */
+const shortAffSql = sql`(${products.platform} = 'shopee' and ${products.affiliateUrl} ~* '^https://s\.shopee\.vn/')`;
 export const openableSql = sql`(${products.productUrl} ~* '^https://'
   or ${products.affiliateUrl} ~* '^https?://([a-z]+\.)?shopee\.vn/(product/[0-9]+/[0-9]+|.*-i\.[0-9]+\.[0-9]+)'
   or ${products.affiliateUrl} ~* '^https?://([a-z]+\.)?lazada\.vn/.*-i[0-9]+'
-  or (${products.platform} in ('lazada', 'tiktok') and ${products.externalId} ~ '^[0-9]+$'))`;
+  or (${products.platform} in ('lazada', 'tiktok') and ${products.externalId} ~ '^[0-9]+$')
+  or ${shortAffSql})`;
+
+/** Link tiện ích mở cho món: link sản phẩm nếu biết; chưa biết mà có link affiliate rút gọn Shopee thì mở link đó */
+export function queueUrl(p: Parameters<typeof plainProductUrl>[0]): { url: string; viaAffiliate: boolean } | null {
+  const u = plainProductUrl(p);
+  if (u.exact) return { url: u.url, viaAffiliate: false };
+  if (p.platform === "shopee" && p.affiliateUrl && /^https:\/\/s\.shopee\.vn\//i.test(p.affiliateUrl)) return { url: p.affiliateUrl, viaAffiliate: true };
+  return null;
+}
 
 /** Mức quan tâm 30 ngày: lượt xem + 5 × bấm mua + 10 × người đang theo dõi giá */
 function interest(now: Date) {
@@ -109,15 +122,16 @@ export async function extQueue(opts: { limit?: number; now?: Date } = {}): Promi
   const items: QueueItem[] = [];
   for (const r of rows) {
     if (tried.has(r.id)) continue;
-    const u = plainProductUrl(r);
+    const u = queueUrl(r);
     // Chỉ mở đúng trang sản phẩm (không mở trang tìm kiếm khi không biết link)
-    if (!u.exact) continue;
+    if (!u) continue;
     const isImage = r.isImage === true || (r.isImage as unknown) === "t";
     items.push({
       id: r.id,
       name: r.name,
       platform: r.platform,
       url: u.url,
+      ...(u.viaAffiliate ? { viaAffiliate: true } : {}),
       reason: isImage ? "image" : "price",
       ...(isImage ? {} : { staleDays: Math.floor((now.getTime() - r.lastSeenAt.getTime()) / DAY) }),
     });

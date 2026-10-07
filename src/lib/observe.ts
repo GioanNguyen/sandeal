@@ -81,6 +81,9 @@ async function nameTakenElsewhere(platform: string, name: string, externalId: st
   return !!x;
 }
 
+/** Link sản phẩm mở được thật: Shopee cần mã shop (link /product/0/… không mở đúng trang) */
+const hasShopId = (ref: { platform: string; url: string }) => ref.platform !== "shopee" || /\/product\/[1-9]\d*\/\d+/.test(ref.url);
+
 export async function recordObservation(o: Observation, ip: string, now = new Date()): Promise<{ status: ObserveStatus; productId?: number }> {
   await ensureMigrated();
   const c = cleanObservation(o);
@@ -92,6 +95,13 @@ export async function recordObservation(o: Observation, ip: string, now = new Da
     .from(products)
     .where(and(eq(products.platform, ref.platform), eq(products.externalId, ref.externalId)))
     .limit(1)) as Product[];
+
+  // Món chưa có link sản phẩm (vd. nhập CSV chỉ có link affiliate s.shopee.vn): trang vừa mở chính là trang sản phẩm
+  // của món này (cùng mã) -> lưu lại link để lần sau mở thẳng trang sản phẩm, không phải tìm trên sàn
+  if (existing && !/^https:\/\//i.test(existing.productUrl ?? "") && hasShopId(ref)) {
+    await db.update(products).set({ productUrl: ref.url }).where(eq(products.id, existing.id));
+    existing.productUrl = ref.url;
+  }
 
   const log = (status: ObserveStatus, productId?: number | null) =>
     db.insert(priceObservations).values({ platform: ref.platform, externalId: ref.externalId, productId: productId ?? null, price, observer, status, createdAt: now });

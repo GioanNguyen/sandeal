@@ -26,13 +26,15 @@ test("món thiếu ảnh có link sản phẩm, món được quan tâm trước
   const quiet = await add("1");
   const hot = await add("2");
   await add("3", { imageUrl: "https://cf.shopee.vn/file/a.jpg" }); // đã có ảnh
-  await add("4", { productUrl: null }); // không biết link sản phẩm -> không mở trang tìm kiếm
+  // Không có link sản phẩm, link mua cũng không phải link Shopee mở được -> không mở trang tìm kiếm
+  await add("4", { productUrl: null, affiliateUrl: "https://shope.ee/abc" });
   await dbm.db.insert(schema.clicks).values({ productId: hot, platform: "shopee" });
 
   const r = await q.extQueue({ now });
   assert.deepEqual(r.items.map((x) => x.id), [hot, quiet]);
   assert.ok(r.items.every((x) => x.reason === "image"));
   assert.equal(r.items[0].url, "https://shopee.vn/product/9/2", "link thường, không phải link affiliate");
+  assert.ok(r.items.every((x) => !x.viaAffiliate));
   assert.equal(r.remaining, 2, "chỉ đếm món tiện ích mở được (món không biết link sản phẩm thì không tính)");
   assert.deepEqual(await q.imageGapCounts(), { all: 3, available: 3, openable: 2 });
 
@@ -76,4 +78,29 @@ test("giá cũ: chỉ món khách đang quan tâm, kèm số ngày; tóm tắt t
   await add("50", now);
   assert.equal((await q.markTried([watched], now)).stillMissing, 0);
   assert.ok(!(await q.extQueue({ now })).items.some((x) => x.id === watched));
+});
+
+test("món chỉ có link affiliate rút gọn: tiện ích mở link đó, mở xong web lưu link sản phẩm, lần sau mở thẳng", async () => {
+  const now = new Date();
+  const observe = await import("./observe");
+  const { eq } = await import("drizzle-orm");
+  const id = await ingest.upsertProduct({ platform: "shopee", externalId: "7001", name: "Cây lau nhà tự vắt 45cm", price: 150_000, discountPct: 0, affiliateUrl: "https://s.shopee.vn/AbC123" }, now);
+  const it = (await q.extQueue({ now, limit: 50 })).items.find((x) => x.id === id);
+  assert.ok(it, "món chỉ có link rút gọn vẫn vào hàng đợi");
+  assert.equal(it!.url, "https://s.shopee.vn/AbC123");
+  assert.equal(it!.viaAffiliate, true);
+
+  // Shopee chuyển link rút gọn tới trang sản phẩm; tiện ích gửi dữ liệu kèm địa chỉ trang đó
+  const r = await observe.recordObservation({ url: "https://shopee.vn/Cay-lau-nha-tu-vat-45cm-i.888.7001?sp_atk=x&utm_source=an_1", name: "Cây lau nhà tự vắt 45cm", price: 149_000, image: "https://down-vn.img.susercontent.com/file/a.jpg" }, "9.9.9.9", now);
+  assert.equal(r.productId, id);
+  const [p] = await dbm.db.select().from(schema.products).where(eq(schema.products.id, id));
+  assert.equal(p.productUrl, "https://shopee.vn/product/888/7001");
+  const again = (await q.extQueue({ now: new Date(now.getTime() + 25 * 3_600_000), limit: 50 })).items.find((x) => x.id === id);
+  if (again) assert.equal(again.url, "https://shopee.vn/product/888/7001", "lần sau mở link sản phẩm thường");
+
+  // Đã có link sản phẩm thì không ghi đè; link không có mã shop (/product/0/…) thì không lưu
+  const id2 = await ingest.upsertProduct({ platform: "shopee", externalId: "7002", name: "Găng tay cao su", price: 30_000, discountPct: 0, affiliateUrl: "https://s.shopee.vn/x2", productUrl: "https://shopee.vn/product/5/7002" }, now);
+  await observe.recordObservation({ url: "https://shopee.vn/product/6/7002", name: "Găng tay cao su", price: 30_000 }, "9.9.9.8", now);
+  const [p2] = await dbm.db.select().from(schema.products).where(eq(schema.products.id, id2));
+  assert.equal(p2.productUrl, "https://shopee.vn/product/5/7002");
 });

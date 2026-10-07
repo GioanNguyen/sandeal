@@ -5,7 +5,9 @@
  *   - mỗi món cách nhau ngẫu nhiên 30–60 giây (đồng hồ của Chrome không cho ngắn hơn 30 giây)
  *   - tối đa 80 món / giờ (đủ thì nghỉ rồi tự chạy tiếp), không giới hạn số món trong ngày
  *   - gặp trang xác minh (captcha) hoặc bắt đăng nhập: dừng ngay, để người dùng tự xử lý rồi bấm Tiếp tục
- * Luôn mở link sản phẩm thường (không phải link affiliate) để không tạo lượt bấm ảo.
+ * Mở link sản phẩm thường (không phải link affiliate) để không tạo lượt bấm ảo. Riêng món chưa biết link sản phẩm
+ * (nhập CSV chỉ có link rút gọn s.shopee.vn) thì mở link rút gọn một lần: Shopee tự chuyển tới trang sản phẩm, web lưu
+ * lại link đó cho món, các lần sau mở thẳng link sản phẩm.
  */
 const BATCH = {
   minDelay: 30_000,
@@ -85,7 +87,7 @@ async function startBatch() {
   s.remaining = q.remaining;
   s.counts = q.counts || null;
   if (!s.queue.length) {
-    s.status = "Không còn món nào thiếu ảnh hay giá cũ (có link sản phẩm)";
+    s.status = "Không còn món nào thiếu ảnh hay giá cũ";
     await saveBatch(s);
     return s;
   }
@@ -131,11 +133,12 @@ async function nextItem() {
     } catch (e) {
       return stopBatch(`Dừng: ${e.message || e}`);
     }
-    if (!s.queue.length) return stopBatch("Xong – không còn món nào thiếu ảnh hay giá cũ (có link sản phẩm)");
+    if (!s.queue.length) return stopBatch("Xong – không còn món nào thiếu ảnh hay giá cũ");
   }
   const item = s.queue.shift();
   s.current = { ...item, startedAt: now };
-  s.status = `Đang mở (${item.reason === "price" ? `giá cũ ${item.staleDays ?? "?"} ngày` : item.reason === "request" ? "link khách hỏi" : "thiếu ảnh"}): ${item.name.slice(0, 60)}`;
+  const why = item.reason === "price" ? `giá cũ ${item.staleDays ?? "?"} ngày` : item.reason === "request" ? "link khách hỏi" : "thiếu ảnh";
+  s.status = `Đang mở (${why}${item.viaAffiliate ? ", chưa có link sản phẩm – mở link rút gọn" : ""}): ${item.name.slice(0, 60)}`;
   s.tabId = await ensureTab(s, item.url);
   await saveBatch(s);
   chrome.alarms.create("batch-timeout", { when: now + BATCH.pageTimeout });
@@ -161,7 +164,7 @@ async function finishItem(result) {
   s.hour.push(Date.now());
   s.day.n++;
   if (s.remaining) s.remaining = Math.max(0, s.remaining - (ok ? 1 : 0));
-  s.status = ok ? `Đã cập nhật: ${item.name.slice(0, 60)}` : `Không đọc được: ${item.name.slice(0, 60)}`;
+  s.status = ok ? `Đã cập nhật${item.viaAffiliate ? " (đã lưu link sản phẩm)" : ""}: ${item.name.slice(0, 60)}` : `Không đọc được: ${item.name.slice(0, 60)}`;
   await saveBatch(s);
   queueTried(item.id);
   schedule(randomDelay());
