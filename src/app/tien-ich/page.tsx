@@ -1,36 +1,36 @@
 import fs from "node:fs";
-import path from "node:path";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { Icon } from "@/components/Icon";
+import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { extensionInfo, extensionZipPath } from "@/lib/extension-files";
 
 export const dynamic = "force-dynamic";
+// Tiện ích chỉ dành cho quản trị viên: người khác thấy trang 404, không index, không có trong sitemap/menu
 export const metadata: Metadata = {
-  title: "Tiện ích Chrome Săn Deal – xem lịch sử giá ngay trên Shopee, Lazada, TikTok Shop",
-  description: "Cài tiện ích để biết giảm giá thật hay ảo, sàn nào rẻ hơn và giá sau mã ngay khi đang xem sản phẩm.",
-  alternates: { canonical: "/tien-ich" },
+  title: "Tiện ích Chrome Săn Deal (quản trị)",
+  robots: { index: false, follow: false },
 };
 
-export default function ExtensionPage() {
-  const dir = path.join(process.cwd(), "public", "downloads");
-  const hasZip = fs.existsSync(path.join(dir, "san-deal-extension.zip"));
+export default async function ExtensionPage() {
+  const user = await getCurrentUser();
+  if (!user || !isAdmin(user.email)) notFound();
+  const hasZip = fs.existsSync(extensionZipPath());
   // Phiên bản ghi lúc đóng gói (scripts/build-extension.mjs)
-  let info: { version: string; file: string; builtAt: string } | null = null;
-  try {
-    info = JSON.parse(fs.readFileSync(path.join(dir, "san-deal-extension.json"), "utf8"));
-  } catch {}
+  const info = extensionInfo();
   const built = info ? new Date(info.builtAt).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Asia/Ho_Chi_Minh" }) : null;
   return (
     <>
       <section className="sale-hero ext-hero">
         <div>
-          <span className="hero-eyebrow"><Icon name="puzzle" size={14} /> Tiện ích trình duyệt</span>
+          <span className="hero-eyebrow"><Icon name="puzzle" size={14} /> Tiện ích trình duyệt · chỉ quản trị viên thấy trang này</span>
           <h1>Biết giá thật ngay trên Shopee</h1>
           <p>Đang xem sản phẩm trên Shopee, Lazada hay TikTok Shop, Săn Deal hiện ngay lịch sử giá, giá sau mã và sàn nào đang rẻ hơn. Không cần copy link.</p>
         </div>
         <div className="hero-actions">
           {hasZip ? (
             <>
-              <a className="btn btn-light" href={`/downloads/san-deal-extension.zip${info ? `?v=${info.version}` : ""}`} download={info?.file ?? "san-deal-extension.zip"}>
+              <a className="btn btn-light" href={`/api/admin/extension${info ? `?v=${info.version}` : ""}`} download={info?.file ?? "san-deal-extension.zip"}>
                 <Icon name="download" size={16} /> Tải tiện ích{info ? ` v${info.version}` : ""} (Chrome, Edge, Cốc Cốc)
               </a>
               {info && <span className="ext-version">Phiên bản mới nhất: <b>{info.version}</b> · đóng gói {built}</span>}
@@ -77,7 +77,6 @@ export default function ExtensionPage() {
             <b>Cập nhật bản mới:</b> xem phiên bản đang dùng ở <code>chrome://extensions</code> (hoặc bấm biểu tượng Săn Deal – tiện ích tự báo khi có bản mới).
             Nếu cũ hơn {info ? <b>{info.version}</b> : "bản trên trang này"}, tải lại file, gỡ bản cũ rồi nạp thư mục mới.
           </p>
-          <p className="muted" style={{ fontSize: 13 }}>Sắp có trên Chrome Web Store để cài bằng một cú bấm.</p>
         </section>
       </div>
     </>

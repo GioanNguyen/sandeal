@@ -17,7 +17,7 @@
     return false;
   };
   try {
-    const res = await fetch(`${base}/downloads/san-deal-extension.json`, { cache: "no-store" });
+    const res = await fetch(`${base}/api/ext/version`, { cache: "no-store" });
     const info = await res.json();
     if (info.version && newer(info.version, mine)) {
       const a = document.createElement("a");

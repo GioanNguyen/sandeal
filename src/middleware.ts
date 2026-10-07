@@ -55,6 +55,9 @@ export function middleware(req: NextRequest) {
   const denied = checkBasicAuth(req);
   if (denied) return denied;
 
+  // Tệp tiện ích cũ từng để công khai: không phục vụ nữa (chỉ quản trị viên tải qua /api/admin/extension)
+  if (req.nextUrl.pathname.startsWith("/downloads/san-deal-extension")) return new NextResponse("Not found", { status: 404 });
+
   // Trang có tham số (?q=, ?shop=mall, ?page=2, ?utm_…) là biến thể của trang gốc: không cho Google index
   // (vẫn "follow" để đi tiếp các link sản phẩm). Canonical của từng trang đã trỏ về bản không tham số.
   const noindex = req.nextUrl.search.length > 1 && !NO_ROBOTS_HEADER.test(req.nextUrl.pathname);

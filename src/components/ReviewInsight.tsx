@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { Insight } from "@/lib/reviews";
 import { RISK_LABEL } from "@/lib/reviews/risk";
 import { PLATFORMS } from "@/lib/format";
@@ -41,7 +40,7 @@ function Stars({ dist, label }: { dist: number[]; label: string }) {
 }
 
 /** Mục "Đánh giá & rủi ro" trên trang sản phẩm */
-export function ReviewPanel({ insight, platform, extHref = "/tien-ich" }: { insight: Insight; platform: string; extHref?: string }) {
+export function ReviewPanel({ insight, platform }: { insight: Insight; platform: string }) {
   const { reviews: r, ai, risk } = insight;
   const label = PLATFORMS[platform]?.label ?? platform;
   const pros = ai?.pros.length ? ai.pros : r?.pros ?? [];
@@ -115,14 +114,13 @@ export function ReviewPanel({ insight, platform, extHref = "/tien-ich" }: { insi
             )}
           </div>
           <p className="muted rv-note">
-            Dựa trên {r.count} đánh giá{insight.ratingCount ? ` (trong tổng ${insight.ratingCount.toLocaleString("vi-VN")} lượt trên ${label})` : ` trên ${label}`} mà người dùng tiện ích Săn Deal thấy khi xem sản phẩm
+            Dựa trên {r.count} đánh giá{insight.ratingCount ? ` (trong tổng ${insight.ratingCount.toLocaleString("vi-VN")} lượt trên ${label})` : ` trên ${label}`} mà Săn Deal ghi nhận từ trang sản phẩm
             {ai ? ". Tóm tắt do AI viết từ nội dung đánh giá, có thể chưa chính xác hoàn toàn." : "."}
           </p>
         </>
       ) : (
         <p className="muted rv-note">
-          Chưa có đánh giá của người mua cho món này. Cảnh báo ở trên dựa vào lịch sử giá và thông tin shop.{" "}
-          <Link href={extHref}>Cài tiện ích Săn Deal</Link> và bật Góp giá để góp đánh giá khi bạn xem sản phẩm trên {label}.
+          Chưa có đánh giá của người mua cho món này. Cảnh báo ở trên dựa vào lịch sử giá và thông tin shop. Xem thêm đánh giá trực tiếp trên {label}.
         </p>
       )}
     </section>

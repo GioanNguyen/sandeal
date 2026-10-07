@@ -16,7 +16,6 @@ export type GuideBlock =
 /** Các trang được phép dẫn link trong bài, kèm mô tả đúng chức năng (đưa cho AI để không viết sai tính năng) */
 export const SITE_FEATURES: { path: string; name: string; what: string }[] = [
   { path: "/kiem-tra-gia", name: "Kiểm tra giá", what: "dán link sản phẩm Shopee/Lazada/TikTok Shop để xem lịch sử giá 90 ngày, mức giảm thật và kết luận nên mua ngay hay chờ" },
-  { path: "/tien-ich", name: "Tiện ích Chrome Săn Deal", what: "hiện biểu đồ giá ngay trên trang sản phẩm của sàn; ghi nhận giá từng phân loại (màu, size) khi người dùng chọn" },
   { path: "/tim-bang-anh", name: "Tìm bằng ảnh", what: "tải ảnh lên để tìm món giống nhất kèm giá" },
   { path: "/tinh-gia", name: "Máy tính giá cuối cùng", what: "cộng trừ mã của shop, mã của sàn, phí vận chuyển để ra giá phải trả" },
   { path: "/vouchers", name: "Mã giảm giá", what: "danh sách mã còn hạn của 3 sàn, sắp theo giờ hết hạn" },

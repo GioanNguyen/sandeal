@@ -17,7 +17,7 @@ export function VariantPrices({ variants, productPrice, platformLabel }: { varia
     <section className="panel" id="phan-loai" aria-labelledby="pl-head">
       <h2 id="pl-head"><Icon name="list" /> Giá theo phân loại</h2>
       <p className="muted" style={{ margin: "0 0 10px", fontSize: 13 }}>
-        Giá {vnd(productPrice)} ở trên thường là phân loại rẻ nhất. Giá từng phân loại do người dùng tiện ích Săn Deal ghi nhận khi chọn phân loại trên {platformLabel}.
+        Giá {vnd(productPrice)} ở trên thường là phân loại rẻ nhất. Giá từng phân loại được ghi nhận khi xem trang sản phẩm trên {platformLabel}.
       </p>
       <ul className="vp-list">
         {variants.map((v) => {

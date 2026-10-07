@@ -37,7 +37,6 @@ export function SiteFooter({ loggedIn }: { loggedIn: boolean }) {
         { href: "/tinh-gia", label: "Máy tính giá cuối cùng" },
         { href: "/so-sanh", label: "So sánh giá các sàn" },
         { href: "/doan-gia", label: "Đoán giá mỗi ngày" },
-        { href: "/tien-ich", label: "Tiện ích trình duyệt" },
         { href: "/huong-dan", label: "Hướng dẫn săn deal" },
         { href: "/shop", label: "Shop giảm giá thật?" },
       ],

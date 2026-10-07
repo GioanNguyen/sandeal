@@ -1,7 +1,7 @@
 /**
  * Đóng gói tiện ích Chrome: node scripts/build-extension.mjs
  * - Ghi SITE_URL (từ .env hoặc biến môi trường) làm máy chủ mặc định
- * - Xuất public/downloads/san-deal-extension.zip để trang /tien-ich cho tải về
+ * - Xuất private/downloads/san-deal-extension.zip (không công khai): chỉ quản trị viên tải ở trang /tien-ich (qua /api/admin/extension)
  * - Bản cho site thật (SITE_URL không phải localhost):
  *     + khoá địa chỉ máy chủ (Tuỳ chọn không còn ô sửa, tiện ích bỏ qua giá trị lưu trong trình duyệt),
  *       chỉ xin quyền đúng tên miền của site, bỏ quyền tuỳ chọn tới mọi trang;
@@ -100,8 +100,10 @@ const end = Buffer.alloc(22);
 end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(entries.length, 8); end.writeUInt16LE(entries.length, 10);
 end.writeUInt32LE(cdSize, 12); end.writeUInt32LE(offset, 16);
 
-const outDir = path.join(root, "public", "downloads");
+const outDir = path.join(root, "private", "downloads");
 fs.mkdirSync(outDir, { recursive: true });
+// Bản cũ từng nằm trong public/ (ai cũng tải được): xoá đi
+for (const f of ["san-deal-extension.zip", "san-deal-extension.json"]) fs.rmSync(path.join(root, "public", "downloads", f), { force: true });
 const out = path.join(outDir, "san-deal-extension.zip");
 fs.writeFileSync(out, Buffer.concat([...locals, ...centrals, end]));
 // Thông tin phiên bản cho trang /tien-ich và để tiện ích tự kiểm tra có bản mới

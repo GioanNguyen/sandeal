@@ -6,4 +6,5 @@ next-env.d.ts
 .data
 *.db
 public/downloads
+private/downloads
 /dist

@@ -292,8 +292,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
             <VoteBox productId={p.id} initial={votes} loggedIn={!!user} />
             <Freshness at={p.lastSeenAt} long />
             {p.priceSource === "ext" && (
-              <span className="muted" style={{ fontSize: 12 }} title="Giá do người dùng tiện ích Săn Deal ghi nhận khi xem trang sản phẩm trên sàn">
-                Giá ghi nhận từ người dùng tiện ích
+              <span className="muted" style={{ fontSize: 12 }} title="Giá ghi nhận khi xem trang sản phẩm trên sàn">
+                Giá ghi nhận từ trang sàn
               </span>
             )}
           </div>

@@ -56,7 +56,7 @@ export const SCHEDULED_GUIDES: Guide[] = [
   {
     slug: "cach-xem-lich-su-gia-san-pham",
     title: "Cách xem lịch sử giá sản phẩm trên Shopee, Lazada, TikTok Shop",
-    description: "Ba cách xem giá của một món trong 90 ngày qua: dán link, cài tiện ích trình duyệt, hoặc tìm theo tên – và cách đọc biểu đồ giá cho đúng.",
+    description: "Hai cách xem giá của một món trong 90 ngày qua: dán link hoặc tìm theo tên, bằng ảnh – và cách đọc biểu đồ giá cho đúng.",
     published: "2026-10-06",
     updated: "2026-10-06",
     related: "deep",
@@ -64,7 +64,7 @@ export const SCHEDULED_GUIDES: Guide[] = [
       <>
         <p>
           Các sàn chỉ cho bạn thấy giá hôm nay và một mức giá gạch ngang. Để biết hôm nay có thật sự rẻ, bạn cần xem giá của món đó trong vài tuần đến vài tháng
-          qua. Dưới đây là ba cách làm với Săn Deal.
+          qua. Dưới đây là hai cách làm với Săn Deal.
         </p>
         <h2>Cách 1: Dán link sản phẩm</h2>
         <ol>
@@ -73,12 +73,7 @@ export const SCHEDULED_GUIDES: Guide[] = [
           <li>Xem biểu đồ giá, mức “giảm thật” và kết luận “Nên mua ngay hay chờ?”.</li>
         </ol>
         <p>Nếu món chưa có trong dữ liệu, Săn Deal bắt đầu theo dõi từ lúc đó; vài ngày sau biểu đồ sẽ đủ để so sánh.</p>
-        <h2>Cách 2: Cài tiện ích trên máy tính</h2>
-        <p>
-          Với <Link href="/tien-ich">tiện ích Chrome Săn Deal</Link>, biểu đồ giá hiện ngay trên trang sản phẩm của Shopee, Lazada và TikTok Shop, không cần sao
-          chép link. Khi bạn chọn phân loại (màu, size, dung tích), tiện ích còn ghi nhận giá riêng của phân loại đó.
-        </p>
-        <h2>Cách 3: Tìm theo tên hoặc bằng ảnh</h2>
+        <h2>Cách 2: Tìm theo tên hoặc bằng ảnh</h2>
         <p>
           Gõ tên sản phẩm vào ô tìm kiếm ở đầu trang. Thấy món ưng trên mạng xã hội mà không biết tên? Dùng <Link href="/tim-bang-anh">Tìm bằng ảnh</Link> để tìm
           món giống nhất kèm giá.
@@ -208,7 +203,7 @@ export const SCHEDULED_GUIDES: Guide[] = [
           size gì. Ưu tiên đánh giá có ghi rõ phân loại.
         </p>
         <div className="tip">
-          Phần tóm tắt đánh giá trên Săn Deal được viết từ các đánh giá người dùng tiện ích thấy khi xem sản phẩm. Khi có ghi “Tóm tắt bằng AI”, nội dung do AI
+          Phần tóm tắt đánh giá trên Săn Deal được viết từ các đánh giá công khai trên trang sản phẩm của sàn. Khi có ghi “Tóm tắt bằng AI”, nội dung do AI
           viết và có thể chưa chính xác hoàn toàn – hãy đọc thêm vài đánh giá gốc.
         </div>
       </>
@@ -281,8 +276,7 @@ export const SCHEDULED_GUIDES: Guide[] = [
         </ul>
         <h2>Không kịp kiểm tra?</h2>
         <p>
-          Trên điện thoại, chép link sản phẩm và dán vào <Link href="/kiem-tra-gia">Kiểm tra giá</Link> – mất khoảng mười giây. Trên máy tính, tiện ích Săn Deal
-          hiện biểu đồ giá ngay trên trang flash sale.
+          Chép link sản phẩm và dán vào <Link href="/kiem-tra-gia">Kiểm tra giá</Link> – mất khoảng mười giây, trên điện thoại hay máy tính đều được.
         </p>
         <div className="tip">
           Nếu lỡ khung giờ: đặt báo giá ở mức của flash sale. Nhiều món quay lại mức đó trong các đợt sau, và bạn sẽ nhận email khi điều đó xảy ra.
