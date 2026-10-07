@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { recheckProduct } from "@/lib/lookup";
+import { deleteProduct } from "@/lib/deadlink";
 import { setHidden } from "@/lib/producthealth";
 
 export const dynamic = "force-dynamic";
 
-/** Quản trị › Sản phẩm: ẩn / hiện lại / kiểm tra lại trên sàn 1 món */
+/** Quản trị › Sản phẩm: ẩn / hiện lại / kiểm tra lại trên sàn / xoá hẳn (món không có dữ liệu quan trọng) 1 món */
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user || !isAdmin(user.email)) return NextResponse.json({ error: "Không có quyền" }, { status: 403 });
@@ -15,6 +16,10 @@ export async function POST(req: Request) {
   if (body.action === "hide" || body.action === "unhide") {
     const ok = await setHidden(id, body.action === "hide", typeof body.reason === "string" ? body.reason : null);
     return ok ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "Không tìm thấy sản phẩm" }, { status: 404 });
+  }
+  if (body.action === "delete") {
+    const r = await deleteProduct(id);
+    return r.ok ? NextResponse.json({ ok: true }) : NextResponse.json({ error: r.error }, { status: 409 });
   }
   if (body.action === "recheck") {
     const r = await recheckProduct(id);

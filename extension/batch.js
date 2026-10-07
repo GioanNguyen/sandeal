@@ -8,6 +8,7 @@
  * Mở link sản phẩm thường (không phải link affiliate) để không tạo lượt bấm ảo. Riêng món chưa biết link sản phẩm
  * (nhập CSV chỉ có link rút gọn s.shopee.vn) thì mở link rút gọn một lần: Shopee tự chuyển tới trang sản phẩm, web lưu
  * lại link đó cho món, các lần sau mở thẳng link sản phẩm.
+ * Trang báo "Sản phẩm này không tồn tại": web ẩn món (lý do "link không còn trên sàn"), không xoá lịch sử giá.
  */
 const BATCH = {
   minDelay: 30_000,
@@ -35,6 +36,13 @@ async function queueFetch(limit) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
+}
+/** Trang sản phẩm báo "không tồn tại": máy chủ ẩn món (không xoá dữ liệu; nhập lại mà sàn còn bán thì tự hiện lại) */
+async function queueDead(id) {
+  const base = await self.sanDealServer();
+  const res = await fetch(`${base}/api/ext/queue`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dead: id }) }).catch(() => null);
+  const j = res && res.ok ? await res.json().catch(() => ({})) : {};
+  return j.dead || null;
 }
 async function queueTried(id) {
   const base = await self.sanDealServer();
@@ -154,6 +162,16 @@ async function finishItem(result) {
   if (result.blocked) {
     await saveBatch(s);
     return stopBatch("Tạm dừng: Shopee yêu cầu xác minh hoặc đăng nhập. Mở tab Săn Deal đang chạy, xác minh xong rồi bấm Tiếp tục (nên đợi vài giờ).");
+  }
+  if (result.dead && item.id > 0) {
+    const r = await queueDead(item.id);
+    s.dead = (s.dead || 0) + (r === "hidden" ? 1 : 0);
+    s.hour.push(Date.now());
+    s.day.n++;
+    s.status = r === "hidden" ? `Link không còn trên sàn – đã ẩn: ${item.name.slice(0, 60)}` : r === "fresh" ? `Trang báo không tồn tại nhưng nguồn chính thức vừa thấy món – giữ nguyên: ${item.name.slice(0, 50)}` : `Link không còn trên sàn: ${item.name.slice(0, 60)}`;
+    await saveBatch(s);
+    queueTried(item.id);
+    return schedule(randomDelay());
   }
   let ok = false;
   if (result.data && result.data.price > 0) {

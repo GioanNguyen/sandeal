@@ -227,14 +227,26 @@
    * Gặp trang xác minh / đăng nhập thì báo để dừng cả lượt chạy.
    */
   let batchSent = false;
+  // Trang sàn báo sản phẩm đã bị gỡ / không tồn tại (chỉ xét khi trang không có giá)
+  const DEAD_TEXT = /sản phẩm (này )?(không (còn )?tồn tại|đã bị (xoá|xóa|gỡ)|không còn (được )?bán)|không tìm thấy sản phẩm|(this|the) product (does not|doesn't|no longer) exist/i;
+  const deadPage = () => {
+    if (/(^|\.)s\.shopee\.vn$/i.test(location.hostname)) return false; // còn đang chuyển từ link rút gọn
+    const t = ((document.querySelector("main") || document.body)?.innerText || "").slice(0, 4000);
+    return DEAD_TEXT.test(t) || /không tồn tại|not found/i.test(document.title);
+  };
   async function batchCollect(href) {
     if (batchSent) return;
     const blocked = () => /\/verify\/|captcha|\/buyer\/login|\/login\b/i.test(location.pathname + location.search) || /xác minh|captcha|đăng nhập/i.test(document.title);
     await new Promise((ok) => setTimeout(ok, 2500));
+    let deadSeen = 0;
     for (let i = 0; i < 20; i++) {
       if (batchSent) return;
       if (blocked()) { batchSent = true; chrome.runtime.sendMessage({ type: "batch-result", url: location.href, blocked: true }).catch(() => null); return; }
       const d = isProductUrl(location.href) && self.SanDealExtract && self.SanDealExtract.fromDocument(document, location.href);
+      // Không có giá mà trang báo "không tồn tại" liên tục ~4 giây (tránh nhầm lúc trang đang tải dở): báo link chết
+      if (!(d && d.price > 0) && deadPage()) {
+        if (++deadSeen >= 4) { batchSent = true; chrome.runtime.sendMessage({ type: "batch-result", url: location.href, dead: true }).catch(() => null); return; }
+      } else deadSeen = 0;
       // Đợi cả ảnh (trang tải dần) – tối đa ~20 giây
       if (d && d.price > 0 && (d.image || i >= 12)) {
         batchSent = true;

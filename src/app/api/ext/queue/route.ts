@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { markDeadLink } from "@/lib/deadlink";
 import { extQueue, imageGapCounts, markTried } from "@/lib/extqueue";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,7 @@ const NO_STORE = { "Cache-Control": "no-store" };
  *   GET  ?counts=1      -> { counts: {image, price}, gap: {all, available, openable} } – số món còn lại, tính mới mỗi lần
  *   GET  ?limit=20      -> { items: [{id, name, platform, url, reason: "image"|"price", staleDays?}], remaining, counts }
  *   POST { tried: [id] } -> ghi nhận đã mở (món vẫn chưa cập nhật được thì 24 giờ sau mới đưa lại)
+ *   POST { dead: id }    -> trang sản phẩm báo "không tồn tại": ẩn món (lý do "link không còn trên sàn"), không xoá dữ liệu
  */
 async function admin() {
   const user = await getCurrentUser();
@@ -33,7 +35,9 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   if (!(await admin())) return NextResponse.json({ error: "Không có quyền" }, { status: 403, headers: NO_STORE });
-  const body = (await req.json().catch(() => ({}))) as { tried?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { tried?: unknown; dead?: unknown };
+  const dead = Number(body.dead);
+  if (Number.isInteger(dead) && dead > 0) return NextResponse.json({ ok: true, dead: await markDeadLink(dead) }, { headers: NO_STORE });
   const ids = (Array.isArray(body.tried) ? body.tried : []).map(Number);
   return NextResponse.json({ ok: true, ...(await markTried(ids)) }, { headers: NO_STORE });
 }

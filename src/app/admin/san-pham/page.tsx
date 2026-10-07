@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { blockerText, canDelete, deleteBlockers } from "@/lib/deadlink";
 import { redirect } from "next/navigation";
 import { AdminTabs } from "@/components/AdminTabs";
 import { CardImage } from "@/components/CardImage";
@@ -53,6 +54,8 @@ export default async function ProductHealthPage({ searchParams }: { searchParams
   const cats = await categoryOptions();
   const category = sp.dm === NO_CATEGORY || sp.dm === AUTO_CATEGORY || cats.some((c) => c.name === sp.dm) ? sp.dm : undefined;
   const [sum, res, srcCounts, gap] = await Promise.all([healthSummary(now), healthList({ issue, platform, q, sort, category, page: Number(sp.trang) || 1, now }), categorySourceCounts(), imageGapCounts()]);
+  // Món nào xoá hẳn được (không có người theo dõi, nhắc sale, lượt bấm mua, đơn hàng, bài đã đăng)
+  const blockers = await deleteBlockers(res.list.map((r) => r.p.id));
   const imgPlatforms = lookupPlatforms();
   const allCats = [...new Set([...CATEGORIES, ...cats.map((c) => c.name)])];
 
@@ -201,7 +204,7 @@ export default async function ProductHealthPage({ searchParams }: { searchParams
                     {issues.map((k) => <span key={k} className={`ph-tag ph-${INFO[k].tone}`} title={INFO[k].hint}>{INFO[k].label}</span>)}
                     {p.hidden && p.hiddenReason && <span className="muted"> · lý do: {p.hiddenReason}</span>}
                   </div>
-                  <ProductAdminActions id={p.id} hidden={p.hidden} />
+                  <ProductAdminActions id={p.id} hidden={p.hidden} deletable={canDelete(blockers.get(p.id))} keepReason={blockers.get(p.id) ? blockerText(blockers.get(p.id)!) : ""} />
                 </div>
                 <div className="ph-nums">
                   <b>{vnd(p.price)}</b>

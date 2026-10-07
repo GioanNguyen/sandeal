@@ -5,15 +5,19 @@ import { Icon } from "./Icon";
 
 const REASONS = ["Giá sai", "Link hỏng", "Hàng cấm / không phù hợp", "Trùng món khác", "Hàng giả / shop kém"];
 
-/** Nút thao tác 1 món trong Quản trị › Sản phẩm: kiểm tra lại trên sàn, ẩn (kèm lý do), hiện lại */
-export function ProductAdminActions({ id, hidden }: { id: number; hidden: boolean }) {
+/**
+ * Nút thao tác 1 món trong Quản trị › Sản phẩm: kiểm tra lại trên sàn, ẩn (kèm lý do), hiện lại, xoá hẳn.
+ * "Xoá hẳn" chỉ hiện với món không có dữ liệu quan trọng (deletable) và phải bấm 2 lần để chắc chắn.
+ */
+export function ProductAdminActions({ id, hidden, deletable = false, keepReason = "" }: { id: number; hidden: boolean; deletable?: boolean; keepReason?: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState(REASONS[0]);
+  const [confirmDel, setConfirmDel] = useState(false);
 
-  async function run(action: "recheck" | "hide" | "unhide") {
+  async function run(action: "recheck" | "hide" | "unhide" | "delete") {
     setBusy(action);
     setMsg(null);
     try {
@@ -21,6 +25,8 @@ export function ProductAdminActions({ id, hidden }: { id: number; hidden: boolea
       const j = await res.json().catch(() => ({}));
       if (action === "recheck") setMsg(j.ok ? { ok: true, text: "Đã cập nhật từ sàn" } : { ok: false, text: j.error ?? `Lỗi ${res.status}` });
       else if (!res.ok) setMsg({ ok: false, text: j.error ?? `Lỗi ${res.status}` });
+      else if (action === "delete") setMsg({ ok: true, text: "Đã xoá" });
+      setConfirmDel(false);
       setAsking(false);
       router.refresh();
     } catch (e) {
@@ -52,6 +58,22 @@ export function ProductAdminActions({ id, hidden }: { id: number; hidden: boolea
           <Icon name="alert" size={14} /> Ẩn khỏi web
         </button>
       )}
+      {deletable ? (
+        confirmDel ? (
+          <span className="pa-hide">
+            <button type="button" className="btn btn-danger btn-sm" onClick={() => run("delete")} disabled={!!busy} title="Xoá cả lịch sử giá, lượt xem của món – không lấy lại được">
+              {busy === "delete" ? "Đang xoá…" : "Bấm lần nữa để xoá hẳn"}
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmDel(false)}>Huỷ</button>
+          </span>
+        ) : (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmDel(true)} disabled={!!busy} title="Chỉ món không có người theo dõi, lượt bấm mua, đơn hàng hay bài đã đăng">
+            <Icon name="trash" size={14} /> Xoá hẳn
+          </button>
+        )
+      ) : keepReason ? (
+        <span className="muted" style={{ fontSize: 12 }} title="Món có dữ liệu quan trọng nên chỉ ẩn được, không xoá hẳn">Giữ dữ liệu: {keepReason}</span>
+      ) : null}
       {msg && <span className={`vs ${msg.ok ? "vs-good" : "vs-poor"}`} role="status">{msg.text}</span>}
     </div>
   );

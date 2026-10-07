@@ -1,4 +1,5 @@
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { reviveDeadLinkSet } from "./deadlink";
 import type { ProductInput, VoucherInput } from "@/adapters/types";
 import { pricePoints, products, vouchers } from "@/db/schema";
 import { db } from "./db";
@@ -67,7 +68,8 @@ export async function upsertProduct(p: ProductInput, now = new Date(), opts: { r
   const [row] = await db
     .insert(products)
     .values({ platform: p.platform, externalId: p.externalId, createdAt: now, ...data })
-    .onConflictDoUpdate({ target: [products.platform, products.externalId], set: updateSet(data) })
+    // Món bị ẩn vì link chết (tiện ích thấy trang "không tồn tại") mà nay sàn còn bán: hiện lại
+    .onConflictDoUpdate({ target: [products.platform, products.externalId], set: { ...updateSet(data), ...reviveDeadLinkSet() } })
     .returning({ id: products.id });
 
   const [last] = await db
