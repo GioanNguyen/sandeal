@@ -210,14 +210,18 @@ GSC_PRIVATE_KEY="<private_key trong tệp .json, giữ nguyên \\n>"`}</pre>
       {rep.requests.top.length > 0 && (
         <section className="section panel" aria-labelledby="req-head">
           <h2 id="req-head"><Icon name="link" /> Link khách dán vào “Kiểm tra giá” mà site chưa theo dõi</h2>
-          <p className="muted" style={{ fontSize: 14, marginTop: 0 }}>Máy chủ tự tra cứu các link này (tối đa 10 lần). Món được nhiều người dán là món khách thật sự định mua – nên nhập vào.</p>
+          <p className="muted" style={{ fontSize: 14, marginTop: 0 }}>Máy chủ tự tra cứu các link này (tối đa 10 lần); tiện ích quản trị (cập nhật hàng loạt) cũng mở lần lượt từng link, link có người chờ báo trước. Món được nhiều người dán là món khách thật sự định mua.</p>
           <div className="table-wrap">
             <table className="table">
               <thead><tr><th scope="col">Link</th><th scope="col">Sàn</th><th scope="col" className="num">Số lần dán</th><th scope="col">Lần cuối</th></tr></thead>
               <tbody>
                 {rep.requests.top.map((r) => (
                   <tr key={r.url}>
-                    <td style={{ wordBreak: "break-all", fontSize: 13 }}><a href={r.url} target="_blank" rel="noopener nofollow">{r.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 80)}</a></td>
+                    <td style={{ wordBreak: "break-all", fontSize: 13 }}>
+                      {r.nameHint && <b style={{ display: "block", wordBreak: "normal" }}>{r.nameHint}</b>}
+                      <a href={r.url} target="_blank" rel="noopener nofollow">{r.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 80)}</a>
+                      {Number(r.watchers) > 0 && <div className="vs vs-good" style={{ fontSize: 12.5 }}>{Number(r.watchers)} người đang chờ báo</div>}
+                    </td>
                     <td className="nw">{PLATFORMS[r.platform]?.label ?? r.platform}</td>
                     <td className="num">{r.count}</td>
                     <td className="nw">{dm(r.at)}</td>

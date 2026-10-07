@@ -8,7 +8,7 @@ import { refFromInput, type ProductRef } from "./links";
 
 export type CheckResult =
   | { status: "found"; productId: number; isNew: boolean }
-  | { status: "queued"; ref: ProductRef }
+  | { status: "queued"; ref: ProductRef; requestId: number }
   | { status: "invalid" };
 
 async function tryAdapters(ref: ProductRef, opts: { restockCutoff?: Date | null; skipMock?: boolean } = {}): Promise<number | null> {
@@ -25,7 +25,7 @@ async function tryAdapters(ref: ProductRef, opts: { restockCutoff?: Date | null;
 }
 
 /** Người dùng dán link: tìm trong DB, không có thì tra cứu qua API, vẫn không có thì xếp hàng chờ. */
-export async function checkLink(input: string): Promise<CheckResult> {
+export async function checkLink(input: string, opts: { nameHint?: string } = {}): Promise<CheckResult> {
   await ensureMigrated();
   const ref = await refFromInput(input);
   if (!ref) return { status: "invalid" };
@@ -40,14 +40,16 @@ export async function checkLink(input: string): Promise<CheckResult> {
   const id = await tryAdapters(ref);
   if (id) return { status: "found", productId: id, isNew: true };
 
-  await db
+  const nameHint = ref.nameHint ?? opts.nameHint ?? null;
+  const [row] = await db
     .insert(productRequests)
-    .values({ platform: ref.platform, externalId: ref.externalId, shopId: ref.shopId ?? null, url: ref.url })
+    .values({ platform: ref.platform, externalId: ref.externalId, shopId: ref.shopId ?? null, url: ref.url, nameHint })
     .onConflictDoUpdate({
       target: [productRequests.platform, productRequests.externalId],
-      set: { count: sql`${productRequests.count} + 1`, updatedAt: new Date() },
-    });
-  return { status: "queued", ref };
+      set: { count: sql`${productRequests.count} + 1`, updatedAt: new Date(), ...(nameHint ? { nameHint } : {}) },
+    })
+    .returning({ id: productRequests.id, nameHint: productRequests.nameHint });
+  return { status: "queued", ref: { ...ref, nameHint: row.nameHint ?? undefined }, requestId: row.id };
 }
 
 /** Worker: thử tra cứu lại các link đang chờ (tối đa 10 lần mỗi link) */

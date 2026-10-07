@@ -15,6 +15,7 @@ import { giaAoEnabled, giaAoSchedule, postGiaAo } from "./giaao";
 import { autoCategoryEnabled, runAutoCategory } from "./autocategory";
 import { imageFillEnabled, runFillImages } from "./fillimages";
 import { recordJob, trackJob } from "@/lib/ops";
+import { notifyResolvedRequests } from "@/lib/requestwatch";
 import { runDailyBrief, runWatchdog } from "./watchdog";
 
 const g = globalThis as unknown as { __sanDealCron?: boolean };
@@ -45,6 +46,9 @@ export function startScheduler({ runNow = false } = {}) {
     async () => {
       try {
         const { d, r } = await trackJob("digest", async () => ({ d: await runDigests(), r: await runSaleReminders() }));
+        // Link khách dán (chưa có dữ liệu) nay đã có lịch sử giá: báo người đang chờ
+        const rq = await notifyResolvedRequests().catch((err) => (console.error("[request-watch] lỗi:", (err as Error).message), 0));
+        if (rq) console.log(`[request-watch] đã báo ${rq} người: link họ hỏi đã có dữ liệu`);
         if (d || r) console.log(`[notify] bản tin: ${d}, nhắc sale: ${r}`);
       } catch (err) {
         console.error("[notify] lỗi:", err);

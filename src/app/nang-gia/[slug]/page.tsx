@@ -5,6 +5,9 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { CardImage } from "@/components/CardImage";
 import { Icon } from "@/components/Icon";
 import { ShareButtons } from "@/components/ShareButtons";
+import { CopyText } from "@/components/CopyText";
+import { JsonLd } from "@/components/JsonLd";
+import { raiseSummary } from "@/lib/raisecite";
 import { PLATFORMS, vnd } from "@/lib/format";
 import { siteUrl } from "@/lib/mail";
 import { GROUP_MIN, RAISE_PCT, raiseReport, saleBySlug, salePages, saleTitle, type GroupRate } from "@/lib/salepages";
@@ -22,7 +25,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const t = saleTitle(s.event);
   const title = s.state === "upcoming" ? `Ai đang nâng giá trước ${t}?` : `Ai đã nâng giá trước ${t}?`;
   const description = `Tỉ lệ sản phẩm tăng giá trong 2 tuần trước ${t} trên Shopee, Lazada, TikTok Shop – theo shop, theo danh mục, tính từ lịch sử giá Săn Deal ghi nhận.`;
-  return { title, description, alternates: { canonical: `/nang-gia/${s.slug}` }, openGraph: { title, description } };
+  // Ảnh chia sẻ có con số chính (xem /nang-gia/[slug]/anh)
+  const image = { url: `/nang-gia/${s.slug}/anh`, width: 1200, height: 630, alt: title };
+  return { title, description, alternates: { canonical: `/nang-gia/${s.slug}` }, openGraph: { title, description, images: [image] }, twitter: { card: "summary_large_image", title, description, images: [image.url] } };
 }
 
 function RateTable({ rows, caption, withPlatform }: { rows: GroupRate[]; caption: string; withPlatform?: boolean }) {
@@ -56,6 +61,23 @@ export default async function RaisePage({ params }: Props) {
   const windowText = s.state === "upcoming" ? "trong 14 ngày qua" : `trong 14 ngày trước ${t} (đến ${dmy(r.ref)})`;
   const others = salePages(now).filter((x) => x.slug !== s.slug);
   const shops = r.byShop.filter((g) => g.raised > 0).slice(0, 15);
+  const host = new URL(siteUrl()).host.replace(/^www\./, "");
+  const sum = raiseSummary(r, { title: t, upcoming: s.state === "upcoming", url, host, now });
+  // Bộ dữ liệu (schema.org/Dataset): giúp Google hiểu đây là số liệu gốc, dẫn nguồn đúng
+  const dataset = sum.enough
+    ? {
+        "@context": "https://schema.org",
+        "@type": "Dataset",
+        name: `${heading} – số liệu Săn Deal`,
+        description: sum.findings.join(" "),
+        url,
+        dateModified: now.toISOString(),
+        creator: { "@type": "Organization", name: "Săn Deal", url: siteUrl() },
+        isAccessibleForFree: true,
+        variableMeasured: ["Tỉ lệ sản phẩm tăng giá trước sale", "Theo sàn", "Theo danh mục", "Theo shop"],
+        distribution: [{ "@type": "DataDownload", encodingFormat: "text/csv", contentUrl: `${url}/du-lieu.csv` }],
+      }
+    : null;
   const cats = r.byCategory.slice(0, 15);
 
   return (
@@ -75,6 +97,25 @@ export default async function RaisePage({ params }: Props) {
         )}
         <ShareButtons url={url} title={enough ? `${pct}% món tăng giá trước ${t} – xem ai nâng giá` : heading} />
       </header>
+
+      {dataset && <JsonLd data={dataset} />}
+      {sum.enough && (
+        <section className="section panel raise-findings" aria-labelledby="find-head">
+          <h2 id="find-head"><Icon name="chart" size={20} /> Số liệu chính</h2>
+          <ul>
+            {sum.findings.map((f, i) => <li key={i}>{f}</li>)}
+          </ul>
+          <div className="raise-cite">
+            <p className="muted" style={{ margin: "0 0 6px", fontSize: 13 }}>Trích dẫn số liệu (báo chí, bài viết, hội nhóm) – vui lòng ghi nguồn Săn Deal kèm link:</p>
+            <blockquote>{sum.citation}</blockquote>
+            <div className="pa-actions">
+              <CopyText text={sum.citation} />
+              <a className="btn btn-ghost btn-sm" href={`/nang-gia/${s.slug}/du-lieu.csv`} download><Icon name="download" size={14} /> Tải số liệu (CSV)</a>
+              <a className="btn btn-ghost btn-sm" href={`/nang-gia/${s.slug}/anh`} target="_blank" rel="noopener"><Icon name="image" size={14} /> Ảnh biểu đồ</a>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="section roundup-faq" aria-labelledby="how-head">
         <details>

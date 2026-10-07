@@ -119,6 +119,8 @@ export async function risingBeforeSale(now = new Date(), limit = 10) {
 
 // ---------------- "Ai nâng giá trước sale?" (/nang-gia/[slug]) ----------------
 
+const PLATFORM_LABEL: Record<string, string> = { shopee: "Shopee", lazada: "Lazada", tiktok: "TikTok Shop" };
+
 /** Ngưỡng "nâng giá": giá cao nhất 14 ngày trước sale cao hơn giá thường ngày từ 8% */
 export const RAISE_PCT = 0.08;
 /** Số món tối thiểu của 1 shop / danh mục để tính tỉ lệ (tránh kết luận từ 1–2 món) */
@@ -201,6 +203,7 @@ export async function raiseReport(e: SaleEvent, now = new Date()) {
     rate: rows.length ? raised.length / rows.length : 0,
     byShop: groupRates(rows, (p) => (p.shopName ? { key: `${p.platform}|${p.shopName}`, label: p.shopName, platform: p.platform } : null)),
     byCategory: groupRates(rows, (p) => (p.category ? { key: p.category, label: p.category } : null)),
+    byPlatform: groupRates(rows, (p) => ({ key: p.platform, label: PLATFORM_LABEL[p.platform] ?? p.platform, platform: p.platform })),
   };
 }
 

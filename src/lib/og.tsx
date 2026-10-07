@@ -1000,3 +1000,53 @@ export async function fakeDealsImage(o: { items: FakeImageItem[]; link: string }
     { ...FAKE_SIZE, fonts: await fonts() },
   );
 }
+
+/** Ảnh chia sẻ báo cáo "Ai nâng giá trước sale?" 1200×630: con số chính + 3 danh mục tăng giá nhiều nhất */
+export async function raiseReportImage(o: { pct: number; raised: number; total: number; sale: string; upcoming: boolean; cats: { label: string; rate: number }[]; link: string }) {
+  const cut = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trim()}…` : s);
+  return new ImageResponse(
+    (
+      <div style={{ width: "100%", height: "100%", display: "flex", fontFamily: FAMILY, backgroundColor: C.bg }}>
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: 560, padding: "48px 48px 40px", backgroundImage: GRAD, color: "#fff" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <LogoMark size={52} onOrange />
+            <div style={{ display: "flex", fontSize: 32, fontWeight: 800 }}>Săn Deal</div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {o.total >= 10 ? (
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <div style={{ display: "flex", fontSize: 30, fontWeight: 700, opacity: 0.95 }}>{o.upcoming ? `Đang nâng giá trước ${o.sale}` : `Đã nâng giá trước ${o.sale}`}</div>
+                <div style={{ display: "flex", fontSize: 190, fontWeight: 800, letterSpacing: -6, lineHeight: 1 }}>{`${o.pct}%`}</div>
+                <div style={{ display: "flex", fontSize: 28, fontWeight: 700, opacity: 0.95 }}>{`sản phẩm tăng giá · ${o.raised}/${o.total} món`}</div>
+              </div>
+            ) : (
+              // Chưa đủ món để ra con số đáng tin: không in "0%" gây hiểu nhầm
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <div style={{ display: "flex", fontSize: 58, fontWeight: 800, lineHeight: 1.1 }}>{`Ai nâng giá trước ${o.sale}?`}</div>
+                <div style={{ display: "flex", fontSize: 28, fontWeight: 700, opacity: 0.95, marginTop: 16 }}>Săn Deal đang thu thập lịch sử giá – xem kết quả tại trang</div>
+              </div>
+            )}
+          </div>
+          <div style={{ display: "flex", fontSize: 24, fontWeight: 700 }}>{o.link}</div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "52px 48px", gap: 22, justifyContent: "center" }}>
+          <div style={{ display: "flex", fontSize: 30, fontWeight: 800, color: C.text }}>{o.total >= 10 ? "Danh mục tăng giá nhiều nhất" : "Kiểm tra trước khi chốt đơn sale"}</div>
+          {o.cats.slice(0, 3).map((c, i) => (
+            <div key={i} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 27, fontWeight: 700, color: C.text }}>
+                <span style={{ display: "flex" }}>{cut(c.label, 26)}</span>
+                <span style={{ display: "flex", color: C.primary }}>{`${Math.round(c.rate * 100)}%`}</span>
+              </div>
+              <div style={{ display: "flex", height: 18, borderRadius: 9, backgroundColor: "#f6e2d6" }}>
+                <div style={{ display: "flex", width: `${Math.max(4, Math.round(c.rate * 100))}%`, height: 18, borderRadius: 9, backgroundColor: C.primary }} />
+              </div>
+            </div>
+          ))}
+          {!o.cats.length && o.total >= 10 && <div style={{ display: "flex", fontSize: 26, color: C.muted }}>Chưa đủ món theo danh mục để so sánh</div>}
+          <div style={{ display: "flex", fontSize: 21, color: C.muted, marginTop: 8 }}>Tính từ lịch sử giá Săn Deal ghi nhận – so với giá thường ngày trước đó</div>
+        </div>
+      </div>
+    ),
+    { ...OG_SIZE, fonts: await fonts() },
+  );
+}

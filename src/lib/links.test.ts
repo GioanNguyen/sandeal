@@ -4,7 +4,7 @@ import { parseProductUrl, refFromInput } from "./links";
 
 test("nhận link Shopee", () => {
   assert.deepEqual(parseProductUrl("https://shopee.vn/Tai-nghe-Bluetooth-ANC-i.123456.7890123?sp_atk=abc"), {
-    platform: "shopee", shopId: "123456", externalId: "7890123", url: "https://shopee.vn/product/123456/7890123",
+    platform: "shopee", shopId: "123456", externalId: "7890123", url: "https://shopee.vn/product/123456/7890123", nameHint: "Tai nghe Bluetooth ANC",
   });
   assert.equal(parseProductUrl("shopee.vn/product/11/22")?.externalId, "22");
 });

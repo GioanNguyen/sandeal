@@ -39,7 +39,7 @@ export interface DemandReport {
   days: number;
   totals: { searches: number; unique: number; zeroSearches: number };
   rows: DemandRow[];
-  requests: { pending: number; top: { url: string; platform: string; count: number; at: Date }[] };
+  requests: { pending: number; top: { url: string; platform: string; count: number; at: Date; nameHint: string | null; watchers: number }[] };
 }
 
 export function demandStatus(lastResults: number): DemandStatus {
@@ -120,7 +120,15 @@ export async function demandReport(days = 30, now = new Date()): Promise<DemandR
 
   const [pend] = await db.select({ n: sql<number>`count(*)::int` }).from(productRequests).where(isNull(productRequests.productId));
   const top = await db
-    .select({ url: productRequests.url, platform: productRequests.platform, count: productRequests.count, at: productRequests.updatedAt })
+    .select({
+      url: productRequests.url,
+      platform: productRequests.platform,
+      count: productRequests.count,
+      at: productRequests.updatedAt,
+      nameHint: productRequests.nameHint,
+      // Đặt trong SELECT nên ghi rõ tên bảng (Drizzle không ghi tên bảng trước cột khi truy vấn 1 bảng)
+      watchers: sql<number>`(select count(*)::int from request_watchers w where w.request_id = "product_requests"."id" and w.notified_at is null)`,
+    })
     .from(productRequests)
     .where(and(isNull(productRequests.productId), gte(productRequests.updatedAt, since)))
     .orderBy(desc(productRequests.count), desc(productRequests.updatedAt))

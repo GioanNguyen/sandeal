@@ -5,12 +5,28 @@ export interface ProductRef {
   externalId: string;
   shopId?: string;
   url: string;
+  /** Tên đoán từ đường dẫn đầy đủ (vd "Quat-tich-dien-mini-i.1.2" -> "Quat tich dien mini"), không có thì bỏ trống */
+  nameHint?: string;
+}
+
+/** Lấy phần chữ (tên sản phẩm) trong đường dẫn Shopee / Lazada */
+export function nameHintFromPath(path: string): string | undefined {
+  const seg = path.split("/").filter(Boolean).pop() ?? "";
+  const m = seg.match(/^(.+?)-i\.?\d+/);
+  if (!m) return undefined;
+  const words = m[1].replace(/[-_+]+/g, " ").replace(/\s+/g, " ").trim();
+  return words.length >= 6 && /\p{L}{2,}/u.test(words) ? words.slice(0, 140) : undefined;
 }
 
 /** Tên miền rút gọn được phép mở để lấy link đầy đủ (chống SSRF: chỉ các host này) */
 const SHORT_HOSTS = ["s.shopee.vn", "shope.ee", "vn.shp.ee", "shp.ee", "s.lazada.vn", "c.lazada.vn", "vt.tiktok.com", "vm.tiktok.com"];
 
 const hostOf = (u: URL) => u.hostname.replace(/^www\./, "").toLowerCase();
+
+const hint = (path: string) => {
+  const h = nameHintFromPath(path);
+  return h ? { nameHint: h } : {};
+};
 
 /** Tách platform + mã sản phẩm từ link đầy đủ. Trả về null nếu không nhận ra. */
 export function parseProductUrl(raw: string): ProductRef | null {
@@ -26,12 +42,12 @@ export function parseProductUrl(raw: string): ProductRef | null {
   if (host.endsWith("shopee.vn")) {
     // https://shopee.vn/Ten-san-pham-i.123456.7890123   |  https://shopee.vn/product/123456/7890123
     const m = path.match(/-i\.(\d+)\.(\d+)/) ?? path.match(/\/product\/(\d+)\/(\d+)/) ?? path.match(/\/[^/]+\/(\d+)\/(\d+)\/?$/);
-    if (m) return { platform: "shopee", shopId: m[1], externalId: m[2], url: `https://shopee.vn/product/${m[1]}/${m[2]}` };
+    if (m) return { platform: "shopee", shopId: m[1], externalId: m[2], url: `https://shopee.vn/product/${m[1]}/${m[2]}`, ...hint(path) };
   }
   if (host.endsWith("lazada.vn")) {
     // https://www.lazada.vn/products/ten-san-pham-i123456789-s987654321.html
     const m = path.match(/-i(\d+)(?:-s\d+)?\.html/) ?? path.match(/\/products\/i(\d+)/);
-    if (m) return { platform: "lazada", externalId: m[1], url: `https://www.lazada.vn/products/i${m[1]}.html` };
+    if (m) return { platform: "lazada", externalId: m[1], url: `https://www.lazada.vn/products/i${m[1]}.html`, ...hint(path) };
   }
   if (host.endsWith("tiktok.com")) {
     // https://shop.tiktok.com/view/product/1729384756?...  |  https://www.tiktok.com/view/product/1729...

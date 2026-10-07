@@ -6,8 +6,8 @@
  * Món được quan tâm nhiều làm trước. Tiện ích mở lần lượt từng trang sản phẩm (link thường, không phải link affiliate)
  * với tốc độ như người thật; dữ liệu trang được gửi về như "Góp giá" bình thường.
  */
-import { and, count, desc, gte, inArray, isNotNull, lt, or, sql, type SQL } from "drizzle-orm";
-import { clicks, productViews, products, watches } from "@/db/schema";
+import { and, count, desc, gte, inArray, isNotNull, isNull, lt, or, sql, type SQL } from "drizzle-orm";
+import { clicks, productRequests, productViews, products, requestWatchers, watches } from "@/db/schema";
 import { availableSql } from "./availability";
 import { db, ensureMigrated } from "./db";
 import { plainProductUrl } from "./links";
@@ -23,7 +23,7 @@ const MAX_STALE_DAYS = 45;
 const g = globalThis as unknown as { __extQueueTried?: Map<number, number> };
 const tried = (g.__extQueueTried ??= new Map());
 
-export type QueueReason = "image" | "price";
+export type QueueReason = "image" | "price" | "request";
 export interface QueueItem {
   id: number;
   name: string;
@@ -68,7 +68,7 @@ function conditions(now: Date, score: SQL) {
   return { image, price, any: or(image, price)! };
 }
 
-export async function extQueue(opts: { limit?: number; now?: Date } = {}): Promise<{ items: QueueItem[]; remaining: number; counts: { image: number; price: number } }> {
+export async function extQueue(opts: { limit?: number; now?: Date } = {}): Promise<{ items: QueueItem[]; remaining: number; counts: { image: number; price: number; request: number } }> {
   await ensureMigrated();
   const now = opts.now ?? new Date();
   const limit = Math.min(50, Math.max(1, opts.limit ?? 20));
@@ -123,8 +123,12 @@ export async function extQueue(opts: { limit?: number; now?: Date } = {}): Promi
     });
     if (items.length >= limit) break;
   }
-  const counts = { image: Number(img.n), price: Number(prc.n) };
-  return { items, remaining: counts.image + counts.price, counts };
+  // Link khách dán mà chưa có dữ liệu (người đang chờ báo trước): mở trang là có ngay sản phẩm + lịch sử giá.
+  // Mã âm để không trùng mã sản phẩm. Chiếm tối đa nửa hàng đợi mỗi lần.
+  const reqs = await pendingRequests(now, Math.max(1, Math.ceil(limit / 2)));
+  const merged = [...reqs.items, ...items].slice(0, limit);
+  const counts = { image: Number(img.n), price: Number(prc.n), request: reqs.total };
+  return { items: merged, remaining: counts.image + counts.price + counts.request, counts };
 }
 
 /**
@@ -136,6 +140,28 @@ export async function imageGapCounts(): Promise<{ all: number; available: number
   const n = async (w: SQL) => Number((await db.select({ n: count() }).from(products).where(w))[0].n);
   const [all, available, openable] = await Promise.all([n(noImage), n(and(availableSql(), noImage)!), n(and(availableSql(), noImage, openableSql)!)]);
   return { all, available, openable };
+}
+
+/** Link khách dán chưa có dữ liệu, trong 60 ngày: có người chờ báo trước, rồi link được dán nhiều lần */
+async function pendingRequests(now: Date, limit: number): Promise<{ items: QueueItem[]; total: number }> {
+  const since = new Date(now.getTime() - 60 * DAY);
+  const watchers = db.select({ rid: requestWatchers.requestId, n: sql<number>`count(*)`.as("rwn") }).from(requestWatchers).where(isNull(requestWatchers.notifiedAt)).groupBy(requestWatchers.requestId).as("rw");
+  const where = and(isNull(productRequests.productId), gte(productRequests.updatedAt, since));
+  const [rows, [{ n }]] = await Promise.all([
+    db
+      .select({ id: productRequests.id, platform: productRequests.platform, url: productRequests.url, nameHint: productRequests.nameHint })
+      .from(productRequests)
+      .leftJoin(watchers, sql`${watchers.rid} = ${productRequests.id}`)
+      .where(where)
+      .orderBy(desc(sql`10 * coalesce(${watchers.n}, 0) + ${productRequests.count}`), desc(productRequests.updatedAt))
+      .limit(limit + tried.size),
+    db.select({ n: count() }).from(productRequests).where(where),
+  ]);
+  const items = rows
+    .filter((r) => !tried.has(-r.id) && /^https:\/\//.test(r.url))
+    .slice(0, limit)
+    .map((r) => ({ id: -r.id, name: r.nameHint || `Link khách hỏi #${r.id}`, platform: r.platform, url: r.url, reason: "request" as const }));
+  return { items, total: Number(n) };
 }
 
 /** Giữ tên cũ cho chỗ khác đang gọi */
@@ -161,13 +187,21 @@ export async function stalePriceSummary(now = new Date()): Promise<{ total: numb
 
 /** Tiện ích báo đã mở xong 1 món: món vẫn chưa cập nhật được (còn thiếu ảnh / giá vẫn cũ) thì tạm bỏ qua 24 giờ */
 export async function markTried(ids: number[], now = new Date()) {
+  // Link khách dán (mã âm): chưa có sản phẩm sau khi mở thì 24 giờ sau mới thử lại
+  const reqIds = ids.filter((x) => Number.isInteger(x) && x < 0).map((x) => -x).slice(0, 100);
+  let reqMissing = 0;
+  if (reqIds.length) {
+    const open = await db.select({ id: productRequests.id }).from(productRequests).where(and(inArray(productRequests.id, reqIds), isNull(productRequests.productId)));
+    for (const r of open) tried.set(-r.id, now.getTime());
+    reqMissing = open.length;
+  }
   const clean = ids.filter((x) => Number.isInteger(x) && x > 0).slice(0, 100);
-  if (!clean.length) return { stillMissing: 0 };
+  if (!clean.length) return { stillMissing: reqMissing };
   const staleCut = new Date(now.getTime() - STALE_PRICE_DAYS() * DAY);
   const rows = await db
     .select({ id: products.id })
     .from(products)
     .where(and(inArray(products.id, clean), or(noImage, lt(products.lastSeenAt, staleCut))));
   for (const r of rows) tried.set(r.id, now.getTime());
-  return { stillMissing: rows.length };
+  return { stillMissing: rows.length + reqMissing };
 }

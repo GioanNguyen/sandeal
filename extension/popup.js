@@ -39,7 +39,7 @@
   const show = (s) => {
     if (!s) return;
     st.textContent = s.status || "";
-    cnt.textContent = `Đã cập nhật ${s.ok || 0} · không đọc được ${s.fail || 0} · hôm nay ${s.day?.n || 0} món${s.counts ? ` · cần mở: ${s.counts.image} món thiếu ảnh, ${s.counts.price} món giá cũ` : s.remaining != null ? ` · còn ~${s.remaining} món` : ""}`;
+    cnt.textContent = `Đã cập nhật ${s.ok || 0} · không đọc được ${s.fail || 0} · hôm nay ${s.day?.n || 0} món${s.counts ? ` · cần mở: ${s.counts.request ? `${s.counts.request} link khách hỏi, ` : ""}${s.counts.image} món thiếu ảnh, ${s.counts.price} món giá cũ` : s.remaining != null ? ` · còn ~${s.remaining} món` : ""}`;
     startBtn.hidden = !!s.running;
     stopBtn.hidden = !s.running;
     startBtn.textContent = s.ok || s.fail ? "Tiếp tục" : "Bắt đầu";

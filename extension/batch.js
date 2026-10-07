@@ -1,6 +1,6 @@
 /**
- * Chế độ "Cập nhật hàng loạt" (chỉ quản trị viên): mở lần lượt từng món thiếu ảnh hoặc giá đã cũ (món khách đang
- * quan tâm) trong 1 tab phụ, đọc dữ liệu
+ * Chế độ "Cập nhật hàng loạt" (chỉ quản trị viên): mở lần lượt link khách hỏi chưa có dữ liệu, món thiếu ảnh hoặc giá
+ * đã cũ (món khách đang quan tâm) trong 1 tab phụ, đọc dữ liệu
  * công khai của trang (như Góp giá) rồi gửi về máy chủ. Chạy chậm như người thật để không bị sàn giới hạn:
  *   - mỗi món cách nhau ngẫu nhiên 30–60 giây (đồng hồ của Chrome không cho ngắn hơn 30 giây)
  *   - tối đa 80 món / giờ (đủ thì nghỉ rồi tự chạy tiếp), không giới hạn số món trong ngày
@@ -135,7 +135,7 @@ async function nextItem() {
   }
   const item = s.queue.shift();
   s.current = { ...item, startedAt: now };
-  s.status = `Đang mở (${item.reason === "price" ? `giá cũ ${item.staleDays ?? "?"} ngày` : "thiếu ảnh"}): ${item.name.slice(0, 60)}`;
+  s.status = `Đang mở (${item.reason === "price" ? `giá cũ ${item.staleDays ?? "?"} ngày` : item.reason === "request" ? "link khách hỏi" : "thiếu ảnh"}): ${item.name.slice(0, 60)}`;
   s.tabId = await ensureTab(s, item.url);
   await saveBatch(s);
   chrome.alarms.create("batch-timeout", { when: now + BATCH.pageTimeout });

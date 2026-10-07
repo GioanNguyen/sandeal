@@ -236,10 +236,26 @@ export const productRequests = pgTable(
     count: integer("count").notNull().default(1),
     attempts: integer("attempts").notNull().default(0),
     productId: integer("product_id").references(() => products.id, { onDelete: "set null" }),
+    /** Tên đoán từ đường dẫn (phần chữ trước mã sản phẩm) – để gợi ý món tương tự và cho quản trị viên biết là món gì */
+    nameHint: text("name_hint"),
     createdAt: ts("created_at").notNull().defaultNow(),
     updatedAt: ts("updated_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("product_requests_uq").on(t.platform, t.externalId)],
+);
+
+/** Người muốn được báo khi link họ dán (chưa có dữ liệu) đã có lịch sử giá */
+export const requestWatchers = pgTable(
+  "request_watchers",
+  {
+    id: serial("id").primaryKey(),
+    requestId: integer("request_id").notNull().references(() => productRequests.id, { onDelete: "cascade" }),
+    userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+    email: text("email"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    notifiedAt: ts("notified_at"),
+  },
+  (t) => [uniqueIndex("request_watchers_uq").on(t.requestId, t.email), index("request_watchers_pending_idx").on(t.notifiedAt)],
 );
 
 /** Sở thích săn deal + kênh nhận thông báo của từng người dùng */
