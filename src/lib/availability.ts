@@ -5,6 +5,7 @@
  * Săn Deal không biết chắc lý do (hết hàng, ngừng bán, hết khuyến mãi…) nên chỉ nói "không còn thấy".
  */
 import { sql } from "drizzle-orm";
+import { memo } from "./memo";
 import { products } from "@/db/schema";
 import { db } from "./db";
 
@@ -26,8 +27,12 @@ export const availableSql = () =>
 /** Điều kiện SQL: món không bị quản trị viên ẩn (dùng ở nơi vẫn hiện món đã vắng trên sàn, vd sitemap) */
 export const visibleSql = () => sql`not ${products.hidden}`;
 
-/** Lần đồng bộ mới nhất của từng sàn */
-export async function platformLatest(): Promise<Map<string, Date>> {
+/** Lần đồng bộ mới nhất của từng sàn (quét cả bảng sản phẩm, gọi ở nhiều trang -> dùng chung 60 giây) */
+export function platformLatest(): Promise<Map<string, Date>> {
+  return memo("platformLatest", 60_000, platformLatestNow);
+}
+
+async function platformLatestNow(): Promise<Map<string, Date>> {
   const rows = await db
     .select({ platform: products.platform, at: sql<Date | string>`max(${products.lastSeenAt})` })
     .from(products)

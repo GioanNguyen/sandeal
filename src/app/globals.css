@@ -1,3 +1,45 @@
+/*
+ * Phông dự phòng có cùng kích thước với Be Vietnam Pro (Arial co giãn – cách next/font làm): trong lúc phông web
+ * chưa tải xong chữ đã chiếm đúng chỗ, nên khi đổi phông dòng chữ không xuống/lên dòng và trang không bị xô lệch (CLS).
+ * size-adjust = độ rộng đoạn tiếng Việt in bằng Be Vietnam Pro / in bằng Arial, đo theo từng độ đậm
+ * (Chrome dùng Arial Bold từ 600); ascent/descent = số đo Be Vietnam Pro (1000 / 265 trên 1000) chia size-adjust.
+ */
+@font-face {
+  font-family: "Be Vietnam Pro Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("Arimo");
+  font-weight: 100 400;
+  size-adjust: 107.65%;
+  ascent-override: 92.89%;
+  descent-override: 24.62%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Be Vietnam Pro Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("Arimo");
+  font-weight: 500;
+  size-adjust: 109.46%;
+  ascent-override: 91.36%;
+  descent-override: 24.21%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Be Vietnam Pro Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("Arimo Bold");
+  font-weight: 600;
+  size-adjust: 105.44%;
+  ascent-override: 94.84%;
+  descent-override: 25.13%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Be Vietnam Pro Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("Arimo Bold");
+  font-weight: 700 900;
+  size-adjust: 108.85%;
+  ascent-override: 91.87%;
+  descent-override: 24.35%;
+  line-gap-override: 0%;
+}
 /* ===== Design tokens ===== */
 :root {
   --bg: #fff7f2;
@@ -21,7 +63,7 @@
   --radius: 14px;
   --radius-sm: 10px;
   --hero-grad: linear-gradient(120deg, #e8491d 0%, #f26b1d 55%, #ffa41b 100%);
-  --font: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font: "Be Vietnam Pro", "Be Vietnam Pro Fallback", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -203,12 +245,14 @@ html[data-theme="dark"] .lowest-tag { color: #0b1f16; }
 
 /* ===== Product detail ===== */
 .crumbs { font-size: 14px; color: var(--muted); margin: 20px 0 12px; }
-.crumbs ol { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 0; padding: 0; list-style: none; }
-.crumbs li { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+/* Luôn 1 dòng, mục cuối (tên trang) dài thì cắt "…": không bị rớt xuống dòng khi phông web tải xong (gây xô lệch trang) */
+.crumbs ol { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px 6px; margin: 0; padding: 0; list-style: none; overflow: hidden; }
+.crumbs li { display: inline-flex; align-items: center; gap: 6px; min-width: 0; flex: 0 0 auto; white-space: nowrap; }
+.crumbs li:last-child { flex: 0 1 auto; }
 .crumbs li + li::before { content: "›"; color: var(--muted); opacity: .7; }
 .crumbs a { color: var(--muted); }
 .crumbs a:hover { color: var(--primary); }
-.crumbs [aria-current="page"] { color: var(--text); max-width: 60ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crumbs [aria-current="page"] { color: var(--text); max-width: 60ch; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .detail { display: grid; grid-template-columns: minmax(280px, 420px) 1fr; gap: 32px; align-items: start; }
 .detail-media { position: sticky; top: 84px; border-radius: 20px; overflow: hidden; border: 1px solid var(--border); background: var(--surface); }
 /* height:auto để thuộc tính height="600" của thẻ img không kéo dài ảnh (khung dọc làm ảnh vuông bị cắt 2 bên);
@@ -814,7 +858,9 @@ html.is-navigating, html.is-navigating * { cursor: progress; }
 .loading-note { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--muted); font-size: 14px; margin: 8px 0 16px; }
 .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid var(--primary-soft); border-top-color: var(--primary); animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.page-loading { animation: rise .25s ease both; }
+/* Khung chờ cao ít nhất 1 màn hình: chân trang luôn nằm dưới mép màn hình trong lúc trang đang tải,
+   nội dung thật thay vào không đẩy chân trang đang hiện (trước đây làm CLS trang sản phẩm trên máy tính ~0,18) */
+.page-loading { animation: rise .25s ease both; min-height: 100vh; }
 /* Người dùng tắt chuyển động: vẫn hiện khung chờ nhưng không nhấp nháy; thanh tiến trình vẫn tăng dần */
 @media (prefers-reduced-motion: reduce) {
   .nav-progress i { transition: none !important; }

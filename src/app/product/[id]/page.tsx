@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { CardImage } from "@/components/CardImage";
 import { ProductImage } from "@/components/ProductImage";
 import { ShareImageButton } from "@/components/ShareImageButton";
@@ -56,10 +57,13 @@ import { PRODUCT_NOINDEX_LABEL, productNoindexReason } from "@/lib/seoquality";
 
 export const dynamic = "force-dynamic";
 
+// Phần mô tả trang (generateMetadata) và nội dung trang cùng đọc sản phẩm: chỉ truy vấn 1 lần mỗi lượt tải
+const loadProduct = cache(getProduct);
+
 type Props = { params: Promise<{ id: string }>; searchParams?: Promise<{ watch?: string; msg?: string; moi?: string; nhacsale?: string; phanloai?: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const p = await getProduct(productIdFromParam((await params).id));
+  const p = await loadProduct(productIdFromParam((await params).id));
   if (!p || p.hidden) return { robots: { index: false, follow: false } };
   const title = `Lịch sử giá ${p.name} – có đang rẻ thật? (${vnd(p.price)}, ${PLATFORMS[p.platform]?.label ?? p.platform})`;
   const gone = isUnavailable(p, await platformLatest());
@@ -84,7 +88,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ProductPage({ params, searchParams }: Props) {
   const { id } = await params;
   const sp = (await searchParams) ?? {};
-  const [p, user] = await Promise.all([getProduct(productIdFromParam(id)), getCurrentUser()]);
+  const [p, user] = await Promise.all([loadProduct(productIdFromParam(id)), getCurrentUser()]);
   if (!p) notFound();
   // Món quản trị viên đã ẩn: khách thấy 404, quản trị viên vẫn xem được (kèm ghi chú)
   const adminView = !!user && isAdmin(user.email);
@@ -98,11 +102,30 @@ export default async function ProductPage({ params, searchParams }: Props) {
   }
   // Món không còn thấy trên sàn: vẫn giữ trang (lịch sử giá, link cũ, thứ hạng Google) nhưng không mời mua,
   // đưa món tương tự đang bán lên đầu và mời "Báo khi có lại"
-  const gone = isUnavailable(p, await platformLatest());
-  const [similarAll, offers, pv, votes, cheaper, alsoRaw] = await Promise.all([
-    similarDeals(p, gone ? 12 : 10), compareOffers(p), calcVouchers(p.platform), voteSummary(p.id, user?.id), cheaperSimilar(p, 5), alsoViewed(p.id, 6),
+  // Các truy vấn không phụ thuộc nhau chạy cùng lúc (trước đây ~12 lượt nối tiếp -> trả trang chậm)
+  const [latest, similarAll, offers, pv, votes, cheaper, alsoRaw, alts, [currentRow], expiring, shopHref, catDrop, viewerMap, [insight, variants, brand], catStats, topics] = await Promise.all([
+    platformLatest(),
+    similarDeals(p, 12),
+    compareOffers(p),
+    calcVouchers(p.platform),
+    voteSummary(p.id, user?.id),
+    cheaperSimilar(p, 5),
+    alsoViewed(p.id, 6),
+    alternativesFor(p, 2),
+    dealsByIds([p.id]),
+    soonestVoucher(p.platform, 24),
+    // Tên shop dẫn tới trang shop khi shop có đủ món để có trang riêng
+    p.shopName
+      ? db.select({ n: count() }).from(products).where(and(eq(products.platform, p.platform), eq(products.shopName, p.shopName)))
+          .then(([r]) => (Number(r.n) >= SHOP_MIN_PRODUCTS ? shopPath(p) : null))
+      : Promise.resolve(null),
+    p.category ? categorySaleDrop(p.category) : Promise.resolve(null),
+    recentViewers([p.id]),
+    Promise.all([productInsight(p), variantsFor(p.id), brandOf(p)]),
+    categoryStats(p.category, p.price),
+    priceTopics(),
   ]);
-  const [alts, [currentRow]] = await Promise.all([alternativesFor(p, 2), dealsByIds([p.id])]);
+  const gone = isUnavailable(p, latest);
   // Không lặp lại món đã có ở mục trên, bỏ bản sao cùng sản phẩm ở sàn khác (đã có ở "So sánh giữa các sàn")
   const offerIds = new Set(offers.map((o) => o.id));
   const also = alsoRaw.filter((d) => !offerIds.has(d.id));
@@ -115,7 +138,6 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const replacements = gone ? [...cheaper, ...similarAll.filter((d) => !cheaper.some((c) => c.id === d.id))].slice(0, 8) : [];
   const vnSeen = new Date(p.lastSeenAt.getTime() + 7 * 3_600_000).toISOString();
   const lastSeen = `${vnSeen.slice(8, 10)}/${vnSeen.slice(5, 7)}`;
-  const expiring = await soonestVoucher(p.platform, 24);
   // Lần giảm giá gần nhất (≥5%) trong lịch sử
   let droppedAt: Date | null = null;
   for (let i = p.prices.length - 1; i > 0; i--) {
@@ -125,17 +147,11 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const plan = bestPlan({ platform: p.platform, subtotal: p.price, shipping: 30_000 }, pv);
   const afterCodes = p.price - plan.discount - plan.cashback;
   const addOns = gone ? [] : await addOnsFor(p, pv);
-  // Tên shop dẫn tới trang shop khi shop có đủ món để có trang riêng
-  const shopHref = p.shopName
-    ? await db.select({ n: count() }).from(products).where(and(eq(products.platform, p.platform), eq(products.shopName, p.shopName)))
-        .then(([r]) => (Number(r.n) >= SHOP_MIN_PRODUCTS ? shopPath(p) : null))
-    : null;
 
   const advice = buyAdvice(p.prices, p.price, new Date(), {
-    category: p.category ? { name: p.category, drop: await categorySaleDrop(p.category) } : undefined,
+    category: p.category ? { name: p.category, drop: catDrop } : undefined,
   });
-  const viewers = (await recentViewers([p.id])).get(p.id) ?? 0;
-  const [insight, variants, brand] = await Promise.all([productInsight(p), variantsFor(p.id), brandOf(p)]);
+  const viewers = viewerMap.get(p.id) ?? 0;
   // Nhắc khi sale bắt đầu: vừa đăng nhập từ nút "Nhắc tôi" (?nhacsale=1) thì bật luôn
   const sale = targetSale();
   if (user && sale && !sale.live && sp.nhacsale) {
@@ -156,7 +172,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
     history: p.prices,
     advice,
     offers: offers.length >= 2 ? offers.map((o) => ({ platformLabel: PLATFORMS[o.platform]?.label ?? o.platform, price: o.price, current: o.id === p.id })) : [],
-    category: await categoryStats(p.category, p.price),
+    category: catStats,
     shop: { name: p.shopName, mall: p.shopType === "mall", rating: p.shopRating },
     variants: variants.length ? { count: variants.length, min: Math.min(...variants.map((v) => v.price)), max: Math.max(...variants.map((v) => v.price)) } : null,
     reviews: insight.reviews ? { count: insight.reviews.count, pros: insight.ai?.pros.length ? insight.ai.pros : insight.reviews.pros, cons: insight.ai?.cons.length ? insight.ai.cons : insight.reviews.cons } : null,
@@ -166,7 +182,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
     now: new Date(),
   });
   // Trang "Giá [loại] hôm nay" khớp với tên sản phẩm (liên kết nội bộ cho SEO)
-  const topic = (await priceTopics()).filter((t) => p.name.toLowerCase().startsWith(t.label.toLowerCase())).sort((a, b) => b.label.length - a.label.length)[0];
+  const topic = topics.filter((t) => p.name.toLowerCase().startsWith(t.label.toLowerCase())).sort((a, b) => b.label.length - a.label.length)[0];
 
   const pageUrl = `${siteUrl()}${productPath(p)}`;
   const imgs = [p.imageUrl, ...(p.images ?? [])].filter((u): u is string => !!u && u.startsWith("http")).slice(0, 5);

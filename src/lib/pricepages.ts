@@ -4,6 +4,7 @@
  * Mọi con số đều tính từ lịch sử giá; chỗ nào dữ liệu chưa đủ thì nói rõ là chưa đủ, không suy đoán.
  */
 import { and, desc, gte, ilike, inArray } from "drizzle-orm";
+import { memo } from "./memo";
 import { pricePoints, products, type Product } from "@/db/schema";
 import { db, ensureMigrated } from "./db";
 import { enrichDeals, type DealRow } from "./queries";
@@ -25,7 +26,12 @@ const lower1 = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 export const topicName = (t: { label: string }) => lower1(t.label);
 
 /** Tất cả loại sản phẩm có ≥ 2 mẫu khác nhau */
-export async function priceTopics(): Promise<PriceTopic[]> {
+export function priceTopics(): Promise<PriceTopic[]> {
+  // Đọc toàn bộ tên sản phẩm để gom nhóm – nặng, lại được gọi ở mỗi trang sản phẩm: dùng chung 10 phút
+  return memo("priceTopics", 10 * 60_000, priceTopicsNow);
+}
+
+async function priceTopicsNow(): Promise<PriceTopic[]> {
   await ensureMigrated();
   const rows = await db.select({ name: products.name, groupKey: products.groupKey }).from(products);
   const groups = new Map<string, { names: Set<string>; keys: Set<string> }>();

@@ -1,4 +1,5 @@
 import { and, asc, count, desc, eq, gte, ilike, inArray, isNotNull, isNull, lte, notInArray, or, sql, type SQL } from "drizzle-orm";
+import { memo } from "./memo";
 import { clicks, posts, pricePoints, products, productViews, votes, vouchers, type Product } from "@/db/schema";
 import { db, ensureMigrated } from "./db";
 import { slugify } from "./slug";
@@ -259,7 +260,12 @@ export async function listDeals(f: DealFilter): Promise<{ items: DealRow[]; tota
   return { items: await enrichDeals(rows), total };
 }
 
-export async function listCategories() {
+export function listCategories() {
+  // Danh mục chỉ đổi khi nhập/cập nhật sản phẩm: dùng chung 5 phút
+  return memo("categories", 5 * 60_000, listCategoriesNow);
+}
+
+async function listCategoriesNow() {
   await ensureMigrated();
   const rows = await db
     .select({ name: products.category, n: count() })
@@ -282,7 +288,11 @@ export async function listActiveVouchers(opts: { platform?: string; limit?: numb
   return opts.limit ? q.limit(opts.limit) : q;
 }
 
-export async function homeStats() {
+export function homeStats() {
+  return memo("homeStats", 2 * 60_000, homeStatsNow);
+}
+
+async function homeStatsNow() {
   await ensureMigrated();
   const [[{ realDeals }], [{ voucherCount }], [{ best }]] = await Promise.all([
     db.select({ realDeals: count() }).from(products).where(and(gte(products.realDropPct, 10), availableSql())),

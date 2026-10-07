@@ -1,4 +1,5 @@
 import { JsonLd } from "@/components/JsonLd";
+import { memo } from "@/lib/memo";
 import { siteUrl } from "@/lib/mail";
 import type { Metadata } from "next";
 import { thumbUrl } from "@/lib/images";
@@ -56,23 +57,29 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
     { key: "vc", label: "Có mã giảm thêm", icon: "ticket", param: "vc", value: "1", patch: { withVoucher: true } },
   ];
 
-  const [{ items, total }, categories, stats, vouchers, dropped, spotlight, chipCounts] = await Promise.all([
-    listDeals(filter),
-    listCategories(),
-    homeStats(),
-    isLanding ? listActiveVouchers({ limit: 8 }) : Promise.resolve([]),
-    isLanding ? justDropped(24, 12) : Promise.resolve([]),
-    isLanding ? spotlightDeals(5) : Promise.resolve([]),
-    Promise.all(QUICK.map((c) => (sp[c.param] === c.value ? Promise.resolve(0) : countDeals({ ...filter, ...c.patch })))),
-  ]);
-  // Số món khi bỏ lọc "đang giảm" (cho nút "Xem tất cả sản phẩm")
-  const allCount = dealsOnly ? await countDeals({ ...filter, discounted: false }) : total;
+  // Trang chủ không lọc giống nhau với mọi khách: dùng chung kết quả 60 giây (≈15 truy vấn mỗi lượt tải) -> trả trang nhanh hơn
+  const load = async () => {
+    const [{ items, total }, categories, stats, vouchers, dropped, spotlight, chipCounts] = await Promise.all([
+      listDeals(filter),
+      listCategories(),
+      homeStats(),
+      isLanding ? listActiveVouchers({ limit: 8 }) : Promise.resolve([]),
+      isLanding ? justDropped(24, 12) : Promise.resolve([]),
+      isLanding ? spotlightDeals(5) : Promise.resolve([]),
+      Promise.all(QUICK.map((c) => (sp[c.param] === c.value ? Promise.resolve(0) : countDeals({ ...filter, ...c.patch })))),
+    ]);
+    // Số món khi bỏ lọc "đang giảm" (cho nút "Xem tất cả sản phẩm")
+    const allCount = dealsOnly ? await countDeals({ ...filter, discounted: false }) : total;
+    const [mystery, tops, trending, allVouchers] = await Promise.all([
+      isLanding ? mysteryDeal(spotlight.map((d) => d.id), now) : Promise.resolve(null),
+      isLanding ? roundupDefs().then((d) => [...d.filter((x) => x.kind === "type"), ...d.filter((x) => x.kind !== "type")]) : Promise.resolve([]),
+      isLanding ? trendingLinks(categories) : Promise.resolve([]),
+      isLanding ? listActiveVouchers() : Promise.resolve([]),
+    ]);
+    return { items, total, categories, stats, vouchers, dropped, spotlight, chipCounts, allCount, mystery, tops, trending, allVouchers };
+  };
+  const { items, total, categories, stats, vouchers, dropped, spotlight, chipCounts, allCount, mystery, tops, trending, allVouchers } = isLanding ? await memo("home:landing", 60_000, load) : await load();
   if (sp.q && page === 1) logSearch(sp.q, total).catch(() => {});
-  const [mystery, tops, trending] = await Promise.all([
-    isLanding ? mysteryDeal(spotlight.map((d) => d.id), now) : Promise.resolve(null),
-    isLanding ? roundupDefs().then((d) => [...d.filter((x) => x.kind === "type"), ...d.filter((x) => x.kind !== "type")]) : Promise.resolve([]),
-    isLanding ? trendingLinks(categories) : Promise.resolve([]),
-  ]);
   const pages = Math.ceil(total / PAGE_SIZE);
   // Query cho "tải thêm" (giữ bộ lọc hiện tại, bỏ page)
   const moreQuery = new URLSearchParams(Object.entries({ q: sp.q, platform: sp.platform, category: sp.category, min: sp.min, max: sp.max, shop: sp.shop, fresh: sp.fresh, vc: sp.vc, sort: sp.sort, deal: dealsOnly ? "1" : undefined }).filter(([, v]) => v) as [string, string][]).toString();
@@ -90,9 +97,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
   const site = siteUrl();
   // Mã hết hạn trước 0 giờ đêm nay (giờ VN) – đếm ngược theo giờ hết hạn thật của mã
   const midnight = nextVnMidnight(now);
-  const endingToday = isLanding
-    ? (await listActiveVouchers()).filter((v) => v.endAt && v.endAt > now && v.endAt <= midnight)
-    : [];
+  const endingToday = allVouchers.filter((v) => v.endAt && v.endAt > now && v.endAt <= midnight);
   // Tên site + logo cho Google (hiện "Săn Deal" thay vì tên miền ở kết quả tìm kiếm)
   const siteLd = [
     { "@context": "https://schema.org", "@type": "WebSite", name: "Săn Deal", alternateName: new URL(site).host, url: `${site}/` },
