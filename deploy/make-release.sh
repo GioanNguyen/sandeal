@@ -6,7 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 rm -rf dist
-# Địa chỉ site được ghi vào tiện ích trình duyệt (public/downloads/san-deal-extension.zip) lúc build
+# Địa chỉ site được ghi vào tiện ích trình duyệt (private/downloads/san-deal-extension.zip) lúc build
 export SITE_URL="${SITE_URL:-https://sandealgiare.com}"
 if [ "${SKIP_BUILD:-}" != 1 ]; then
   rm -rf .next
@@ -24,7 +24,11 @@ cp -a public/. "$OUT/app/public/"
 mkdir -p "$OUT/app/src/assets/music" && cp -a src/assets/music/. "$OUT/app/src/assets/music/" 2>/dev/null || true
 # Luôn đóng gói lại tiện ích với đúng SITE_URL (kể cả khi SKIP_BUILD)
 node scripts/build-extension.mjs
-cp public/downloads/san-deal-extension.zip public/downloads/san-deal-extension.json "$OUT/app/public/downloads/"
+# Tiện ích chỉ quản trị viên tải (qua /api/admin/extension) nên nằm ngoài public/ – máy chủ đọc ở <thư mục app>/private/downloads
+mkdir -p "$OUT/app/private/downloads"
+cp private/downloads/san-deal-extension.zip private/downloads/san-deal-extension.json "$OUT/app/private/downloads/"
+# Bản cũ còn sót trong public/ (trước khi chuyển) thì không mang lên server
+rm -f "$OUT/app/public/downloads/san-deal-extension".*
 # Không mang file bí mật / dữ liệu máy dev lên server
 rm -f "$OUT/app/.env" "$OUT/app/.env."*
 rm -rf "$OUT/app/.data"
