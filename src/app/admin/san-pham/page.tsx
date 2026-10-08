@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { affLinkExport } from "@/lib/afflinks";
+import { AffLinkTool } from "@/components/AffLinkTool";
 import { blockerText, canDelete, deleteBlockers } from "@/lib/deadlink";
 import { redirect } from "next/navigation";
 import { AdminTabs } from "@/components/AdminTabs";
@@ -56,6 +58,8 @@ export default async function ProductHealthPage({ searchParams }: { searchParams
   const [sum, res, srcCounts, gap] = await Promise.all([healthSummary(now), healthList({ issue, platform, q, sort, category, page: Number(sp.trang) || 1, now }), categorySourceCounts(), imageGapCounts()]);
   // Món nào xoá hẳn được (không có người theo dõi, nhắc sale, lượt bấm mua, đơn hàng, bài đã đăng)
   const blockers = await deleteBlockers(res.list.map((r) => r.p.id));
+  // Bộ lọc "Chưa có link affiliate": khung xuất / nhập link hàng loạt
+  const affExport = issue === "no_aff" ? await affLinkExport() : null;
   const imgPlatforms = lookupPlatforms();
   const allCats = [...new Set([...CATEGORIES, ...cats.map((c) => c.name)])];
 
@@ -180,6 +184,8 @@ export default async function ProductHealthPage({ searchParams }: { searchParams
         <p className="muted" style={{ fontSize: 14 }}>
           {res.total.toLocaleString("vi-VN")} món{res.total > PAGE_SIZE ? ` · trang ${res.page}/${res.pages}` : ""}
         </p>
+
+        {affExport && <AffLinkTool total={sum.counts.no_aff} noLink={affExport.noLink} />}
 
         {res.list.length > 0 && <ProductBulkBar total={res.total} filter={{ loc: sp.loc, san: platform, q: q || undefined, dm: category }} categories={allCats} />}
 

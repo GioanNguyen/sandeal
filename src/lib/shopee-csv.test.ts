@@ -61,3 +61,11 @@ test("giữ ảnh, giá gốc… của món đã có", () => {
   assert.equal(m.discountPct, 25);
   assert.equal(mergeExisting(items[0], { ...e, originalPrice: 20_000 }).discountPct, 0);
 });
+
+test("dòng thiếu “Link ưu đãi”: giữ link affiliate món đang có; dòng có link ưu đãi mới thì dùng link mới", () => {
+  const e = { imageUrl: null, images: null, shopType: null, shopRating: null, category: null, rating: null, originalPrice: null, affiliateUrl: "https://s.shopee.vn/cu" } as unknown as Product;
+  const base = { platform: "shopee" as const, externalId: "1", name: "x", price: 10_000, discountPct: 0 };
+  assert.equal(mergeExisting({ ...base, affiliateUrl: "https://shopee.vn/product/2/1" }, e).affiliateUrl, "https://s.shopee.vn/cu");
+  assert.equal(mergeExisting({ ...base, affiliateUrl: "https://s.shopee.vn/moi" }, e).affiliateUrl, "https://s.shopee.vn/moi");
+  assert.equal(mergeExisting({ ...base, affiliateUrl: "https://shopee.vn/product/2/1" }, { ...e, affiliateUrl: "https://shopee.vn/product/2/1" } as Product).affiliateUrl, "https://shopee.vn/product/2/1");
+});

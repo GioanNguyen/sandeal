@@ -11,7 +11,11 @@ import { refFromInput } from "./links";
 
 const DAY = 86_400_000;
 
-export type Issue = "gone" | "hidden" | "no_image" | "bad_image" | "no_category" | "bad_link" | "bad_price" | "price_jump" | "new";
+export type Issue = "gone" | "hidden" | "no_image" | "bad_image" | "no_category" | "bad_link" | "no_aff" | "bad_price" | "price_jump" | "new";
+
+/** Link mua Shopee là link affiliate (link rút gọn s.shopee.vn / shope.ee của tài khoản affiliate) – khớp NO_AFF_SQL */
+export const SHOPEE_AFF_RE = /^https?:\/\/(s\.shopee\.vn|shope\.ee)\//i;
+export const isShopeeAffiliate = (url: string | null | undefined) => SHOPEE_AFF_RE.test(url ?? "");
 
 export const ISSUES: { key: Issue; label: string; hint: string; tone: "bad" | "warn" | "info" }[] = [
   { key: "gone", label: "Không còn thấy trên sàn", hint: "Lần đồng bộ gần nhất của sàn không còn món này (hết hàng, ngừng bán hoặc hết khuyến mãi). Trang vẫn giữ nhưng không mời mua.", tone: "warn" },
@@ -19,6 +23,7 @@ export const ISSUES: { key: Issue; label: string; hint: string; tone: "bad" | "w
   { key: "bad_price", label: "Giá bất thường", hint: "Giá ≤ 0, giá gạch thấp hơn giá bán, hoặc ghi giảm trên 95%.", tone: "bad" },
   { key: "price_jump", label: "Giá đổi gấp đôi / còn nửa", hint: "Trong 7 ngày có mức giá gấp đôi hoặc chỉ bằng nửa giá hiện tại – nên mở sàn kiểm tra giá có đúng không.", tone: "warn" },
   { key: "bad_link", label: "Link mua không hợp lệ", hint: "Link không phải http(s) hoặc là link mẫu (example.com) – khách bấm “Mua” sẽ không tới được sàn.", tone: "bad" },
+  { key: "no_aff", label: "Chưa có link affiliate", hint: "Món Shopee mà link mua là link sản phẩm thường (thường do khách góp qua tiện ích, hoặc file CSV thiếu “Link ưu đãi”) – khách bấm “Mua” không tính hoa hồng. Xuất danh sách, tạo link hàng loạt trên Shopee Affiliate rồi tải file kết quả lên để thay.", tone: "bad" },
   { key: "no_image", label: "Thiếu ảnh", hint: "Không có ảnh sản phẩm – thẻ deal và ảnh chia sẻ kém hấp dẫn.", tone: "warn" },
   { key: "bad_image", label: "Ảnh lỗi", hint: "Có link ảnh nhưng tải không được (link hỏng, không phải ảnh) – phát hiện khi web lập chỉ mục “Tìm bằng ảnh”, nên chỉ có số liệu khi tính năng này đang chạy.", tone: "warn" },
   { key: "no_category", label: "Thiếu danh mục", hint: "Không vào được trang danh mục, không so sánh được với món cùng loại.", tone: "info" },
@@ -38,6 +43,8 @@ export function issueSql(key: Issue, now = new Date()): SQL {
     case "bad_image":
       return sql`(coalesce(${products.imageUrl}, '') <> '' and exists (select 1 from product_embeddings e where e.product_id = ${products.id}
         and e.image_url = ${products.imageUrl} and e.vec is null and e.failures >= 1))`;
+    case "no_aff":
+      return sql`(${products.platform} = 'shopee' and ${products.affiliateUrl} !~* '^https?://(s\.shopee\.vn|shope\.ee)/')`;
     case "no_category":
       return sql`coalesce(${products.category}, '') = ''`;
     case "bad_link":
@@ -123,13 +130,14 @@ export interface HealthRow {
 }
 
 /** Vấn đề của 1 món, tính từ dữ liệu đã có (khớp với issueSql) */
-export function rowIssues(p: Pick<Product, "hidden" | "imageUrl" | "category" | "affiliateUrl" | "price" | "originalPrice" | "discountPct" | "createdAt">, flags: { available: boolean; priceJump: boolean; badImage?: boolean }, now = new Date()): Issue[] {
+export function rowIssues(p: Pick<Product, "platform" | "hidden" | "imageUrl" | "category" | "affiliateUrl" | "price" | "originalPrice" | "discountPct" | "createdAt">, flags: { available: boolean; priceJump: boolean; badImage?: boolean }, now = new Date()): Issue[] {
   const out: Issue[] = [];
   if (p.hidden) out.push("hidden");
   else if (!flags.available) out.push("gone");
   if (p.price <= 0 || ((p.originalPrice ?? 0) > 0 && p.originalPrice! < p.price) || p.discountPct > 95) out.push("bad_price");
   if (flags.priceJump) out.push("price_jump");
   if (!/^https?:\/\/[^/\s]+\.[a-z]{2,}/i.test(p.affiliateUrl) || /^https?:\/\/(www\.)?(example\.(com|org|net)|e\.com)(\/|$)/i.test(p.affiliateUrl)) out.push("bad_link");
+  if (p.platform === "shopee" && !isShopeeAffiliate(p.affiliateUrl)) out.push("no_aff");
   if (!p.imageUrl) out.push("no_image");
   else if (flags.badImage) out.push("bad_image");
   if (!p.category) out.push("no_category");

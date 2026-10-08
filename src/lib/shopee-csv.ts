@@ -7,6 +7,7 @@
  * (từ tiện ích góp giá hoặc nguồn khác), còn món mới thì để trống.
  */
 import { and, eq, inArray } from "drizzle-orm";
+import { isShopeeAffiliate } from "./producthealth";
 import type { ProductInput } from "@/adapters/types";
 import { products, type Product } from "@/db/schema";
 import { platformLatest, staleCutoff } from "./availability";
@@ -166,6 +167,8 @@ export function mergeExisting(p: ProductInput, e: Product | undefined): ProductI
     rating: p.rating ?? e.rating ?? undefined,
     originalPrice,
     discountPct: originalPrice && originalPrice > p.price ? Math.round((1 - p.price / originalPrice) * 100) : 0,
+    // Dòng thiếu "Link ưu đãi" (link mua là link sản phẩm thường): giữ link affiliate đang có, không ghi đè
+    affiliateUrl: !isShopeeAffiliate(p.affiliateUrl) && isShopeeAffiliate(e.affiliateUrl) ? e.affiliateUrl : p.affiliateUrl,
   };
 }
 
