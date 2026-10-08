@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { markStaff, staffRequest } from "@/lib/staff";
 import { NextResponse } from "next/server";
 import { recordView } from "@/lib/discovery";
 import { allow } from "@/lib/ratelimit";
@@ -22,6 +23,9 @@ export async function POST(req: Request) {
     res.cookies.set(COOKIE, vid, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 365 * 86_400, secure: process.env.NODE_ENV === "production" });
   }
   if (!(await allow(`view:${vid}`, 200, 3600))) return res;
+  // Quản trị viên mở thử sản phẩm: không tính lượt xem
+  const { staff, mark } = await staffRequest(req);
+  if (staff) return markStaff(res, mark);
   await recordView(vid, id as number).catch(() => {}); // sản phẩm không tồn tại -> bỏ qua
   return res;
 }

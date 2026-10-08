@@ -1,5 +1,6 @@
 import { redirectTo } from "@/lib/redirect";
-import { consumeLoginToken, getCurrentUser, safeNext, sessionCookie } from "@/lib/auth";
+import { consumeLoginToken, getCurrentUser, isAdmin, safeNext, sessionCookie } from "@/lib/auth";
+import { staffCookie } from "@/lib/staff";
 
 /** POST từ trang /auth/verify (dùng POST để trình quét link trong email không tự "bấm" mất token) */
 export async function POST(req: Request) {
@@ -14,5 +15,7 @@ export async function POST(req: Request) {
   const to = result.addedProductId ? `/account?added=${result.addedProductId}` : safeNext(form.get("next")) ?? "/account";
   const res = redirectTo(to, 303);
   res.cookies.set(sessionCookie(result.sessionToken));
+  // Thiết bị của quản trị viên: từ nay lượt bấm / lượt xem trên máy này không được tính (kể cả sau khi đăng xuất)
+  if (isAdmin(result.user.email)) res.cookies.set(staffCookie());
   return res;
 }
