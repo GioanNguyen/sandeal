@@ -7,7 +7,7 @@
  *   GSC_CLIENT_EMAIL  email của tài khoản dịch vụ (…@….iam.gserviceaccount.com)
  *   GSC_PRIVATE_KEY   private_key trong tệp JSON của tài khoản dịch vụ (giữ nguyên \n)
  */
-import { createSign } from "node:crypto";
+import { createPublicKey, createSign, X509Certificate } from "node:crypto";
 
 const HOUR = 3_600_000;
 const SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
@@ -45,8 +45,42 @@ async function accessToken(c: GscConfig, fetchImpl: typeof fetch) {
     signal: AbortSignal.timeout(20_000),
   });
   const j = (await res.json().catch(() => ({}))) as { access_token?: string; error_description?: string; error?: string };
-  if (!res.ok || !j.access_token) throw new Error(`Google từ chối đăng nhập tài khoản dịch vụ: ${j.error_description ?? j.error ?? res.status}`);
+  if (!res.ok || !j.access_token) {
+    const why = j.error_description ?? j.error ?? String(res.status);
+    // Chữ ký không hợp lệ: đối chiếu khoá với danh sách khoá Google công bố cho tài khoản dịch vụ để nói rõ nguyên nhân
+    const hint = /signature/i.test(why) ? await diagnoseKey(c, fetchImpl).catch(() => null) : null;
+    throw new Error(`Google từ chối đăng nhập tài khoản dịch vụ: ${why}${hint ? ` – ${hint}` : ""}`);
+  }
   return j.access_token;
+}
+
+/**
+ * Khoá riêng trong .env có thuộc tài khoản dịch vụ (GSC_CLIENT_EMAIL) và còn hiệu lực không: Google công bố công khai
+ * chứng chỉ (khoá công khai) của các khoá đang hoạt động tại /service_accounts/v1/metadata/x509/<email>.
+ * Trả về lời giải thích bằng tiếng Việt, hoặc null nếu khoá khớp (lỗi do nguyên nhân khác).
+ */
+export async function diagnoseKey(c: GscConfig, fetchImpl: typeof fetch = fetch): Promise<string | null> {
+  let mine: string;
+  try {
+    mine = createPublicKey(c.key).export({ type: "spki", format: "pem" }).toString();
+  } catch {
+    return "GSC_PRIVATE_KEY không đọc được – chép lại nguyên giá trị \"private_key\" trong tệp JSON (giữ nguyên các \\n, đặt trong dấu ngoặc kép)";
+  }
+  const res = await fetchImpl(`https://www.googleapis.com/service_accounts/v1/metadata/x509/${encodeURIComponent(c.email)}`, { signal: AbortSignal.timeout(15_000) });
+  if (res.status === 404) return `không có tài khoản dịch vụ ${c.email} – kiểm tra lại GSC_CLIENT_EMAIL (trường \"client_email\" trong tệp JSON)`;
+  if (!res.ok) return null;
+  const certs = (await res.json().catch(() => ({}))) as Record<string, string>;
+  const keys = Object.values(certs);
+  if (!keys.length) return `tài khoản dịch vụ ${c.email} không còn khoá nào – vào Google Cloud › IAM › Tài khoản dịch vụ › Khoá, tạo khoá JSON mới rồi cập nhật .env`;
+  const match = keys.some((pem) => {
+    try {
+      return new X509Certificate(pem).publicKey.export({ type: "spki", format: "pem" }).toString() === mine;
+    } catch {
+      return false;
+    }
+  });
+  if (match) return null;
+  return `khoá trong GSC_PRIVATE_KEY không thuộc ${c.email} hoặc đã bị xoá trên Google Cloud (tài khoản đang có ${keys.length} khoá khác). Lấy cả GSC_CLIENT_EMAIL và GSC_PRIVATE_KEY từ cùng một tệp JSON mới tải`;
 }
 
 export interface GscRow {
