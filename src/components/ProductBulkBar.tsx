@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
 
-type Action = "category" | "hide" | "unhide" | "recheck";
+type Action = "category" | "hide" | "unhide" | "recheck" | "delete";
 
 const boxes = () => Array.from(document.querySelectorAll<HTMLInputElement>('input[type="checkbox"][form="bulk"][name="id"]'));
 
@@ -40,8 +40,10 @@ export function ProductBulkBar({ total, filter, categories }: { total: number; f
     const n = scope === "all" ? total : selected;
     if (!n) return setMsg({ ok: false, text: "Chưa chọn món nào" });
     if (action === "category" && !category.trim()) return setMsg({ ok: false, text: "Chọn hoặc gõ tên danh mục" });
-    const label = action === "category" ? `gán danh mục "${category.trim()}"` : action === "hide" ? "ẩn khỏi web" : action === "unhide" ? "hiện lại" : "kiểm tra lại trên sàn";
-    if (scope === "all" && !confirm(`Áp dụng "${label}" cho TẤT CẢ ${n.toLocaleString("vi-VN")} món khớp bộ lọc?`)) return;
+    const label = action === "category" ? `gán danh mục "${category.trim()}"` : action === "hide" ? "ẩn khỏi web" : action === "unhide" ? "hiện lại" : action === "delete" ? "xoá hẳn" : "kiểm tra lại trên sàn";
+    // Xoá hẳn không lấy lại được: luôn hỏi lại
+    if (action === "delete" && !confirm(`Xoá hẳn ${scope === "all" ? "TẤT CẢ " : ""}${n.toLocaleString("vi-VN")} món (cả lịch sử giá, lượt xem)? Không lấy lại được.\nMón có người theo dõi giá, nhắc sale, lượt bấm mua, đơn hàng hoặc bài đã đăng sẽ được giữ lại.`)) return;
+    if (action !== "delete" && scope === "all" && !confirm(`Áp dụng "${label}" cho TẤT CẢ ${n.toLocaleString("vi-VN")} món khớp bộ lọc?`)) return;
     setBusy(true);
     setMsg(null);
     try {
@@ -53,7 +55,18 @@ export function ProductBulkBar({ total, filter, categories }: { total: number; f
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok || !j.ok) throw new Error(j.error ?? `Lỗi ${res.status}`);
-      setMsg({ ok: true, text: action === "recheck" ? `Đã kiểm tra ${j.checked} món, cập nhật được ${j.updated}` : `Đã cập nhật ${Number(j.updated).toLocaleString("vi-VN")} món` });
+      const keptText = j.kept
+        ? ` · giữ lại ${Number(j.kept).toLocaleString("vi-VN")} món có dữ liệu (${Object.entries(j.keptBy as Record<string, number>).map(([k, v]) => `${v} có ${k}`).join(", ")}) – chỉ ẩn được`
+        : "";
+      setMsg({
+        ok: true,
+        text:
+          action === "recheck"
+            ? `Đã kiểm tra ${j.checked} món, cập nhật được ${j.updated}`
+            : action === "delete"
+              ? `Đã xoá ${Number(j.deleted).toLocaleString("vi-VN")} món${keptText}`
+              : `Đã cập nhật ${Number(j.updated).toLocaleString("vi-VN")} món`,
+      });
       boxes().forEach((b) => (b.checked = false));
       setSelected(0);
       router.refresh();
@@ -77,6 +90,7 @@ export function ProductBulkBar({ total, filter, categories }: { total: number; f
         <option value="hide">Ẩn khỏi web</option>
         <option value="unhide">Hiện lại</option>
         <option value="recheck">Kiểm tra lại trên sàn (tối đa 30)</option>
+        <option value="delete">Xoá hẳn (món không có dữ liệu quan trọng)</option>
       </select>
       {action === "category" && (
         <>
@@ -91,7 +105,7 @@ export function ProductBulkBar({ total, filter, categories }: { total: number; f
           <input id="bulk-reason" className="input" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={200} placeholder="Lý do ẩn" />
         </>
       )}
-      <button className="btn btn-primary btn-sm" disabled={busy}>{busy ? "Đang áp dụng…" : "Áp dụng"}</button>
+      <button className={`btn btn-sm ${action === "delete" ? "btn-danger" : "btn-primary"}`} disabled={busy}>{busy ? "Đang áp dụng…" : action === "delete" ? "Xoá hẳn" : "Áp dụng"}</button>
       {msg && <span className={`vs ${msg.ok ? "vs-good" : "vs-poor"}`} role="status">{msg.text}</span>}
     </form>
   );

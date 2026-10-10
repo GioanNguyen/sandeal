@@ -79,3 +79,22 @@ test("xoá hẳn chỉ với món không có dữ liệu quan trọng", async ()
   assert.equal(pts.length, 0, "lịch sử giá xoá theo");
   assert.equal((await dl.deleteProduct(free)).ok, false, "xoá lần 2: không tìm thấy");
 });
+
+test("xoá hẳn nhiều món: xoá món không có dữ liệu, giữ món có lượt bấm / người theo dõi kèm lý do", async () => {
+  const now = new Date();
+  const add = (id: string) => ingest.upsertProduct({ platform: "shopee", externalId: id, name: `Món ${id}`, price: 30_000, discountPct: 0, affiliateUrl: "https://s.shopee.vn/y" }, now);
+  const a = await add("b1");
+  const b = await add("b2");
+  const c = await add("b3");
+  const d = await add("b4");
+  await dbm.db.insert(schema.clicks).values([{ productId: c, platform: "shopee" }, { productId: c, platform: "shopee" }]);
+  const [u] = await dbm.db.insert(schema.users).values({ email: "bulk@b.vn" }).returning();
+  await dbm.db.insert(schema.watches).values({ userId: u.id, productId: d, targetPrice: 20_000 });
+
+  const r = await dl.deleteProducts([a, b, c, d, a]);
+  assert.deepEqual(r, { deleted: 2, kept: 2, keptBy: { "lượt bấm mua": 1, "người theo dõi giá": 1 } });
+  assert.equal(await get(a), undefined);
+  assert.equal(await get(b), undefined);
+  assert.ok(await get(c));
+  assert.ok(await get(d));
+});

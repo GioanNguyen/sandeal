@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { deleteProducts } from "@/lib/deadlink";
 import { recheckProduct } from "@/lib/lookup";
 import { BULK_MAX, ISSUES, idsMatching, setCategoryMany, setHiddenMany, type HealthFilter, type ImageFilter, type Issue } from "@/lib/producthealth";
 import { runAutoCategory } from "@/worker/autocategory";
@@ -26,7 +27,7 @@ function cleanFilter(f: Record<string, unknown> | undefined): HealthFilter {
 
 /**
  * Quản trị › Sản phẩm – thao tác hàng loạt:
- * - action "category" | "hide" | "unhide" | "recheck" cho các món đã chọn (ids) hoặc tất cả món khớp bộ lọc (filter)
+ * - action "category" | "hide" | "unhide" | "recheck" | "delete" cho các món đã chọn (ids) hoặc tất cả món khớp bộ lọc (filter)
  * - action "autocat" (tự xếp danh mục ngay), "images" (lấy ảnh ngay)
  */
 export async function POST(req: Request) {
@@ -57,6 +58,11 @@ export async function POST(req: Request) {
     case "hide":
     case "unhide":
       return NextResponse.json({ ok: true, updated: await setHiddenMany(ids, body.action === "hide", typeof body.reason === "string" ? body.reason : null) });
+    case "delete": {
+      // Chỉ xoá món không có dữ liệu quan trọng; món có người theo dõi, lượt bấm, đơn… giữ lại
+      const r = await deleteProducts(ids);
+      return NextResponse.json({ ok: true, updated: r.deleted, ...r });
+    }
     case "recheck": {
       if (ids.length > RECHECK_MAX) return NextResponse.json({ error: `Kiểm tra lại tối đa ${RECHECK_MAX} món mỗi lần (tra cứu trực tiếp trên sàn)` }, { status: 400 });
       let found = 0;

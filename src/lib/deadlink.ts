@@ -95,3 +95,43 @@ export async function deleteProduct(id: number): Promise<{ ok: true } | { ok: fa
   memoClear("home:");
   return { ok: true };
 }
+
+export interface BulkDeleteResult {
+  deleted: number;
+  /** Món giữ lại vì có dữ liệu quan trọng (chỉ ẩn được) */
+  kept: number;
+  /** Lý do giữ lại, gộp theo loại (vd { "lượt bấm mua": 3 }) */
+  keptBy: Record<string, number>;
+}
+
+/**
+ * Xoá hẳn nhiều món một lần: chỉ xoá món không có dữ liệu quan trọng (giống deleteProduct), món còn lại giữ nguyên.
+ * Kiểm tra từng nhóm 500 món ngay trước khi xoá.
+ */
+export async function deleteProducts(ids: number[]): Promise<BulkDeleteResult> {
+  await ensureMigrated();
+  const out: BulkDeleteResult = { deleted: 0, kept: 0, keptBy: {} };
+  const uniq = [...new Set(ids)];
+  for (let i = 0; i < uniq.length; i += 500) {
+    const chunk = uniq.slice(i, i + 500);
+    const blockers = await deleteBlockers(chunk);
+    const ok: number[] = [];
+    for (const id of chunk) {
+      const b = blockers.get(id)!;
+      if (canDelete(b)) ok.push(id);
+      else {
+        out.kept++;
+        const add = (k: string, n: number) => n && (out.keptBy[k] = (out.keptBy[k] ?? 0) + 1);
+        add("người theo dõi giá", b.watchers);
+        add("nhắc sale", b.saleAlerts);
+        add("lượt bấm mua", b.clicks);
+        add("đơn hàng", b.orders);
+        add("bài đã đăng", b.posts);
+      }
+    }
+    if (ok.length) out.deleted += (await db.delete(products).where(inArray(products.id, ok)).returning({ id: products.id })).length;
+  }
+  if (out.deleted) memoClear("home:");
+  return out;
+}
+
