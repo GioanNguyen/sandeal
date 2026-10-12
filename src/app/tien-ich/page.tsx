@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { AdminTabs } from "@/components/AdminTabs";
 import { Icon } from "@/components/Icon";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { extensionInfo, extensionZipPath } from "@/lib/extension-files";
@@ -21,6 +22,7 @@ export default async function ExtensionPage() {
   const built = info ? new Date(info.builtAt).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Asia/Ho_Chi_Minh" }) : null;
   return (
     <>
+      <AdminTabs current="/tien-ich" />
       <section className="sale-hero ext-hero">
         <div>
           <span className="hero-eyebrow"><Icon name="puzzle" size={14} /> Tiện ích trình duyệt · chỉ quản trị viên thấy trang này</span>

@@ -11,6 +11,8 @@ const TABS = [
   { href: "/admin/huong-dan", label: "Hướng dẫn" },
   { href: "/admin/toc-do", label: "Tốc độ" },
   { href: "/admin/tim-kiem", label: "SEO" },
+  // Trang tải tiện ích trình duyệt (chỉ quản trị viên thấy; khách mở /tien-ich gặp 404)
+  { href: "/tien-ich", label: "Tiện ích" },
 ];
 
 export function AdminTabs({ current }: { current: string }) {
