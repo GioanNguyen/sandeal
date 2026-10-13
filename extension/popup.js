@@ -45,6 +45,9 @@
     startBtn.textContent = s.ok || s.fail ? "Tiếp tục" : "Bắt đầu";
     if (s.running) document.getElementById("batch").open = true;
   };
+  // Chạy gì: cả hai / chỉ món lẻ (thiếu ảnh, giá cũ) / chỉ trang danh sách – nhớ lựa chọn lần trước
+  const modeSel = document.getElementById("b-mode");
+  chrome.storage.local.get("batch").then(({ batch }) => { if (batch && batch.mode) modeSel.value = batch.mode; });
   // Chỉ hiện với trình duyệt đang đăng nhập tài khoản quản trị (hoặc khi đang chạy dở); người dùng thường không thấy mục này
   const box = document.getElementById("batch");
   const gapEl = document.createElement("p");
@@ -74,7 +77,7 @@
   startBtn.onclick = async () => {
     startBtn.disabled = true;
     st.textContent = "Đang kiểm tra…";
-    const r = await chrome.runtime.sendMessage({ type: "batch-start" }).catch((e) => ({ ok: false, error: String(e) }));
+    const r = await chrome.runtime.sendMessage({ type: "batch-start", mode: modeSel.value }).catch((e) => ({ ok: false, error: String(e) }));
     startBtn.disabled = false;
     if (!r?.ok) { st.textContent = r?.error || "Lỗi"; return; }
     show(r.state);

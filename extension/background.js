@@ -102,7 +102,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     return true;
   }
   if (msg?.type === "batch-start") {
-    startBatch()
+    startBatch(msg.mode)
       .then((s) => reply({ ok: true, state: s }))
       .catch((err) => reply({ ok: false, error: String(err.message || err) }));
     return true;

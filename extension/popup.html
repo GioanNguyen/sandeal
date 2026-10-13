@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <style>
+  [hidden] { display: none !important; }
   body { width: 300px; margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1c1a19; background: #fff7f2; }
   header { background: linear-gradient(120deg,#e8491d,#ffa41b); color: #fff; padding: 12px 14px; font-weight: 800; font-size: 16px; }
   main { padding: 12px 14px; display: grid; gap: 10px; }
@@ -21,11 +22,18 @@
   <p id="contrib"></p>
   <p id="ver"></p>
   <details id="batch" hidden>
-    <summary style="font-size:13px;font-weight:700;cursor:pointer">Quản trị: thêm món &amp; cập nhật giá hàng loạt</summary>
+    <summary style="font-size:13px;font-weight:700;cursor:pointer">Quản trị: cập nhật ảnh, giá &amp; thêm món hàng loạt</summary>
     <div style="display:grid;gap:8px;margin-top:8px">
       <p>Tự mở lần lượt trang danh sách Shopee (từ khoá khách tìm mà Săn Deal chưa có, loại hàng khách quan tâm, Flash Sale – mỗi trang thêm/cập nhật ~50 món), link khách dán chưa có dữ liệu, món thiếu ảnh và món có giá đã cũ (mỗi trang cách 30–60 giây, tối đa 80 trang/giờ) rồi lưu ảnh, giá. Bạn tự lướt trang tìm kiếm / danh mục Shopee cũng được ghi lại. Cần đăng nhập tài khoản quản trị trên web Săn Deal trong trình duyệt này.</p>
       <p id="b-status" style="color:#1c1a19;font-weight:600"></p>
       <p id="b-count"></p>
+      <label style="font-size:13px;display:grid;gap:4px">Chạy
+        <select id="b-mode" style="font:inherit;padding:6px 8px;border-radius:8px;border:1px solid #e4d5cb">
+          <option value="all">Cả hai: trang danh sách trước, rồi món lẻ</option>
+          <option value="items">Chỉ món thiếu ảnh, giá cũ, link khách hỏi</option>
+          <option value="lists">Chỉ trang danh sách (thêm món mới)</option>
+        </select>
+      </label>
       <button id="b-start" type="button">Bắt đầu</button>
       <button id="b-stop" type="button" style="background:#1c1a19" hidden>Tạm dừng</button>
       <p style="font-size:12px">Nên dùng hồ sơ Chrome đăng nhập tài khoản Shopee mua hàng thường, không dùng tài khoản affiliate.</p>

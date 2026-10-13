@@ -32,9 +32,10 @@ async function saveBatch(s) {
   await chrome.storage.local.set({ [KEY]: s });
 }
 
-async function queueFetch(limit) {
+/** Chế độ chạy (chọn trong khung tiện ích): all | items (chỉ món thiếu ảnh, giá cũ, link khách hỏi) | lists (chỉ trang danh sách) */
+async function queueFetch(limit, mode = "all") {
   const base = await self.sanDealServer();
-  const res = await fetch(`${base}/api/ext/queue?limit=${limit}`, { credentials: "include", cache: "no-store" });
+  const res = await fetch(`${base}/api/ext/queue?limit=${limit}&mode=${encodeURIComponent(mode)}`, { credentials: "include", cache: "no-store" });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
@@ -96,10 +97,15 @@ async function stopBatch(status) {
   chrome.alarms.clear("batch-timeout");
 }
 
-async function startBatch() {
+async function startBatch(mode) {
   const s = await loadBatch();
+  if (mode === "all" || mode === "items" || mode === "lists") {
+    // Đổi chế độ: bỏ hàng đợi cũ (có thể toàn trang danh sách) để lấy lại theo chế độ mới
+    if (s.mode !== mode) s.queue = [];
+    s.mode = mode;
+  }
   // Kiểm tra quyền quản trị + lấy hàng đợi trước khi mở tab
-  const q = await queueFetch(BATCH.fetchSize);
+  const q = await queueFetch(BATCH.fetchSize, s.mode || "all");
   s.queue = q.items;
   s.remaining = q.remaining;
   s.counts = q.counts || null;
@@ -151,7 +157,7 @@ async function nextItem() {
   }
   if (!s.queue.length) {
     try {
-      const q = await queueFetch(BATCH.fetchSize);
+      const q = await queueFetch(BATCH.fetchSize, s.mode || "all");
       s.queue = q.items;
       s.remaining = q.remaining;
       s.counts = q.counts || null;

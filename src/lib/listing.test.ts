@@ -80,6 +80,12 @@ test("trang cần quét: Flash Sale, từ khoá khách tìm không ra, loại h�
   assert.equal(qq.items[0].listKey, "flash:shopee");
   assert.equal(qq.counts.listing, 4);
 
+  // Chế độ chạy: chỉ món lẻ / chỉ trang danh sách
+  assert.ok((await q.extQueue({ now, mode: "items" })).items.every((x) => x.reason !== "listing"));
+  const onlyLists = await q.extQueue({ now, mode: "lists" });
+  assert.equal(onlyLists.items.length, 4, "chế độ chỉ trang danh sách: lấy hết trang đến lượt");
+  assert.ok(onlyLists.items.every((x) => x.reason === "listing"));
+
   await ls.markListingDone("flash:shopee", { created: 3, updated: 10, total: 40 }, now);
   await ls.markListingDone("search:máy hút bụi cầm tay", { created: 20, updated: 0, total: 40 }, now);
   await ls.markListingDone("không hợp lệ", {}, now);
