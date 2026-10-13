@@ -11,6 +11,50 @@
     return false;
   }
 
+  /** Trang danh sách của Shopee: tìm kiếm, danh mục (…-cat.123), Flash Sale, gợi ý hằng ngày */
+  function isListingUrl(href) {
+    try {
+      const u = new URL(href);
+      if (!/(^|\.)shopee\.vn$/.test(u.hostname) || u.hostname.startsWith("s.")) return false;
+      const p = decodeURIComponent(u.pathname);
+      return /^\/search\/?$/.test(p) || /-cat\.\d+/.test(p) || /^\/flash_sale/.test(p) || /^\/daily_discover/.test(p);
+    } catch (e) {}
+    return false;
+  }
+
+  /** Cuộn dần xuống cuối trang để trang tải hết các ô sản phẩm (trang danh sách tải dần khi cuộn), rồi về đầu */
+  async function scrollThrough(steps = 14) {
+    for (let i = 0; i < steps; i++) {
+      window.scrollBy(0, Math.max(600, window.innerHeight * 0.9));
+      await new Promise((ok) => setTimeout(ok, 700));
+      if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 50) break;
+    }
+    await new Promise((ok) => setTimeout(ok, 800));
+  }
+
+  /**
+   * Quản trị viên tự lướt trang danh sách (không phải lượt chạy tự động): cứ vài giây đọc các ô sản phẩm mới hiện ra
+   * và gửi về (nền tiện ích kiểm tra quyền quản trị trước khi gửi). Tối đa 300 món mỗi trang.
+   */
+  const listingSent = new Set();
+  let listingTimer = null;
+  let listingWait = 0;
+  function passiveListing() {
+    if (listingTimer) return;
+    const tick = async () => {
+      if (!isListingUrl(location.href) || listingSent.size >= 300) { clearInterval(listingTimer); listingTimer = null; return; }
+      const items = (self.SanDealExtract?.listingFromDocument(document) || []).filter((x) => !listingSent.has(x.url));
+      if (!items.length) return;
+      // Gửi theo loạt: đủ 5 món mới, hoặc đã chờ thêm 1 nhịp mà không có thêm (trang ít kết quả)
+      if (items.length < 5 && ++listingWait < 2) return;
+      listingWait = 0;
+      items.forEach((x) => listingSent.add(x.url));
+      chrome.runtime.sendMessage({ type: "listing", pageUrl: location.href, items }).catch(() => null);
+    };
+    listingTimer = setInterval(tick, 6000);
+    setTimeout(tick, 3500);
+  }
+
   /** Phiên bản nội dung đồng ý góp dữ liệu (2 = giá + đánh giá) */
   const CONSENT_V = 2;
   const LABEL = { shopee: "Shopee", lazada: "Lazada", tiktok: "TikTok Shop" };
@@ -238,6 +282,15 @@
     if (batchSent) return;
     const blocked = () => /\/verify\/|captcha|\/buyer\/login|\/login\b/i.test(location.pathname + location.search) || /xác minh|captcha|đăng nhập/i.test(document.title);
     await new Promise((ok) => setTimeout(ok, 2500));
+    // Trang danh sách: cuộn hết trang rồi đọc mọi ô sản phẩm
+    if (isListingUrl(location.href)) {
+      if (!blocked()) await scrollThrough();
+      if (blocked()) { batchSent = true; chrome.runtime.sendMessage({ type: "batch-result", url: location.href, blocked: true }).catch(() => null); return; }
+      const items = self.SanDealExtract ? self.SanDealExtract.listingFromDocument(document) : [];
+      batchSent = true;
+      chrome.runtime.sendMessage({ type: "batch-result", url: location.href, listing: items }).catch(() => null);
+      return;
+    }
     let deadSeen = 0;
     for (let i = 0; i < 20; i++) {
       if (batchSent) return;
@@ -269,6 +322,7 @@
       batchMode = !!(r && r.batch);
     }
     if (batchMode) return batchCollect(href);
+    if (isListingUrl(href)) { unmount(); return passiveListing(); }
     if (!isProductUrl(href)) return unmount();
     render({ kind: "loading" });
     const r = await chrome.runtime.sendMessage({ type: "lookup", url: href }).catch((e) => ({ ok: false, error: String(e) }));

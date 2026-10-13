@@ -82,6 +82,14 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     return true;
   }
   // Cập nhật hàng loạt (quản trị viên)
+  // Quản trị viên tự lướt trang danh sách: gửi các ô sản phẩm (chỉ khi trình duyệt đăng nhập tài khoản quản trị)
+  if (msg?.type === "listing") {
+    isAdminBrowser()
+      .then((admin) => (admin && Array.isArray(msg.items) && msg.items.length ? sendListing(msg.items.slice(0, 120)) : null))
+      .then((r) => reply({ ok: !!r, ...(r || {}) }))
+      .catch(() => reply({ ok: false }));
+    return true;
+  }
   if (msg?.type === "batch-hello") {
     loadBatch().then((s) => reply({ batch: !!(s.running && s.current && _sender.tab && _sender.tab.id === s.tabId) }));
     return true;

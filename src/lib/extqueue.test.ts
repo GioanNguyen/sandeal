@@ -7,6 +7,11 @@ process.env.SITE_URL = "https://sandealgiare.com";
 process.env.SOURCES = "none";
 
 let ingest: typeof import("./ingest");
+/** Hàng đợi chỉ gồm món lẻ (bỏ trang danh sách – có test riêng ở listing.test.ts) */
+const items = async (o: Parameters<typeof import("./extqueue").extQueue>[0]) => {
+  const r = await q.extQueue(o);
+  return { ...r, items: r.items.filter((x) => x.reason !== "listing"), remaining: r.remaining - r.counts.listing };
+};
 let q: typeof import("./extqueue");
 let dbm: typeof import("./db");
 let schema: typeof import("@/db/schema");
@@ -30,7 +35,7 @@ test("món thiếu ảnh có link sản phẩm, món được quan tâm trước
   await add("4", { productUrl: null, affiliateUrl: "https://shope.ee/abc" });
   await dbm.db.insert(schema.clicks).values({ productId: hot, platform: "shopee" });
 
-  const r = await q.extQueue({ now });
+  const r = await items({ now });
   assert.deepEqual(r.items.map((x) => x.id), [hot, quiet]);
   assert.ok(r.items.every((x) => x.reason === "image"));
   assert.equal(r.items[0].url, "https://shopee.vn/product/9/2", "link thường, không phải link affiliate");
@@ -39,12 +44,12 @@ test("món thiếu ảnh có link sản phẩm, món được quan tâm trước
   assert.deepEqual(await q.imageGapCounts(), { all: 3, available: 3, openable: 2 });
 
   assert.equal((await q.markTried([hot], now)).stillMissing, 1);
-  assert.deepEqual((await q.extQueue({ now })).items.map((x) => x.id), [quiet]);
+  assert.deepEqual((await items({ now })).items.map((x) => x.id), [quiet]);
   // Món đã có ảnh sau khi mở: không bị đánh dấu
   await dbm.db.update(schema.products).set({ imageUrl: "https://cf.shopee.vn/file/b.jpg" }).where((await import("drizzle-orm")).eq(schema.products.id, quiet));
   assert.equal((await q.markTried([quiet], now)).stillMissing, 0);
   // Sau 24 giờ thì đưa lại món đã thử
-  assert.deepEqual((await q.extQueue({ now: new Date(now.getTime() + 25 * 3_600_000) })).items.map((x) => x.id), [hot]);
+  assert.deepEqual((await items({ now: new Date(now.getTime() + 25 * 3_600_000) })).items.map((x) => x.id), [hot]);
 });
 
 test("giá cũ: chỉ món khách đang quan tâm, kèm số ngày; tóm tắt theo ngành; nhắc nhập CSV trong trang Hôm nay", async () => {
@@ -59,7 +64,7 @@ test("giá cũ: chỉ món khách đang quan tâm, kèm số ngày; tóm tắt t
   const [u] = await dbm.db.insert(schema.users).values({ email: "x@test.vn" }).returning();
   await dbm.db.insert(schema.watches).values({ userId: u.id, productId: watched, targetPrice: 90_000 });
 
-  const r = await q.extQueue({ now });
+  const r = await items({ now });
   const it = r.items.find((x) => x.id === watched);
   assert.equal(it?.reason, "price");
   assert.equal(it?.staleDays, 5);
@@ -77,7 +82,7 @@ test("giá cũ: chỉ món khách đang quan tâm, kèm số ngày; tóm tắt t
   // Mở lại trang (góp giá) -> giá mới, không còn trong hàng đợi
   await add("50", now);
   assert.equal((await q.markTried([watched], now)).stillMissing, 0);
-  assert.ok(!(await q.extQueue({ now })).items.some((x) => x.id === watched));
+  assert.ok(!(await items({ now })).items.some((x) => x.id === watched));
 });
 
 test("món chỉ có link affiliate rút gọn: tiện ích mở link đó, mở xong web lưu link sản phẩm, lần sau mở thẳng", async () => {
@@ -85,7 +90,7 @@ test("món chỉ có link affiliate rút gọn: tiện ích mở link đó, mở
   const observe = await import("./observe");
   const { eq } = await import("drizzle-orm");
   const id = await ingest.upsertProduct({ platform: "shopee", externalId: "7001", name: "Cây lau nhà tự vắt 45cm", price: 150_000, discountPct: 0, affiliateUrl: "https://s.shopee.vn/AbC123" }, now);
-  const it = (await q.extQueue({ now, limit: 50 })).items.find((x) => x.id === id);
+  const it = (await items({ now, limit: 50 })).items.find((x) => x.id === id);
   assert.ok(it, "món chỉ có link rút gọn vẫn vào hàng đợi");
   assert.equal(it!.url, "https://s.shopee.vn/AbC123");
   assert.equal(it!.viaAffiliate, true);
@@ -95,7 +100,7 @@ test("món chỉ có link affiliate rút gọn: tiện ích mở link đó, mở
   assert.equal(r.productId, id);
   const [p] = await dbm.db.select().from(schema.products).where(eq(schema.products.id, id));
   assert.equal(p.productUrl, "https://shopee.vn/product/888/7001");
-  const again = (await q.extQueue({ now: new Date(now.getTime() + 25 * 3_600_000), limit: 50 })).items.find((x) => x.id === id);
+  const again = (await items({ now: new Date(now.getTime() + 25 * 3_600_000), limit: 50 })).items.find((x) => x.id === id);
   if (again) assert.equal(again.url, "https://shopee.vn/product/888/7001", "lần sau mở link sản phẩm thường");
 
   // Đã có link sản phẩm thì không ghi đè; link không có mã shop (/product/0/…) thì không lưu

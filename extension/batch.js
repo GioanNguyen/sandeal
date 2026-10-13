@@ -9,6 +9,8 @@
  * (nhập CSV chỉ có link rút gọn s.shopee.vn) thì mở link rút gọn một lần: Shopee tự chuyển tới trang sản phẩm, web lưu
  * lại link đó cho món, các lần sau mở thẳng link sản phẩm.
  * Trang báo "Sản phẩm này không tồn tại": web ẩn món (lý do "link không còn trên sàn"), không xoá lịch sử giá.
+ * Trang danh sách (tìm kiếm theo từ khoá khách cần, loại hàng được quan tâm, Flash Sale): cuộn hết trang, đọc mọi ô sản
+ * phẩm – món đã có cập nhật giá, món mới được thêm (1 trang ≈ 40–60 món).
  */
 const BATCH = {
   minDelay: 30_000,
@@ -37,6 +39,13 @@ async function queueFetch(limit) {
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
 }
+/** Gửi các ô sản phẩm đọc được trên 1 trang danh sách (tìm kiếm / danh mục / Flash Sale); key: trang trong hàng đợi quét */
+async function sendListing(items, extra = {}) {
+  const base = await self.sanDealServer();
+  const res = await fetch(`${base}/api/ext/listing`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items, ...extra }) }).catch(() => null);
+  return res && res.ok ? res.json().catch(() => null) : null;
+}
+
 /** Trang sản phẩm báo "không tồn tại": máy chủ ẩn món (không xoá dữ liệu; nhập lại mà sàn còn bán thì tự hiện lại) */
 async function queueDead(id) {
   const base = await self.sanDealServer();
@@ -107,15 +116,23 @@ async function startBatch() {
   return s;
 }
 
+/**
+ * Mở url trong tab chạy hàng loạt. Ghi trạng thái (mã tab, món đang mở) TRƯỚC khi chuyển trang: trang tải nhanh sẽ hỏi
+ * "có phải tab đang chạy không" ngay – nếu chưa ghi kịp, trang tưởng là tab thường và không gửi kết quả.
+ */
 async function ensureTab(s, url) {
   if (s.tabId != null) {
     const t = await chrome.tabs.get(s.tabId).catch(() => null);
     if (t) {
+      await saveBatch(s);
       await chrome.tabs.update(s.tabId, { url });
       return s.tabId;
     }
   }
-  const t = await chrome.tabs.create({ url, active: false });
+  const t = await chrome.tabs.create({ url: "about:blank", active: false });
+  s.tabId = t.id;
+  await saveBatch(s);
+  await chrome.tabs.update(t.id, { url });
   return t.id;
 }
 
@@ -145,7 +162,7 @@ async function nextItem() {
   }
   const item = s.queue.shift();
   s.current = { ...item, startedAt: now };
-  const why = item.reason === "price" ? `giá cũ ${item.staleDays ?? "?"} ngày` : item.reason === "request" ? "link khách hỏi" : "thiếu ảnh";
+  const why = item.reason === "listing" ? "trang danh sách" : item.reason === "price" ? `giá cũ ${item.staleDays ?? "?"} ngày` : item.reason === "request" ? "link khách hỏi" : "thiếu ảnh";
   s.status = `Đang mở (${why}${item.viaAffiliate ? ", chưa có link sản phẩm – mở link rút gọn" : ""}): ${item.name.slice(0, 60)}`;
   s.tabId = await ensureTab(s, item.url);
   await saveBatch(s);
@@ -162,6 +179,22 @@ async function finishItem(result) {
   if (result.blocked) {
     await saveBatch(s);
     return stopBatch("Tạm dừng: Shopee yêu cầu xác minh hoặc đăng nhập. Mở tab Săn Deal đang chạy, xác minh xong rồi bấm Tiếp tục (nên đợi vài giờ).");
+  }
+  if (item.listKey) {
+    const items = Array.isArray(result.listing) ? result.listing : [];
+    const r = await sendListing(items, { key: item.listKey });
+    s.hour.push(Date.now());
+    s.day.n++;
+    if (r) {
+      s.ok += r.created + r.updated;
+      s.listCreated = (s.listCreated || 0) + r.created;
+      s.status = `Đã đọc ${item.name}: ${items.length} món (${r.created} mới, ${r.updated} cập nhật giá)`;
+    } else {
+      s.fail++;
+      s.status = `Không đọc được ${item.name}`;
+    }
+    await saveBatch(s);
+    return schedule(randomDelay());
   }
   if (result.dead && item.id > 0) {
     const r = await queueDead(item.id);

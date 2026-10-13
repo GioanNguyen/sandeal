@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { listingSummary, listingTargets } from "@/lib/listing";
 import { redirect } from "next/navigation";
 import { AdminTabs } from "@/components/AdminTabs";
 import { Icon } from "@/components/Icon";
@@ -29,7 +30,7 @@ export default async function TodayAdmin() {
   if (!user) redirect("/login?next=/admin/hom-nay");
   if (!isAdmin(user.email)) redirect("/admin");
   const now = new Date();
-  const [todo, jobs, alerts, today, yesterday, chats] = await Promise.all([todoList(now), jobStates(now), openAlerts(), dayStats(now, 0), dayStats(now, -1), adminTelegramChats()]);
+  const [todo, jobs, alerts, today, yesterday, chats, scan, scanDue] = await Promise.all([todoList(now), jobStates(now), openAlerts(), dayStats(now, 0), dayStats(now, -1), adminTelegramChats(), listingSummary(now), listingTargets(now, 0)]);
   const t = now.getTime();
   const failing = jobs.filter((j) => j.stale || (j.state?.fails ?? 0) > 0);
   const hour = briefHour();
@@ -62,6 +63,10 @@ export default async function TodayAdmin() {
         <div className="kpi"><span>Hoa hồng ghi nhận</span><b className="save">{vnd(today.commission)}</b><small className="muted">{today.orders} đơn · hôm qua {vnd(yesterday.commission)}</small></div>
       </div>
       <p className="muted" style={{ fontSize: 13, marginTop: -4 }}>Hoa hồng theo ngày đặt hàng, chỉ có khi đã đồng bộ/nhập báo cáo của sàn (thường chậm vài giờ đến vài ngày).</p>
+      <p className="muted" style={{ fontSize: 13 }}>
+        <Icon name="puzzle" size={14} /> Tiện ích quét trang danh sách Shopee (7 ngày): <b>{num(scan.pages)}</b> trang · <b>{num(scan.created)}</b> món mới · <b>{num(scan.updated)}</b> món cập nhật giá
+        {scanDue.due ? <> · <b>{scanDue.due}</b> trang đang đến lượt quét (<Link href="/tien-ich">tiện ích</Link> › Bắt đầu)</> : null}
+      </p>
 
       <section className="section panel" aria-labelledby="todo-head">
         <h2 id="todo-head"><Icon name="list" /> Việc cần làm ({todo.length})</h2>

@@ -57,7 +57,8 @@ test("dán link chưa có dữ liệu: ghi tên, gợi ý món tương tự, đ�
   assert.equal(await rw.watchRequest(r.requestId, { email: "khach@test.vn" }), true, "đăng ký lại không bị trùng");
 
   // Hàng đợi tiện ích: link có người chờ được đưa lên
-  const qq = await q.extQueue({ now });
+  const all = await q.extQueue({ now });
+  const qq = { ...all, items: all.items.filter((x) => x.reason !== "listing") };
   assert.equal(qq.items[0].reason, "request");
   assert.equal(qq.items[0].id, -r.requestId);
   assert.equal(qq.items[0].url, "https://shopee.vn/product/77/9001");
@@ -76,4 +77,11 @@ test("dán link chưa có dữ liệu: ghi tên, gợi ý món tương tự, đ�
   assert.equal(await rw.notifyResolvedRequests(now), 0, "không báo lại");
   assert.equal((await q.markTried([-r.requestId], now)).stillMissing, 0, "đã có sản phẩm");
   assert.ok(!(await q.extQueue({ now })).items.some((x) => x.reason === "request"));
+});
+
+test("từ khoá loại hàng không bỏ nhầm chữ trùng từ thừa khi bỏ dấu (kem/kèm, bàn/bán, màu/mẫu)", () => {
+  assert.equal(similarKeywords("Kem chống nắng dạng xịt")[0], "Kem chống nắng");
+  assert.equal(similarKeywords("Quạt để bàn 3 tốc độ")[0], "Quạt để bàn");
+  assert.equal(similarKeywords("Bút màu nước 24 màu")[0], "Bút màu nước");
+  assert.equal(similarKeywords("[Chính hãng] Ốp lưng kèm dây đeo")[0], "Ốp lưng dây");
 });

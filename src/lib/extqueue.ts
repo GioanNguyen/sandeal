@@ -11,6 +11,7 @@ import { clicks, productRequests, productViews, products, requestWatchers, watch
 import { availableSql } from "./availability";
 import { db, ensureMigrated } from "./db";
 import { plainProductUrl } from "./links";
+import { listingTargets } from "./listing";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -23,7 +24,7 @@ const MAX_STALE_DAYS = 45;
 const g = globalThis as unknown as { __extQueueTried?: Map<number, number> };
 const tried = (g.__extQueueTried ??= new Map());
 
-export type QueueReason = "image" | "price" | "request";
+export type QueueReason = "image" | "price" | "request" | "listing";
 export interface QueueItem {
   id: number;
   name: string;
@@ -34,6 +35,8 @@ export interface QueueItem {
   staleDays?: number;
   /** Mở qua link affiliate rút gọn vì chưa biết link sản phẩm (mở xong web lưu link sản phẩm) */
   viaAffiliate?: boolean;
+  /** Trang danh sách (tìm kiếm / Flash Sale): đọc mọi ô sản phẩm trên trang – xem lib/listing.ts */
+  listKey?: string;
 }
 
 const noImage = sql`coalesce(${products.imageUrl}, '') = ''`;
@@ -81,7 +84,7 @@ function conditions(now: Date, score: SQL) {
   return { image, price, any: or(image, price)! };
 }
 
-export async function extQueue(opts: { limit?: number; now?: Date } = {}): Promise<{ items: QueueItem[]; remaining: number; counts: { image: number; price: number; request: number } }> {
+export async function extQueue(opts: { limit?: number; now?: Date } = {}): Promise<{ items: QueueItem[]; remaining: number; counts: { image: number; price: number; request: number; listing: number } }> {
   await ensureMigrated();
   const now = opts.now ?? new Date();
   const limit = Math.min(50, Math.max(1, opts.limit ?? 20));
@@ -140,9 +143,12 @@ export async function extQueue(opts: { limit?: number; now?: Date } = {}): Promi
   // Link khách dán mà chưa có dữ liệu (người đang chờ báo trước): mở trang là có ngay sản phẩm + lịch sử giá.
   // Mã âm để không trùng mã sản phẩm. Chiếm tối đa nửa hàng đợi mỗi lần.
   const reqs = await pendingRequests(now, Math.max(1, Math.ceil(limit / 2)));
-  const merged = [...reqs.items, ...items].slice(0, limit);
-  const counts = { image: Number(img.n), price: Number(prc.n), request: reqs.total };
-  return { items: merged, remaining: counts.image + counts.price + counts.request, counts };
+  // Trang danh sách đến lượt quét (mỗi trang ~50 món) đi đầu, tối đa 3 trang mỗi lần lấy hàng đợi
+  const lists = await listingTargets(now, Math.min(3, limit));
+  const listItems: QueueItem[] = lists.items.map((t) => ({ id: 0, listKey: t.key, name: t.label, platform: "shopee", url: t.url, reason: "listing" as const }));
+  const merged = [...listItems, ...reqs.items, ...items].slice(0, limit);
+  const counts = { image: Number(img.n), price: Number(prc.n), request: reqs.total, listing: lists.due };
+  return { items: merged, remaining: counts.image + counts.price + counts.request + counts.listing, counts };
 }
 
 /**

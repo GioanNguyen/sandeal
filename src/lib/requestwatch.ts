@@ -6,7 +6,6 @@
  */
 import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { productRequests, products, requestWatchers, subscriptions } from "@/db/schema";
-import { fold } from "./autocategory";
 import { db, ensureMigrated } from "./db";
 import { PLATFORMS, vnd } from "./format";
 import { button, escapeHtml, layout, sendMail, siteUrl } from "./mail";
@@ -19,7 +18,7 @@ const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[a-z]{2,}$/i;
 
 // Chữ không mang nghĩa sản phẩm (quảng cáo, đơn vị, mã) – bỏ khi đoán món tương tự
 const NOISE = new Set(
-  ["chinh", "hang", "chính", "hãng", "freeship", "free", "ship", "sale", "giam", "giảm", "gia", "giá", "re", "rẻ", "hot", "new", "moi", "mới", "combo", "set", "loai", "loại", "cao", "cap", "cấp", "tot", "tốt", "nhat", "nhất", "ban", "bán", "chay", "chạy", "mau", "mẫu", "2024", "2025", "2026", "hcm", "hn", "tphcm", "voucher", "qua", "quà", "tang", "tặng", "kem", "kèm", "bao", "bảo", "hanh", "hành"].map((w) => w.normalize("NFC")),
+  ["chinh", "chính", "hãng", "freeship", "free", "ship", "sale", "giam", "giảm", "gia", "giá", "re", "rẻ", "hot", "new", "moi", "mới", "combo", "set", "loai", "loại", "cao", "cap", "cấp", "tot", "tốt", "nhat", "nhất", "bán", "chay", "chạy", "mẫu", "2024", "2025", "2026", "hcm", "hn", "tphcm", "voucher", "qua", "quà", "tặng", "kèm", "bao", "bảo", "hanh", "hành"].map((w) => w.normalize("NFC")),
 );
 
 /** Từ khoá tìm món tương tự: các chữ đầu có nghĩa của tên (tên sản phẩm thường nói loại hàng trước) */
@@ -28,7 +27,8 @@ export function similarKeywords(hint: string): string[] {
     .normalize("NFC")
     .replace(/[\[\](){}|,.;:!?"'“”/\\#*]+/g, " ")
     .split(/\s+/)
-    .filter((w) => w.length >= 2 && !/^\d+([a-z]{0,3})$/i.test(w) && !NOISE.has(w.toLowerCase()) && !NOISE.has(fold(w).trim()));
+    // So đúng từ (có dấu): không so sau khi bỏ dấu, kẻo "kem" (kem chống nắng) thành "kèm", "bàn" thành "bán", "màu" thành "mẫu"
+    .filter((w) => w.length >= 2 && !/^\d+([a-z]{0,3})$/i.test(w) && !NOISE.has(w.toLowerCase()));
   const out: string[] = [];
   for (const n of [3, 2]) if (words.length >= n) out.push(words.slice(0, n).join(" "));
   if (words[0] && words[0].length >= 3) out.push(words[0]);
