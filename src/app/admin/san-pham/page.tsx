@@ -26,6 +26,7 @@ export const dynamic = "force-dynamic";
 type SP = { loc?: string; san?: string; q?: string; xep?: string; dm?: string; trang?: string };
 const SORTS: { key: HealthSort; label: string }[] = [
   { key: "seen", label: "Thấy gần nhất" },
+  { key: "oldest", label: "Lâu chưa cập nhật nhất" },
   { key: "views", label: "Xem nhiều (7 ngày)" },
   { key: "clicks", label: "Bấm mua nhiều (7 ngày)" },
   { key: "score", label: "Điểm deal" },

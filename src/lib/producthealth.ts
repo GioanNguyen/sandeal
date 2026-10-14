@@ -6,12 +6,13 @@
 import { and, asc, desc, eq, gte, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { clicks, productViews, products, watches, type Product } from "@/db/schema";
 import { availableSql } from "./availability";
+import { STALE_PRICE_DAYS } from "./extqueue";
 import { db, ensureMigrated } from "./db";
 import { refFromInput } from "./links";
 
 const DAY = 86_400_000;
 
-export type Issue = "gone" | "hidden" | "no_image" | "bad_image" | "no_category" | "bad_link" | "no_aff" | "bad_price" | "price_jump" | "new";
+export type Issue = "gone" | "hidden" | "stale" | "no_image" | "bad_image" | "no_category" | "bad_link" | "no_aff" | "bad_price" | "price_jump" | "new";
 
 /** Link mua Shopee là link affiliate (link rút gọn s.shopee.vn / shope.ee của tài khoản affiliate) – khớp NO_AFF_SQL */
 export const SHOPEE_AFF_RE = /^https?:\/\/(s\.shopee\.vn|shope\.ee)\//i;
@@ -19,6 +20,7 @@ export const isShopeeAffiliate = (url: string | null | undefined) => SHOPEE_AFF_
 
 export const ISSUES: { key: Issue; label: string; hint: string; tone: "bad" | "warn" | "info" }[] = [
   { key: "gone", label: "Không còn thấy trên sàn", hint: "Lần đồng bộ gần nhất của sàn không còn món này (hết hàng, ngừng bán hoặc hết khuyến mãi). Trang vẫn giữ nhưng không mời mua.", tone: "warn" },
+  { key: "stale", label: `Giá lâu chưa cập nhật (> ${STALE_PRICE_DAYS()} ngày)`, hint: `Món đang hiện trên web mà giá chưa được cập nhật quá ${STALE_PRICE_DAYS()} ngày (chưa nhập lại CSV, tiện ích chưa mở lại). Cập nhật bằng tiện ích (chế độ "Chỉ món thiếu ảnh, giá cũ") hoặc nhập file CSV mới. Sắp xếp "Lâu chưa cập nhật nhất" để làm món cũ nhất trước.`, tone: "warn" },
   { key: "hidden", label: "Đã ẩn", hint: "Quản trị viên đã ẩn: không hiện trong danh sách, khách mở trang thấy 404.", tone: "info" },
   { key: "bad_price", label: "Giá bất thường", hint: "Giá ≤ 0, giá gạch thấp hơn giá bán, hoặc ghi giảm trên 95%.", tone: "bad" },
   { key: "price_jump", label: "Giá đổi gấp đôi / còn nửa", hint: "Trong 7 ngày có mức giá gấp đôi hoặc chỉ bằng nửa giá hiện tại – nên mở sàn kiểm tra giá có đúng không.", tone: "warn" },
@@ -38,6 +40,8 @@ export function issueSql(key: Issue, now = new Date()): SQL {
       return sql`${products.hidden}`;
     case "gone":
       return sql`(not ${products.hidden} and not ${availableSql()})`;
+    case "stale":
+      return sql`(not ${products.hidden} and ${products.lastSeenAt} < ${new Date(now.getTime() - STALE_PRICE_DAYS() * DAY)})`;
     case "no_image":
       return sql`coalesce(${products.imageUrl}, '') = ''`;
     case "bad_image":
@@ -115,7 +119,7 @@ export async function healthSummary(now = new Date()): Promise<HealthSummary> {
   };
 }
 
-export type HealthSort = "seen" | "views" | "clicks" | "score" | "new";
+export type HealthSort = "seen" | "oldest" | "views" | "clicks" | "score" | "new";
 export const PAGE_SIZE = 40;
 
 export interface HealthRow {
@@ -130,12 +134,13 @@ export interface HealthRow {
 }
 
 /** Vấn đề của 1 món, tính từ dữ liệu đã có (khớp với issueSql) */
-export function rowIssues(p: Pick<Product, "platform" | "hidden" | "imageUrl" | "category" | "affiliateUrl" | "price" | "originalPrice" | "discountPct" | "createdAt">, flags: { available: boolean; priceJump: boolean; badImage?: boolean }, now = new Date()): Issue[] {
+export function rowIssues(p: Pick<Product, "platform" | "lastSeenAt" | "hidden" | "imageUrl" | "category" | "affiliateUrl" | "price" | "originalPrice" | "discountPct" | "createdAt">, flags: { available: boolean; priceJump: boolean; badImage?: boolean }, now = new Date()): Issue[] {
   const out: Issue[] = [];
   if (p.hidden) out.push("hidden");
   else if (!flags.available) out.push("gone");
   if (p.price <= 0 || ((p.originalPrice ?? 0) > 0 && p.originalPrice! < p.price) || p.discountPct > 95) out.push("bad_price");
   if (flags.priceJump) out.push("price_jump");
+  if (!p.hidden && p.lastSeenAt.getTime() < now.getTime() - STALE_PRICE_DAYS() * DAY) out.push("stale");
   if (!/^https?:\/\/[^/\s]+\.[a-z]{2,}/i.test(p.affiliateUrl) || /^https?:\/\/(www\.)?(example\.(com|org|net)|e\.com)(\/|$)/i.test(p.affiliateUrl)) out.push("bad_link");
   if (p.platform === "shopee" && !isShopeeAffiliate(p.affiliateUrl)) out.push("no_aff");
   if (!p.imageUrl) out.push("no_image");
@@ -219,6 +224,7 @@ export async function healthList(opts: HealthFilter & { sort?: HealthSort; page?
     : opts.sort === "clicks" ? [desc(clicksN), desc(products.lastSeenAt)]
     : opts.sort === "score" ? [desc(products.dealScore)]
     : opts.sort === "new" ? [desc(products.createdAt)]
+    : opts.sort === "oldest" ? [asc(products.lastSeenAt), asc(products.id)]
     : [desc(products.lastSeenAt), asc(products.id)];
   const page = Math.max(1, Math.floor(opts.page ?? 1));
   const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(products).where(where);

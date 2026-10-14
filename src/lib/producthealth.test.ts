@@ -180,3 +180,16 @@ test("lọc theo danh mục: danh sách danh mục kèm số món, lọc đúng 
   assert.deepEqual((await ph.healthList({ category: "Nhà cửa", q: "giá gạch", now: NOW })).list.map((r) => r.p.id), [ids.badprice], "kết hợp với ô tìm");
   assert.equal((await ph.healthList({ category: "Không có", now: NOW })).total, 0);
 });
+
+test("giá lâu chưa cập nhật: món đang hiện mà giá cũ hơn 3 ngày, sắp xếp lâu chưa cập nhật nhất lên đầu", async () => {
+  await add("stale-a", { name: "Món giá cũ 10 ngày", price: 10_000, platform: "lazada" }, ago(10));
+  await add("stale-b", { name: "Món giá cũ 5 ngày", price: 10_000, platform: "lazada" }, ago(5));
+  await add("stale-c", { name: "Món giá mới", price: 10_000, platform: "lazada" }, ago(1));
+  await add("stale-d", { name: "Món ẩn giá cũ", price: 10_000, platform: "lazada" }, ago(9));
+  const [a, b, h] = [ids["stale-a"], ids["stale-b"], ids["stale-d"]];
+  await dbm.db.update(schema.products).set({ hidden: true }).where((await import("drizzle-orm")).eq(schema.products.id, h));
+  const r = await ph.healthList({ issue: "stale", platform: "lazada", sort: "oldest", now: NOW });
+  assert.deepEqual(r.list.map((x) => x.p.id).filter((id) => id === a || id === b), [a, b], "cũ nhất trước, không có món ẩn / món mới");
+  assert.ok(!r.list.some((x) => x.p.id === h));
+  assert.ok(r.list.every((x) => x.issues.includes("stale")));
+});
