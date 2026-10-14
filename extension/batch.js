@@ -194,7 +194,7 @@ async function finishItem(result) {
     if (r) {
       s.ok += r.created + r.updated;
       s.listCreated = (s.listCreated || 0) + r.created;
-      s.status = `Đã đọc ${item.name}: ${items.length} món (${r.created} mới, ${r.updated} cập nhật giá)`;
+      s.status = `Đã đọc ${item.name}: ${items.length} món (${r.created} mới, ${r.updated} cập nhật giá${r.skipped ? `, ${r.skipped} món chưa có trên web – bỏ qua` : ""})`;
     } else {
       s.fail++;
       s.status = `Không đọc được ${item.name}`;

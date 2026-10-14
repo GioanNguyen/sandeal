@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { AWAIT_AFF_REASON } from "@/lib/deadlink";
 import { CardImage } from "@/components/CardImage";
 import { ProductImage } from "@/components/ProductImage";
 import { ShareImageButton } from "@/components/ShareImageButton";
@@ -92,7 +93,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
   if (!p) notFound();
   // Món quản trị viên đã ẩn: khách thấy 404, quản trị viên vẫn xem được (kèm ghi chú)
   const adminView = !!user && isAdmin(user.email);
-  if (p.hidden && !adminView) notFound();
+  // Món mới chờ link affiliate: không hiện trong danh sách / Google nhưng link trực tiếp vẫn mở được (vd khách dán link kiểm tra giá)
+  if (p.hidden && !adminView && p.hiddenReason !== AWAIT_AFF_REASON) notFound();
   const noindex = adminView ? productNoindexReason({ ...p, points: p.prices.length }) : null;
   // Đường dẫn cũ /product/12 hoặc tên đã đổi -> chuyển hẳn (301) sang đường dẫn có tên, giữ nguyên tham số
   const canonical = productPath(p);

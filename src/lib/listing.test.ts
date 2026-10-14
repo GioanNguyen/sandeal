@@ -8,6 +8,7 @@ process.env.SOURCES = "none";
 
 let ingest: typeof import("./ingest");
 let ls: typeof import("./listing");
+let dl: typeof import("./deadlink");
 let q: typeof import("./extqueue");
 let dbm: typeof import("./db");
 let schema: typeof import("@/db/schema");
@@ -18,6 +19,7 @@ before(async () => {
   await dbm.ensureMigrated();
   ingest = await import("./ingest");
   ls = await import("./listing");
+  dl = await import("./deadlink");
   q = await import("./extqueue");
   schema = await import("@/db/schema");
   eq = (await import("drizzle-orm")).eq;
@@ -38,7 +40,7 @@ test("một trang danh sách: món mới được thêm (có ảnh, link sản p
       { url: "https://shopee.vn/search?keyword=x", name: "không phải sản phẩm", price: 10_000 },
       { url: "https://shopee.vn/Mon-gia-hong-i.55.6003", name: "Món giá hỏng", price: 3 },
     ],
-    { observer: "listing:test" },
+    { observer: "listing:test", allowCreate: true },
     now,
   );
   assert.equal(r.total, 4, "link trùng chỉ tính 1 lần");
@@ -51,6 +53,44 @@ test("một trang danh sách: món mới được thêm (có ảnh, link sản p
   assert.equal(neu.originalPrice, 320_000);
   assert.match(neu.imageUrl ?? "", /susercontent/);
   assert.equal(neu.affiliateUrl, "https://shopee.vn/product/55/6002");
+  // Món mới chưa có link affiliate: ẩn khỏi danh sách cho tới khi có link
+  assert.equal(neu.hidden, true);
+  assert.equal(neu.hiddenReason, dl.AWAIT_AFF_REASON);
+});
+
+test("trang không được thêm món mới (Flash Sale, loại hàng, tự lướt): chỉ cập nhật giá món đã có", async () => {
+  const now = new Date(Date.now() + 2 * HOUR);
+  const r = await ls.recordListing(
+    [
+      { url: "https://shopee.vn/Quat-tich-dien-mini-Xiaomi-i.55.6001", name: "Quạt tích điện mini Xiaomi", price: 175_000 },
+      { url: "https://shopee.vn/Mon-moi-i.55.6099", name: "Món mới chưa có", price: 99_000 },
+    ],
+    { observer: "listing:test2" },
+    now,
+  );
+  assert.equal(r.updated, 1);
+  assert.equal(r.created, 0);
+  assert.equal(r.skipped, 1);
+  assert.equal(await get("6099"), undefined);
+});
+
+test("món chờ link affiliate: có link (tải file kết quả hoặc nhập CSV có Link ưu đãi) thì hiện lại; vẫn có trong danh sách xuất", async () => {
+  const al = await import("./afflinks");
+  const exp = await al.affLinkExport();
+  assert.ok(exp.rows.some((x) => x.url === "https://shopee.vn/product/55/6002"), "món chờ link vẫn được xuất để tạo link");
+  await al.applyAffLinks(al.parseAffLinks("https://shopee.vn/product/55/6002,https://s.shopee.vn/Moi1"));
+  const p = await get("6002");
+  assert.equal(p.hidden, false);
+  assert.equal(p.hiddenReason, null);
+  assert.equal(p.affiliateUrl, "https://s.shopee.vn/Moi1");
+
+  // Nhập CSV có Link ưu đãi cũng làm món hiện lại
+  await ingest.upsertProduct({ platform: "shopee", externalId: "6010", name: "Món chờ link", price: 50_000, discountPct: 0, affiliateUrl: "https://shopee.vn/product/55/6010" }, new Date(), { priceSource: "ext" });
+  await dbm.db.update(schema.products).set({ hidden: true, hiddenReason: dl.AWAIT_AFF_REASON }).where(eq(schema.products.externalId, "6010"));
+  await ingest.upsertProduct({ platform: "shopee", externalId: "6010", name: "Món chờ link", price: 50_000, discountPct: 0, affiliateUrl: "https://shopee.vn/product/55/6010" }, new Date());
+  assert.equal((await get("6010")).hidden, true, "lần nhập không có link affiliate: vẫn chờ");
+  await ingest.upsertProduct({ platform: "shopee", externalId: "6010", name: "Món chờ link", price: 50_000, discountPct: 0, affiliateUrl: "https://s.shopee.vn/Moi2" }, new Date());
+  assert.equal((await get("6010")).hidden, false);
 });
 
 test("trang cần quét: Flash Sale, từ khoá khách tìm không ra, loại hàng được quan tâm; quét xong thì chờ tới lượt sau", async () => {

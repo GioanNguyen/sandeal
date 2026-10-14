@@ -14,10 +14,20 @@ import { memoClear } from "./memo";
 
 const HOUR = 3_600_000;
 export const DEAD_LINK_REASON = "Link không còn trên sàn (tiện ích phát hiện)";
+/**
+ * Món mới do tiện ích thêm từ trang danh sách mà chưa có link affiliate: không hiện trong danh sách / tìm kiếm / Google
+ * (khách bấm mua không có hoa hồng) nhưng vẫn mở được bằng link trực tiếp và vẫn tích lịch sử giá. Có link affiliate
+ * (Quản trị › Sản phẩm › Chưa có link affiliate, hoặc file CSV có "Link ưu đãi") thì tự hiện.
+ */
+export const AWAIT_AFF_REASON = "Chờ link affiliate (món mới từ trang danh sách)";
+const AFF_SQL_RE = "^https?://(s\\.shopee\\.vn|shope\\.ee)/";
 
-/** Phần SET khi nhập lại món: món bị ẩn vì link chết mà nay sàn còn bán thì hiện lại (món ẩn vì lý do khác giữ nguyên) */
+/**
+ * Phần SET khi nhập lại món: món bị ẩn vì link chết mà nay sàn còn bán thì hiện lại; món chờ link affiliate mà lần nhập
+ * này có link affiliate (excluded = dòng đang nhập) cũng hiện lại. Món ẩn vì lý do khác giữ nguyên.
+ */
 export function reviveDeadLinkSet() {
-  const dead = sql`${products.hiddenReason} = ${DEAD_LINK_REASON}`;
+  const dead = sql`(${products.hiddenReason} = ${DEAD_LINK_REASON} or (${products.hiddenReason} = ${AWAIT_AFF_REASON} and excluded.affiliate_url ~* ${AFF_SQL_RE}))`;
   return {
     hidden: sql`case when ${dead} then false else ${products.hidden} end`,
     hiddenAt: sql`case when ${dead} then null else ${products.hiddenAt} end`,

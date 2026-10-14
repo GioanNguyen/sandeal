@@ -8,6 +8,7 @@
  * Không phụ thuộc tên cột: Shopee đổi mẫu file thì vẫn đọc được, miễn mỗi dòng có đủ 2 link (CSV, dán từ Excel, văn bản).
  */
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { AWAIT_AFF_REASON } from "./deadlink";
 import { clicks, products, watches } from "@/db/schema";
 import { db, ensureMigrated } from "./db";
 import { parseProductUrl, plainProductUrl } from "./links";
@@ -32,7 +33,8 @@ export async function affLinkExport(max = EXPORT_MAX): Promise<AffExport> {
     .from(products)
     .leftJoin(clk, sql`${clk.pid} = ${products.id}`)
     .leftJoin(wat, sql`${wat.pid} = ${products.id}`)
-    .where(and(issueSql("no_aff"), sql`not ${products.hidden}`))
+    // Món ẩn bỏ qua, trừ món mới đang chờ link affiliate (chính là món cần xuất)
+    .where(and(issueSql("no_aff"), sql`(not ${products.hidden} or ${products.hiddenReason} = ${AWAIT_AFF_REASON})`))
     .orderBy(desc(sql`coalesce(${clk.n}, 0) + 10 * coalesce(${wat.n}, 0)`), desc(products.lastSeenAt))
     .limit(max);
   const rows: AffExport["rows"] = [];
@@ -101,7 +103,16 @@ export async function applyAffLinks(p: AffParse): Promise<AffApply> {
       found.add(r.externalId);
       const aff = p.pairs.get(r.externalId)!;
       if (r.affiliateUrl === aff) continue;
-      await db.update(products).set({ affiliateUrl: aff }).where(eq(products.id, r.id));
+      // Món mới chờ link affiliate: có link rồi thì hiện lên web
+      await db
+        .update(products)
+        .set({
+          affiliateUrl: aff,
+          hidden: sql`case when ${products.hiddenReason} = ${AWAIT_AFF_REASON} then false else ${products.hidden} end`,
+          hiddenAt: sql`case when ${products.hiddenReason} = ${AWAIT_AFF_REASON} then null else ${products.hiddenAt} end`,
+          hiddenReason: sql`case when ${products.hiddenReason} = ${AWAIT_AFF_REASON} then null else ${products.hiddenReason} end`,
+        })
+        .where(eq(products.id, r.id));
       updated++;
     }
   }

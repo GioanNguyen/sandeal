@@ -10,7 +10,9 @@
  *      · trang Flash Sale (deal trong ngày)
  *    mỗi trang có thời gian chờ riêng trước khi quét lại; lần quét gần nhất lưu trong kv_store.
  */
-import { and, count, desc, eq, gte, like, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, like, sql } from "drizzle-orm";
+import { AWAIT_AFF_REASON } from "./deadlink";
+import { parseProductUrl } from "./links";
 import { clicks, kvStore, productViews, products, searchLog, watches } from "@/db/schema";
 import { db, ensureMigrated } from "./db";
 import { memoClear } from "./memo";
@@ -29,17 +31,35 @@ export interface ListingItem {
   image?: string;
 }
 
-export type ListingStats = Record<ObserveStatus, number> & { total: number };
+/** skipped: món chưa có trên web mà trang này không được thêm món mới (chỉ cập nhật giá) */
+export type ListingStats = Record<ObserveStatus, number> & { total: number; skipped: number };
 
-/** Ghi các món đọc được trên 1 trang danh sách. category: danh mục của trang (nếu biết) cho món mới */
-export async function recordListing(items: ListingItem[], ctx: { observer: string; category?: string }, now = new Date()): Promise<ListingStats> {
+/**
+ * Ghi các món đọc được trên 1 trang danh sách. category: danh mục của trang (nếu biết) cho món mới.
+ * allowCreate: được thêm món mới không – chỉ trang tìm kiếm theo từ khoá khách cần (Săn Deal chưa có kết quả); Flash Sale,
+ * loại hàng quan tâm và trang quản trị viên tự lướt chỉ cập nhật giá món đã có (để không thêm ồ ạt món chưa có link affiliate).
+ * Món mới thêm được ẩn khỏi danh sách cho tới khi có link affiliate (AWAIT_AFF_REASON).
+ */
+export async function recordListing(items: ListingItem[], ctx: { observer: string; category?: string; allowCreate?: boolean }, now = new Date()): Promise<ListingStats> {
   await ensureMigrated();
-  const stats: ListingStats = { created: 0, updated: 0, ignored: 0, pending: 0, dup: 0, invalid: 0, total: 0 };
+  const stats: ListingStats = { created: 0, updated: 0, ignored: 0, pending: 0, dup: 0, invalid: 0, total: 0, skipped: 0 };
   const seen = new Set<string>();
-  for (const it of items.slice(0, LISTING_MAX_ITEMS)) {
-    if (!it || typeof it.url !== "string" || seen.has(it.url)) continue;
+  const list = items.slice(0, LISTING_MAX_ITEMS).filter((it) => it && typeof it.url === "string");
+  // Món nào đã có trên web (theo mã sàn)
+  const refs = new Map(list.map((it) => [it.url, parseProductUrl(it.url)]));
+  const ids = [...new Set([...refs.values()].filter((r) => r?.platform === "shopee").map((r) => r!.externalId))];
+  const existing = new Set(
+    ids.length ? (await db.select({ e: products.externalId }).from(products).where(and(eq(products.platform, "shopee"), inArray(products.externalId, ids)))).map((r) => r.e) : [],
+  );
+  for (const it of list) {
+    if (seen.has(it.url)) continue;
     seen.add(it.url);
     stats.total++;
+    const ref = refs.get(it.url);
+    if (ref && !existing.has(ref.externalId) && !ctx.allowCreate) {
+      stats.skipped++;
+      continue;
+    }
     const r = await recordObservation(
       {
         url: it.url,
@@ -51,8 +71,12 @@ export async function recordListing(items: ListingItem[], ctx: { observer: strin
       },
       ctx.observer,
       now,
-    ).catch(() => ({ status: "invalid" as const }));
+    ).catch(() => ({ status: "invalid" as const, productId: undefined }));
     stats[r.status]++;
+    if (r.status === "created" && r.productId) {
+      existing.add(ref?.externalId ?? "");
+      await db.update(products).set({ hidden: true, hiddenReason: AWAIT_AFF_REASON, hiddenAt: now }).where(and(eq(products.id, r.productId), sql`${products.affiliateUrl} !~* '^https?://(s\.shopee\.vn|shope\.ee)/'`));
+    }
   }
   if (stats.created || stats.updated) memoClear("home:");
   return stats;

@@ -24,7 +24,9 @@ export async function POST(req: Request) {
   }
   const items = (Array.isArray(b.items) ? b.items : []).slice(0, LISTING_MAX_ITEMS) as ListingItem[];
   const category = typeof b.category === "string" && b.category.length <= 60 ? b.category : undefined;
-  const stats = await recordListing(items, { observer: `listing:${clientIp(req)}`, category });
+  // Chỉ trang tìm kiếm theo từ khoá khách cần (trong hàng đợi) được thêm món mới; trang khác chỉ cập nhật giá món đã có
+  const allowCreate = typeof b.key === "string" && b.key.startsWith("search:");
+  const stats = await recordListing(items, { observer: `listing:${clientIp(req)}`, category, allowCreate });
   if (typeof b.key === "string") await markListingDone(b.key, stats);
   return NextResponse.json({ ok: true, ...stats }, { headers: NO_STORE });
 }
