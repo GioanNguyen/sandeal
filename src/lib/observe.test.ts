@@ -104,3 +104,50 @@ test("máy chủ: ghi nhận giá góp, chống spam và giá bất thường", 
   // Món nguồn "ext" không bị coi là "không còn thấy trên sàn"
   assert.equal(av.isUnavailable({ ...p, lastSeenAt: new Date(t0.getTime() - 30 * 24 * H) }, await av.platformLatest()), false);
 });
+
+test("quản trị viên mở món giá cũ: áp giá ngay dù lệch nhiều, không bỏ qua trong 30 phút; món giá còn mới vẫn chờ xác nhận", async () => {
+  const dbm = await import("./db");
+  await dbm.ensureMigrated();
+  const { recordObservation } = await import("./observe");
+  const q = await import("./queries");
+  const H = 3_600_000;
+  const t0 = new Date("2026-03-01T00:00:00Z");
+  const url = "https://shopee.vn/product/777/888999";
+  const a = await recordObservation({ url, name: "Quạt tích điện Z", price: 300000 }, "7.7.7.7", t0);
+  assert.equal(a.status, "created");
+  const later = new Date(t0.getTime() + 10 * 24 * H);
+  // Người thường: lệch > 50% vẫn chờ người thứ 2
+  assert.equal((await recordObservation({ url, name: "Quạt tích điện Z", price: 99000 }, "8.8.8.8", later)).status, "pending");
+  // Quản trị viên (cùng lúc, cùng máy vừa gửi): áp ngay
+  const r = await recordObservation({ url, name: "Quạt tích điện Z", price: 99000 }, "8.8.8.8", new Date(later.getTime() + 60_000), { trusted: true });
+  assert.equal(r.status, "updated");
+  const p = (await q.getProduct(a.productId!))!;
+  assert.equal(p.price, 99000);
+  assert.equal(p.lastSeenAt.getTime(), later.getTime() + 60_000, "hết báo giá cũ");
+  // Giá vừa cập nhật: quản trị viên báo giá lệch nhiều vẫn phải chờ xác nhận, mở lại trong 30 phút vẫn bỏ qua
+  assert.equal((await recordObservation({ url, name: "Quạt tích điện Z", price: 500000 }, "9.8.8.8", new Date(later.getTime() + H), { trusted: true })).status, "pending");
+  assert.equal((await recordObservation({ url, name: "Quạt tích điện Z", price: 99000 }, "8.8.8.8", new Date(later.getTime() + 2 * 60_000), { trusted: true })).status, "dup");
+});
+
+
+test("món giá cũ, giá trên trang tăng mạnh (loại rẻ nhất hết hàng): nhận ngay; giá giảm mạnh vẫn chờ xác nhận", async () => {
+  const dbm = await import("./db");
+  await dbm.ensureMigrated();
+  const { recordObservation } = await import("./observe");
+  const q = await import("./queries");
+  const H = 3_600_000;
+  const t0 = new Date("2026-04-01T00:00:00Z");
+  const url = "https://shopee.vn/product/123/456789";
+  const a = await recordObservation({ url, name: "Thước kẹp điện tử 150mm", price: 142000 }, "10.0.0.1", t0);
+  assert.equal(a.status, "created");
+  // Giá còn mới: tăng > 50% vẫn chờ người thứ 2
+  assert.equal((await recordObservation({ url, name: "Thước kẹp điện tử 150mm", price: 392040 }, "10.0.0.2", new Date(t0.getTime() + H))).status, "pending");
+  // Sau 9 ngày: một người thấy giá tăng là đủ
+  const later = new Date(t0.getTime() + 9 * 24 * H);
+  assert.equal((await recordObservation({ url, name: "Thước kẹp điện tử 150mm", price: 392040 }, "10.0.0.3", later)).status, "updated");
+  assert.equal((await q.getProduct(a.productId!))!.price, 392040);
+  // Lại cũ 9 ngày, giá giảm mạnh: vẫn chờ người thứ 2
+  const later2 = new Date(later.getTime() + 9 * 24 * H);
+  assert.equal((await recordObservation({ url, name: "Thước kẹp điện tử 150mm", price: 99000 }, "10.0.0.4", later2)).status, "pending");
+  assert.equal((await q.getProduct(a.productId!))!.price, 392040);
+});

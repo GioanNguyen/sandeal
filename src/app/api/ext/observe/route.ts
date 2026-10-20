@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getCurrentUser, isAdmin, SESSION_COOKIE } from "@/lib/auth";
 import { recordObservation } from "@/lib/observe";
 import { allow, clientIp } from "@/lib/ratelimit";
 
@@ -15,6 +16,13 @@ const CORS = {
 
 export function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS });
+}
+
+/** Tiện ích đang đăng nhập tài khoản quản trị (chỉ tra phiên khi có cookie phiên; cookie sd_staff không tính vì giả được) */
+async function fromAdmin(req: Request): Promise<boolean> {
+  if (!new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=`).test(req.headers.get("cookie") ?? "")) return false;
+  const user = await getCurrentUser().catch(() => null);
+  return !!user && isAdmin(user.email);
 }
 
 export async function POST(req: Request) {
@@ -37,6 +45,8 @@ export async function POST(req: Request) {
       category: typeof b.category === "string" ? b.category : undefined,
     },
     ip,
+    new Date(),
+    { trusted: await fromAdmin(req) },
   );
   return NextResponse.json(r, { status: r.status === "invalid" ? 400 : 200, headers: CORS });
 }

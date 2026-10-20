@@ -21,8 +21,10 @@ async function lookup(url) {
 /** Gửi giá người dùng đang thấy (chỉ gọi khi đã bật "Góp giá") */
 async function observe(payload) {
   const base = await server();
+  // Gửi kèm phiên đăng nhập: giá quản trị viên thấy trên món giá cũ được áp ngay (không chờ người thứ 2 xác nhận)
   const res = await fetch(`${base}/api/ext/observe`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });

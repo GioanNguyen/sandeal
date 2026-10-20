@@ -129,13 +129,36 @@
     return `<div class="consent" role="group" aria-label="Góp giá"><b>Góp giá & đánh giá ẩn danh?</b>Khi bạn xem trang sản phẩm, tiện ích gửi <b style="display:inline">tên, giá, ảnh</b> sản phẩm và <b style="display:inline">các đánh giá đang hiện trên trang</b> (số sao, nội dung, không gồm tên người đánh giá) cho Săn Deal để xây lịch sử giá và tóm tắt đánh giá cho mọi người. Không gửi thông tin gì về bạn. Đổi lại được trong Tuỳ chọn.<div class="row"><button class="yes" id="c-yes">Đồng ý</button><button id="c-no">Không</button></div></div>`;
   }
 
+  /**
+   * Đánh giá giá đang thấy. Giá chung của món là giá "từ" (phân loại rẻ nhất), nên khi người dùng đã chọn phân loại
+   * có giá khác hẳn thì đánh giá theo giá của phân loại đó, không theo giá chung. Giá chung đã cũ thì không báo "giá tốt".
+   */
+  function judge(state) {
+    const p = state.data.product, va = state.variant;
+    const cur = va && state.variantPrice ? state.variantPrice : p.price;
+    const byVariant = !!(va && state.variantPrice) && Math.abs(cur / p.price - 1) > 0.02;
+    const ageDays = Math.floor((Date.now() - (p.priceAt || Date.now())) / 86400000);
+    if (byVariant) {
+      if (va.points < 2) return { cur, byVariant, kind: "new", label: "Đang theo dõi", title: "Mới theo dõi phân loại này", small: `Giá chung từ ${vnd(p.price)} là của phân loại rẻ hơn. Cần thêm dữ liệu để đánh giá phân loại bạn chọn.` };
+      if (cur <= va.low90 * 1.02) return { cur, byVariant, kind: "good", label: "Giá tốt", title: "Giá tốt cho phân loại này", small: "Bằng giá thấp nhất 90 ngày của phân loại bạn chọn." };
+      return { cur, byVariant, kind: "wait", label: "Chưa tốt nhất", title: "Chưa phải giá tốt nhất", small: `Phân loại này từng có giá ${vnd(va.low90)} trong 90 ngày.` };
+    }
+    if (p.verdict === "good" && ageDays >= 3) return { cur, byVariant, kind: "new", label: "Giá cũ", title: `Giá Săn Deal đã cũ ${ageDays} ngày`, small: "Chưa chắc giá trên trang còn tốt, chờ cập nhật giá mới để đánh giá lại." };
+    if (p.verdict === "good") {
+      const off = Math.round((1 - p.price / p.usual) * 100);
+      return { cur, byVariant, kind: "good", label: "Giá tốt", title: "Giá tốt, có thể mua", small: off >= 1 ? `Rẻ hơn ${off}% so với giá thường ngày.` : p.price <= p.low90 ? "Đang bằng giá thấp nhất 90 ngày." : "Ngang mức giá thường ngày." };
+    }
+    if (p.verdict === "new") return { cur, byVariant, kind: "new", label: "Đang theo dõi", title: "Mới bắt đầu theo dõi", small: "Cần khoảng 7 ngày dữ liệu để đánh giá." };
+    return { cur, byVariant, kind: "wait", label: "Chưa tốt nhất", title: "Chưa phải giá tốt nhất", small: `Từng có giá ${vnd(p.low90)} trong 90 ngày.` };
+  }
+
   function render(state) {
     current = state;
     mount();
     const style = `<style>${CSS}</style>`;
     if (collapsed && state.kind === "found") {
-      const p = state.data.product;
-      root.innerHTML = `${style}<button class="pill" id="open">Săn Deal · ${p.sample ? "Dữ liệu mẫu · " : ""}${p.verdict === "good" ? "Giá tốt" : p.verdict === "new" ? "Đang theo dõi" : "Chưa tốt nhất"} · ${p.realDropPct >= 1 ? "giảm thật " + Math.round(p.realDropPct) + "%" : vnd(p.price)}</button>`;
+      const p = state.data.product, j = judge(state);
+      root.innerHTML = `${style}<button class="pill" id="open">Săn Deal · ${p.sample ? "Dữ liệu mẫu · " : ""}${j.label} · ${!j.byVariant && p.realDropPct >= 1 ? "giảm thật " + Math.round(p.realDropPct) + "%" : vnd(j.cur)}</button>`;
       root.getElementById("open").onclick = () => { collapsed = false; chrome.storage.local.set({ collapsed }); render(state); };
       return;
     }
@@ -145,12 +168,10 @@
     else if (state.kind === "queued") body = `<p>${state.contributing ? "Đang ghi nhận giá từ trang này để bắt đầu theo dõi…" : "Chưa có dữ liệu cho sản phẩm này. Chúng tôi đã ghi nhận và sẽ bắt đầu theo dõi giá."}</p><a class="btn" target="_blank" href="${esc(state.data.checkUrl)}">Mở trên Săn Deal</a>`;
     else {
       const { product: p, offers, links } = state.data;
-      const v = p.verdict === "good"
-        ? `<div class="verdict good">Giá tốt, có thể mua<small>Rẻ hơn ${Math.max(0, Math.round((1 - p.price / p.usual) * 100))}% so với giá thường ngày.</small></div>`
-        : p.verdict === "new"
-        ? `<div class="verdict new">Mới bắt đầu theo dõi<small>Cần khoảng 7 ngày dữ liệu để đánh giá.</small></div>`
-        : `<div class="verdict wait">Chưa phải giá tốt nhất<small>Từng có giá ${vnd(p.low90)} trong 90 ngày.</small></div>`;
-      const cheaper = offers.length > 1 && offers[0].id !== p.id ? offers[0] : null;
+      const j = judge(state);
+      const v = `<div class="verdict ${j.kind}">${esc(j.title)}<small>${esc(j.small)}</small></div>`;
+      // So sàn khác / mã giảm / dự báo đều tính trên giá chung: ẩn khi đang xem phân loại giá khác hẳn
+      const cheaper = !j.byVariant && offers.length > 1 && offers[0].id !== p.id ? offers[0] : null;
       const ago = (() => {
         const m = Math.round((Date.now() - (p.priceAt || Date.now())) / 60000);
         return m < 1 ? "vừa xong" : m < 60 ? `${m} phút trước` : m < 1440 ? `${Math.round(m / 60)} giờ trước` : `${Math.round(m / 1440)} ngày trước`;
@@ -169,13 +190,16 @@
         ? `<div class="rv"><b>Phân loại bạn chọn</b><br>${esc(state.variant.name)}: <b>${vnd(state.variantPrice || state.variant.price)}</b>${state.variant.points >= 2 ? ` · thấp nhất 90 ngày <b>${vnd(state.variant.low90)}</b>` : " · Săn Deal bắt đầu theo dõi giá phân loại này"}${state.variant.points >= 2 && (state.variantPrice || state.variant.price) <= state.variant.low90 ? " ✓" : ""}<br><a target="_blank" href="${esc(links.detail)}#phan-loai">Báo khi phân loại này giảm giá</a></div>`
         : "";
       body = `${sample}${risk}${v}${vr}${rv}
-        <div class="kpis"><div class="kpi"><span>Hiện tại</span><b>${vnd(p.price)}</b></div><div class="kpi"><span>Thấp nhất</span><b>${vnd(p.low90)}</b></div><div class="kpi"><span>Thường ngày</span><b>${vnd(p.usual)}</b></div></div>
+        ${j.byVariant
+          ? `<div class="kpis"><div class="kpi"><span>Loại bạn chọn</span><b>${vnd(j.cur)}</b></div><div class="kpi"><span>Thấp nhất (loại này)</span><b>${state.variant.points >= 2 ? vnd(Math.min(state.variant.low90, j.cur)) : "—"}</b></div><div class="kpi"><span>Giá từ</span><b>${vnd(p.price)}</b></div></div>
+        <div class="muted">"Giá từ" là giá của phân loại rẻ nhất, Săn Deal cập nhật ${ago}. Đánh giá phía trên tính theo phân loại bạn chọn.</div>`
+          : `<div class="kpis"><div class="kpi"><span>Hiện tại</span><b>${vnd(p.price)}</b></div><div class="kpi"><span>Thấp nhất</span><b>${vnd(p.low90)}</b></div><div class="kpi"><span>Thường ngày</span><b>${vnd(p.usual)}</b></div></div>
         <div class="muted">Giá Săn Deal cập nhật ${ago}. Giá trên trang có thể khác theo phân loại bạn chọn hoặc voucher của shop.</div>
-        ${spark(p.history, p.price)}
-        ${p.forecast ? (p.forecast.pct >= 3
+        ${spark(p.history, p.price)}`}
+        ${p.forecast && !j.byVariant ? (p.forecast.pct >= 3
           ? `<div class="muted">📅 Dự kiến ${esc(p.forecast.sale)} (còn ${p.forecast.days} ngày): <b>~${vnd(p.forecast.expected)}</b> · chờ có thể rẻ hơn ~${vnd(p.forecast.save)}. <small>Ước tính từ ${esc(p.forecast.basisText)}.</small></div>`
           : `<div class="muted">📅 ${esc(p.forecast.sale)} (còn ${p.forecast.days} ngày): các đợt trước giá gần như không giảm thêm.</div>`) : ""}
-        ${p.afterCodes < p.price ? `<div class="muted">Sau mã giảm tốt nhất: <b>${vnd(p.afterCodes)}</b> · <a target="_blank" href="${esc(links.calc)}">cách áp mã</a></div>` : ""}
+        ${!j.byVariant && p.afterCodes < p.price ? `<div class="muted">Sau mã giảm tốt nhất: <b>${vnd(p.afterCodes)}</b> · <a target="_blank" href="${esc(links.calc)}">cách áp mã</a></div>` : ""}
         ${offers.length > 1 ? `<div class="offers">${offers.map((o, i) => `<a class="offer${i === 0 ? " best" : ""}" target="_blank" href="${esc(o.detail)}"><span>${LABEL[o.platform] || o.platform}${o.id === p.id ? " (đang xem)" : ""}</span><b>${vnd(o.price)}</b></a>`).join("")}</div>` : ""}
         ${cheaper ? `<div class="verdict wait" style="font-weight:600">${LABEL[cheaper.platform]} đang rẻ hơn ${vnd(p.price - cheaper.price)}</div>` : ""}
         <div class="actions">

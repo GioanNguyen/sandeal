@@ -213,15 +213,27 @@ async function finishItem(result) {
     return schedule(randomDelay());
   }
   let ok = false;
+  let st = null;
   if (result.data && result.data.price > 0) {
     const r = await observe({ url: result.url || item.url, ...result.data }).catch(() => null);
+    st = r && r.status;
     ok = !!r && r.status !== "invalid" && r.status !== "error";
   }
   ok ? s.ok++ : s.fail++;
   s.hour.push(Date.now());
   s.day.n++;
   if (s.remaining) s.remaining = Math.max(0, s.remaining - (ok ? 1 : 0));
-  s.status = ok ? `Đã cập nhật${item.viaAffiliate ? " (đã lưu link sản phẩm)" : ""}: ${item.name.slice(0, 60)}` : `Không đọc được: ${item.name.slice(0, 60)}`;
+  // Nói đúng kết quả: chỉ "created"/"updated" mới đổi giá trên web
+  const nm = item.name.slice(0, 60);
+  s.status = !ok
+    ? `Không đọc được: ${nm}`
+    : st === "pending"
+      ? `Giá lệch nhiều so với giá đang lưu – chờ xác nhận, chưa đổi: ${nm}`
+      : st === "dup"
+        ? `Vừa ghi giá món này trong 30 phút – bỏ qua: ${nm}`
+        : st === "ignored"
+          ? `Nguồn chính thức vừa cập nhật – giữ nguyên: ${nm}`
+          : `Đã cập nhật${item.viaAffiliate ? " (đã lưu link sản phẩm)" : ""}: ${nm}`;
   await saveBatch(s);
   queueTried(item.id);
   schedule(randomDelay());

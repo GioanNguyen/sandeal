@@ -71,6 +71,8 @@ export async function recordListing(items: ListingItem[], ctx: { observer: strin
       },
       ctx.observer,
       now,
+      // Trang danh sách chỉ quản trị viên quét
+      { trusted: true },
     ).catch(() => ({ status: "invalid" as const, productId: undefined }));
     stats[r.status]++;
     if (r.status === "created" && r.productId) {

@@ -15,8 +15,8 @@ import { listingTargets } from "./listing";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
-/** Giá quá ngần này ngày chưa cập nhật là "giá cũ" */
-export const STALE_PRICE_DAYS = () => Math.max(1, Number(process.env.STALE_PRICE_DAYS) || 3);
+import { STALE_PRICE_DAYS } from "./stale";
+export { STALE_PRICE_DAYS };
 /** Món vắng lâu hơn thế này thì thôi (nhiều khả năng đã ngừng bán) */
 const MAX_STALE_DAYS = 45;
 

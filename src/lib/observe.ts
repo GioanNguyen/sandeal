@@ -5,7 +5,8 @@
  *  - Ảnh, ảnh phụ, danh mục, giá gốc chỉ bổ sung khi món còn thiếu; số sao cập nhật theo lần xem mới nhất. Không nhận gì về người dùng;
  *    IP chỉ dùng dưới dạng băm để đếm số người quan sát khác nhau.
  *  - Không đè giá từ nguồn API còn mới (≤ 24 giờ).
- *  - Giá lệch quá 50% so với giá đang lưu cần ≥ 2 người quan sát khác nhau thấy cùng mức (±2%) trong 6 giờ.
+ *  - Giá lệch quá 50% so với giá đang lưu cần ≥ 2 người quan sát khác nhau thấy cùng mức (±2%) trong 6 giờ
+ *    (trừ khi giá đang lưu đã cũ và giá mới cao hơn: nhận ngay).
  *  - Mỗi người, mỗi sản phẩm tối đa 1 lần ghi mỗi 30 phút.
  *  - Giá gạch (giá gốc) chỉ ghi khi món CHƯA có giá gốc; đã có thì giữ nguyên, lần góp sau không cập nhật.
  */
@@ -16,6 +17,7 @@ import { priceObservations, productRequests, products, type Product } from "@/db
 import { db, ensureMigrated } from "./db";
 import { upsertProduct } from "./ingest";
 import { parseProductUrl } from "./links";
+import { STALE_PRICE_DAYS } from "./stale";
 
 const HOUR = 3_600_000;
 const pct = (price: number, original: number) => Math.round((1 - price / original) * 100);
@@ -84,7 +86,12 @@ async function nameTakenElsewhere(platform: string, name: string, externalId: st
 /** Link sản phẩm mở được thật: Shopee cần mã shop (link /product/0/… không mở đúng trang) */
 const hasShopId = (ref: { platform: string; url: string }) => ref.platform !== "shopee" || /\/product\/[1-9]\d*\/\d+/.test(ref.url);
 
-export async function recordObservation(o: Observation, ip: string, now = new Date()): Promise<{ status: ObserveStatus; productId?: number }> {
+/**
+ * opts.trusted: giá do quản trị viên gửi (tiện ích đang đăng nhập tài khoản quản trị, hoặc trang danh sách quản trị viên quét).
+ * Món có giá đã cũ (quá STALE_PRICE_DAYS ngày) thì giá cũ không còn đáng tin để so: giá quản trị viên thấy được áp ngay,
+ * không chờ người thứ 2 xác nhận khi lệch > 50%, và không bỏ qua khi vừa mở trong 30 phút.
+ */
+export async function recordObservation(o: Observation, ip: string, now = new Date(), opts: { trusted?: boolean } = {}): Promise<{ status: ObserveStatus; productId?: number }> {
   await ensureMigrated();
   const c = cleanObservation(o);
   if (!c) return { status: "invalid" };
@@ -112,7 +119,8 @@ export async function recordObservation(o: Observation, ip: string, now = new Da
     .from(priceObservations)
     .where(and(eq(priceObservations.platform, ref.platform), eq(priceObservations.externalId, ref.externalId), eq(priceObservations.observer, observer), gte(priceObservations.createdAt, new Date(now.getTime() - 0.5 * HOUR))))
     .limit(1);
-  if (recent) return { status: "dup", productId: existing?.id };
+  const staleTrusted = !!opts.trusted && !!existing && now.getTime() - existing.lastSeenAt.getTime() >= STALE_PRICE_DAYS() * 24 * HOUR;
+  if (recent && !staleTrusted) return { status: "dup", productId: existing?.id };
 
   if (!existing) {
     if (!c.name) {
@@ -168,7 +176,11 @@ export async function recordObservation(o: Observation, ip: string, now = new Da
     return { status: "ignored", productId: existing.id };
   }
 
-  const jump = Math.abs(price / existing.price - 1) > 0.5;
+  // Giá đang lưu đã cũ mà giá mới CAO hơn nhiều: thường do phân loại rẻ nhất hết hàng / hết khuyến mãi (giá "từ" trên trang
+  // tăng theo). Nhận ngay, không chờ người thứ 2 — giá tăng không tạo ra "giá tốt" giả, còn giữ giá cũ thấp thì tiện ích
+  // cứ báo sai mãi với món ít người xem. Giá GIẢM mạnh vẫn cần người thứ 2 xác nhận.
+  const staleRise = now.getTime() - existing.lastSeenAt.getTime() >= STALE_PRICE_DAYS() * 24 * HOUR && price > existing.price;
+  const jump = Math.abs(price / existing.price - 1) > 0.5 && !staleTrusted && !staleRise;
   if (jump) {
     await log("pending", existing.id);
     const [{ n }] = await db
