@@ -97,9 +97,12 @@ async function stopBatch(status) {
   chrome.alarms.clear("batch-timeout");
 }
 
+/** Tên chế độ chạy (hiện trong trạng thái) */
+const MODE_LABEL = { all: "cả hai", items: "món lẻ", lists: "trang danh sách", image: "thiếu ảnh", price: "giá cũ", request: "link khách hỏi" };
+
 async function startBatch(mode) {
   const s = await loadBatch();
-  if (mode === "all" || mode === "items" || mode === "lists") {
+  if (["all", "items", "lists", "image", "price", "request"].includes(mode)) {
     // Đổi chế độ: bỏ hàng đợi cũ (có thể toàn trang danh sách) để lấy lại theo chế độ mới
     if (s.mode !== mode) s.queue = [];
     s.mode = mode;
@@ -110,7 +113,7 @@ async function startBatch(mode) {
   s.remaining = q.remaining;
   s.counts = q.counts || null;
   if (!s.queue.length) {
-    s.status = "Không còn món nào thiếu ảnh hay giá cũ";
+    s.status = `Không còn gì để mở (${MODE_LABEL[s.mode] || "cả hai"})`;
     await saveBatch(s);
     return s;
   }
@@ -164,7 +167,7 @@ async function nextItem() {
     } catch (e) {
       return stopBatch(`Dừng: ${e.message || e}`);
     }
-    if (!s.queue.length) return stopBatch("Xong – không còn món nào thiếu ảnh hay giá cũ");
+    if (!s.queue.length) return stopBatch(`Xong – không còn gì để mở (${MODE_LABEL[s.mode] || "cả hai"})`);
   }
   const item = s.queue.shift();
   s.current = { ...item, startedAt: now };

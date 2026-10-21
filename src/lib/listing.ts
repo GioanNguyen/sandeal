@@ -6,7 +6,7 @@
  *    "Góp giá" (observe.ts): món đã có thì cập nhật giá (có chặn giá nhảy bất thường), món mới thì tạo mới.
  *  - listingTargets: các trang nên quét, chọn theo nhu cầu thật (phương án 2):
  *      · từ khoá khách tìm trên Săn Deal mà không có kết quả (thêm đúng món khách cần)
- *      · loại hàng khách quan tâm nhất (xem / bấm mua / theo dõi) – làm mới giá món đã có, thêm món cùng loại
+ *      · loại hàng theo thứ tự "Deal hot hôm nay", rồi loại hàng khách quan tâm (xem / bấm mua / theo dõi) – làm mới giá món đã có
  *      · trang Flash Sale (deal trong ngày)
  *    mỗi trang có thời gian chờ riêng trước khi quét lại; lần quét gần nhất lưu trong kv_store.
  */
@@ -18,6 +18,8 @@ import { db, ensureMigrated } from "./db";
 import { memoClear } from "./memo";
 import { recordObservation, type ObserveStatus } from "./observe";
 import { similarKeywords } from "./requestwatch";
+import { availableSql } from "./availability";
+import { discountedSql } from "./queries";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -120,19 +122,21 @@ export async function candidateTargets(now = new Date(), opts: { searches?: numb
     .slice(0, opts.searches ?? 30)
     .map((q): ListingTarget => ({ key: keyOf("search", q), kind: "search", label: `tìm “${q}”`, url: searchUrl(q), term: q }));
 
-  // 2. Loại hàng khách quan tâm nhất: món được xem / bấm mua / theo dõi nhiều -> cụm từ đầu tên ("Quạt tích điện")
+  // 2. Loại hàng theo thứ tự "Deal hot hôm nay" ở trang chủ (món đang bán, đang giảm, điểm deal cao trước), rồi loại hàng
+  //    khách quan tâm (xem / bấm mua / theo dõi) -> cụm từ đầu tên ("Quạt tích điện")
   const v = db.select({ pid: productViews.productId, n: sql<number>`count(*)`.as("vn") }).from(productViews).where(gte(productViews.createdAt, since)).groupBy(productViews.productId).as("v");
   const c = db.select({ pid: clicks.productId, n: sql<number>`count(*)`.as("cn") }).from(clicks).where(gte(clicks.createdAt, since)).groupBy(clicks.productId).as("c");
   const w = db.select({ pid: watches.productId, n: sql<number>`count(*)`.as("wn") }).from(watches).groupBy(watches.productId).as("w");
   const score = sql<number>`(coalesce(${v.n}, 0) + 5 * coalesce(${c.n}, 0) + 10 * coalesce(${w.n}, 0))`;
+  const dealHot = sql<boolean>`(${availableSql()} and ${discountedSql})`;
   const hot = await db
     .select({ name: products.name })
     .from(products)
     .leftJoin(v, sql`${v.pid} = ${products.id}`)
     .leftJoin(c, sql`${c.pid} = ${products.id}`)
     .leftJoin(w, sql`${w.pid} = ${products.id}`)
-    .where(and(eq(products.platform, "shopee"), sql`not ${products.hidden}`, sql`${score} > 0`))
-    .orderBy(desc(score))
+    .where(and(eq(products.platform, "shopee"), sql`not ${products.hidden}`, sql`(${score} > 0 or ${dealHot})`))
+    .orderBy(desc(dealHot), desc(products.dealScore), desc(score))
     .limit(200);
   const topicSet = new Map<string, ListingTarget>();
   for (const h of hot) {

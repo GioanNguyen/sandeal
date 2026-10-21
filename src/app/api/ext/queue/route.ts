@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { markDeadLink } from "@/lib/deadlink";
-import { extQueue, imageGapCounts, markTried, type QueueMode } from "@/lib/extqueue";
+import { extQueue, imageGapCounts, markTried, QUEUE_MODES, type QueueMode } from "@/lib/extqueue";
 
 export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "no-store" };
@@ -10,8 +10,9 @@ const NO_STORE = { "Cache-Control": "no-store" };
  * Tiện ích trình duyệt – chế độ cập nhật hàng loạt (chỉ quản trị viên, dùng cookie đăng nhập của web):
  *   GET  ?check=1       -> { admin: true } (403 nếu không phải quản trị viên)
  *   GET  ?counts=1      -> { counts: {image, price}, gap: {all, available, openable} } – số món còn lại, tính mới mỗi lần
- *   GET  ?limit=20&mode=all|items|lists -> { items: [{id, name, platform, url, reason, staleDays?, listKey?}], remaining, counts }
- *                         mode: all = trang danh sách + món lẻ, items = chỉ món lẻ (thiếu ảnh / giá cũ / link khách hỏi), lists = chỉ trang danh sách
+ *   GET  ?limit=20&mode=all|items|lists|image|price|request -> { items: [{id, name, platform, url, reason, staleDays?, listKey?}], remaining, counts }
+ *                         mode: all = trang danh sách + món lẻ, items = chỉ món lẻ (thiếu ảnh / giá cũ / link khách hỏi), lists = chỉ trang danh sách,
+ *                         image = chỉ thiếu ảnh, price = chỉ giá cũ, request = chỉ link khách hỏi
  *   POST { tried: [id] } -> ghi nhận đã mở (món vẫn chưa cập nhật được thì 24 giờ sau mới đưa lại)
  *   POST { dead: id }    -> trang sản phẩm báo "không tồn tại": ẩn món (lý do "link không còn trên sàn"), không xoá dữ liệu
  */
@@ -32,7 +33,7 @@ export async function GET(req: Request) {
   }
   const limit = Number(sp.get("limit")) || 20;
   const m = sp.get("mode");
-  const mode: QueueMode = m === "items" || m === "lists" ? m : "all";
+  const mode: QueueMode = QUEUE_MODES.includes(m as QueueMode) ? (m as QueueMode) : "all";
   return NextResponse.json(await extQueue({ limit, mode }), { headers: NO_STORE });
 }
 

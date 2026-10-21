@@ -45,7 +45,7 @@
     startBtn.textContent = s.ok || s.fail ? "Tiếp tục" : "Bắt đầu";
     if (s.running) document.getElementById("batch").open = true;
   };
-  // Chạy gì: cả hai / chỉ món lẻ (thiếu ảnh, giá cũ) / chỉ trang danh sách – nhớ lựa chọn lần trước
+  // Chạy gì: cả hai / món lẻ / chỉ thiếu ảnh / chỉ giá cũ / chỉ link khách hỏi / chỉ trang danh sách – nhớ lựa chọn lần trước
   const modeSel = document.getElementById("b-mode");
   chrome.storage.local.get("batch").then(({ batch }) => { if (batch && batch.mode) modeSel.value = batch.mode; });
   // Chỉ hiện với trình duyệt đang đăng nhập tài khoản quản trị (hoặc khi đang chạy dở); người dùng thường không thấy mục này

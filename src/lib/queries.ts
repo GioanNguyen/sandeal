@@ -224,7 +224,7 @@ export async function enrichDeals(rows: Product[]): Promise<DealRow[]> {
  * Món đang giảm giá: giảm thật ≥5% so với giá thường ngày, HOẶC mới theo dõi (< 7 ngày, chưa đủ lịch sử để tính
  * giảm thật) nhưng đang có giá gạch và giảm ≥5%. Món theo dõi đủ lâu mà chỉ có giá gạch (giảm ảo) thì không tính.
  */
-const discountedSql = sql`(${products.realDropPct} >= 5 or (${products.discountPct} >= 5
+export const discountedSql = sql`(${products.realDropPct} >= 5 or (${products.discountPct} >= 5
   and ${products.originalPrice} > ${products.price}
   and coalesce((select min(pp.captured_at) from price_points pp where pp.product_id = "products"."id"), now()) > now() - interval '7 days'))`;
 

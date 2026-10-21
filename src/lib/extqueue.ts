@@ -3,7 +3,8 @@
  *  - thiếu ảnh: món đang bán chưa có ảnh (thường là món nhập từ CSV)
  *  - giá cũ: món khách đang quan tâm (có lượt xem / bấm mua / theo dõi giá trong 30 ngày) mà giá đã quá
  *    STALE_PRICE_DAYS ngày chưa cập nhật (CSV chưa nhập lại, chưa ai góp giá)
- * Món được quan tâm nhiều làm trước. Tiện ích mở lần lượt từng trang sản phẩm (link thường, không phải link affiliate)
+ * Thứ tự giống mục "Deal hot hôm nay" ở trang chủ: món đang hiện ở đó (đang bán, đang giảm) trước, điểm deal cao trước;
+ * cùng điểm thì món được quan tâm nhiều làm trước. Tiện ích mở lần lượt từng trang sản phẩm (link thường, không phải link affiliate)
  * với tốc độ như người thật; dữ liệu trang được gửi về như "Góp giá" bình thường.
  */
 import { and, count, desc, gte, inArray, isNotNull, isNull, lt, or, sql, type SQL } from "drizzle-orm";
@@ -12,6 +13,7 @@ import { availableSql } from "./availability";
 import { db, ensureMigrated } from "./db";
 import { plainProductUrl } from "./links";
 import { listingTargets } from "./listing";
+import { discountedSql } from "./queries";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -84,16 +86,23 @@ function conditions(now: Date, score: SQL) {
   return { image, price, any: or(image, price)! };
 }
 
-/** Chế độ chạy: all = trang danh sách + món lẻ; items = chỉ món lẻ (thiếu ảnh, giá cũ, link khách hỏi); lists = chỉ trang danh sách */
-export type QueueMode = "all" | "items" | "lists";
+/**
+ * Chế độ chạy: all = trang danh sách + món lẻ; items = chỉ món lẻ (thiếu ảnh, giá cũ, link khách hỏi); lists = chỉ trang danh sách;
+ * image = chỉ món thiếu ảnh; price = chỉ món giá cũ; request = chỉ link khách hỏi
+ */
+export type QueueMode = "all" | "items" | "lists" | "image" | "price" | "request";
+export const QUEUE_MODES: QueueMode[] = ["all", "items", "lists", "image", "price", "request"];
 
 export async function extQueue(opts: { limit?: number; now?: Date; mode?: QueueMode } = {}): Promise<{ items: QueueItem[]; remaining: number; counts: { image: number; price: number; request: number; listing: number } }> {
   await ensureMigrated();
   const now = opts.now ?? new Date();
   const limit = Math.min(50, Math.max(1, opts.limit ?? 20));
   for (const [id, at] of tried) if (now.getTime() - at > DAY) tried.delete(id);
+  const mode = opts.mode ?? "all";
   const { views, clk, wat, score } = interest(now);
   const c = conditions(now, score);
+  // Món lẻ cần lấy theo chế độ: chỉ thiếu ảnh / chỉ giá cũ (không tính món còn thiếu ảnh) / cả hai / không lấy
+  const itemWhere = mode === "image" ? c.image : mode === "price" ? and(c.price, sql`not (${c.image})`)! : mode === "all" || mode === "items" ? c.any : null;
   const base = () =>
     db
       .select({ n: count() })
@@ -102,7 +111,7 @@ export async function extQueue(opts: { limit?: number; now?: Date; mode?: QueueM
       .leftJoin(clk, sql`${clk.pid} = ${products.id}`)
       .leftJoin(wat, sql`${wat.pid} = ${products.id}`);
   const [rows, [img], [prc]] = await Promise.all([
-    db
+    !itemWhere ? Promise.resolve([]) : db
       .select({
         id: products.id,
         name: products.name,
@@ -118,9 +127,10 @@ export async function extQueue(opts: { limit?: number; now?: Date; mode?: QueueM
       .leftJoin(views, sql`${views.pid} = ${products.id}`)
       .leftJoin(clk, sql`${clk.pid} = ${products.id}`)
       .leftJoin(wat, sql`${wat.pid} = ${products.id}`)
-      .where(c.any)
-      // Món khách quan tâm trước, rồi món mới thấy trên sàn
-      .orderBy(desc(score), desc(products.lastSeenAt))
+      .where(itemWhere)
+      // Như "Deal hot hôm nay" ở trang chủ: món đang hiện ở đó trước, điểm deal cao trước;
+      // rồi món khách quan tâm, rồi món mới thấy trên sàn
+      .orderBy(desc(sql`(${availableSql()} and ${discountedSql})`), desc(products.dealScore), desc(score), desc(products.lastSeenAt))
       .limit(limit * 4 + tried.size),
     base().where(c.image),
     base().where(and(c.price, sql`not (${c.image})`)),
@@ -144,13 +154,18 @@ export async function extQueue(opts: { limit?: number; now?: Date; mode?: QueueM
     if (items.length >= limit) break;
   }
   // Link khách dán mà chưa có dữ liệu (người đang chờ báo trước): mở trang là có ngay sản phẩm + lịch sử giá.
-  // Mã âm để không trùng mã sản phẩm. Chiếm tối đa nửa hàng đợi mỗi lần.
-  const reqs = await pendingRequests(now, Math.max(1, Math.ceil(limit / 2)));
+  // Mã âm để không trùng mã sản phẩm. Chiếm tối đa nửa hàng đợi mỗi lần (chế độ "request": cả lượt).
+  const reqs = await pendingRequests(now, mode === "request" ? limit : Math.max(1, Math.ceil(limit / 2)));
   // Trang danh sách đến lượt quét (mỗi trang ~50 món) đi đầu, tối đa 3 trang mỗi lần lấy hàng đợi (chế độ "lists": cả lượt)
-  const mode = opts.mode ?? "all";
   const lists = await listingTargets(now, mode === "lists" ? limit : Math.min(3, limit));
-  const listItems: QueueItem[] = mode === "items" ? [] : lists.items.map((t) => ({ id: 0, listKey: t.key, name: t.label, platform: "shopee", url: t.url, reason: "listing" as const }));
-  const merged = (mode === "lists" ? listItems : [...listItems, ...reqs.items, ...items]).slice(0, limit);
+  const listItems: QueueItem[] = lists.items.map((t) => ({ id: 0, listKey: t.key, name: t.label, platform: "shopee", url: t.url, reason: "listing" as const }));
+  const picked =
+    mode === "lists" ? listItems
+    : mode === "request" ? reqs.items
+    : mode === "image" || mode === "price" ? items
+    : mode === "items" ? [...reqs.items, ...items]
+    : [...listItems, ...reqs.items, ...items];
+  const merged = picked.slice(0, limit);
   const counts = { image: Number(img.n), price: Number(prc.n), request: reqs.total, listing: lists.due };
   return { items: merged, remaining: counts.image + counts.price + counts.request + counts.listing, counts };
 }
