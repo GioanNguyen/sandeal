@@ -1,7 +1,10 @@
 /**
- * Món "không còn thấy trên sàn": lần đồng bộ gần nhất của CHÍNH SÀN ĐÓ không còn trả về món này
- * trong PRODUCT_STALE_DAYS ngày (mặc định 3). So với lần đồng bộ mới nhất của sàn (không so với giờ hiện tại)
- * để khi nguồn dữ liệu của cả sàn bị gián đoạn thì không đánh dấu nhầm hàng loạt.
+ * Món "không còn thấy trên sàn": quá PRODUCT_GONE_DAYS ngày (mặc định 14) không thấy món trong dữ liệu nhập (CSV / API),
+ * tính từ lần đồng bộ mới nhất của CHÍNH SÀN ĐÓ (không so với giờ hiện tại) để khi nguồn dữ liệu của cả sàn bị gián đoạn
+ * thì không đánh dấu nhầm hàng loạt.
+ * Mốc cũ là 3 ngày (PRODUCT_STALE_DAYS) gắn nhầm hàng loạt: file CSV / nguồn API mỗi lần chỉ có một phần hàng của sàn
+ * (theo ngành, theo từ khoá), món không có trong lần nhập mới nhất vẫn đang bán bình thường. Muốn biết chắc thì dùng
+ * tiện ích, chế độ "Kiểm tra món không còn thấy": mở trang trên sàn, còn bán thì cập nhật giá, link chết thì ẩn.
  * Săn Deal không biết chắc lý do (hết hàng, ngừng bán, hết khuyến mãi…) nên chỉ nói "không còn thấy".
  */
 import { sql } from "drizzle-orm";
@@ -10,7 +13,7 @@ import { products } from "@/db/schema";
 import { db } from "./db";
 
 const DAY = 86_400_000;
-export const STALE_DAYS = () => Math.max(1, Number(process.env.PRODUCT_STALE_DAYS) || 3);
+export const STALE_DAYS = () => Math.max(1, Number(process.env.PRODUCT_GONE_DAYS) || 14);
 
 /**
  * Giá do người dùng tiện ích ghi nhận ("ext") chỉ cập nhật khi có người xem trang đó, nên không suy ra

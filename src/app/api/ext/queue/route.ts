@@ -10,9 +10,9 @@ const NO_STORE = { "Cache-Control": "no-store" };
  * Tiện ích trình duyệt – chế độ cập nhật hàng loạt (chỉ quản trị viên, dùng cookie đăng nhập của web):
  *   GET  ?check=1       -> { admin: true } (403 nếu không phải quản trị viên)
  *   GET  ?counts=1      -> { counts: {image, price}, gap: {all, available, openable} } – số món còn lại, tính mới mỗi lần
- *   GET  ?limit=20&mode=all|items|lists|image|price|request -> { items: [{id, name, platform, url, reason, staleDays?, listKey?}], remaining, counts }
+ *   GET  ?limit=20&mode=all|items|lists|image|price|request|gone -> { items: [{id, name, platform, url, reason, staleDays?, listKey?}], remaining, counts }
  *                         mode: all = trang danh sách + món lẻ, items = chỉ món lẻ (thiếu ảnh / giá cũ / link khách hỏi), lists = chỉ trang danh sách,
- *                         image = chỉ thiếu ảnh, price = chỉ giá cũ, request = chỉ link khách hỏi
+ *                         image = chỉ thiếu ảnh, price = chỉ giá cũ, request = chỉ link khách hỏi, gone = chỉ món "không còn thấy trên sàn"
  *   POST { tried: [id] } -> ghi nhận đã mở (món vẫn chưa cập nhật được thì 24 giờ sau mới đưa lại)
  *   POST { dead: id }    -> trang sản phẩm báo "không tồn tại": ẩn món (lý do "link không còn trên sàn"), không xoá dữ liệu
  */

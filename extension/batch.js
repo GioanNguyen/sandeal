@@ -98,11 +98,11 @@ async function stopBatch(status) {
 }
 
 /** Tên chế độ chạy (hiện trong trạng thái) */
-const MODE_LABEL = { all: "cả hai", items: "món lẻ", lists: "trang danh sách", image: "thiếu ảnh", price: "giá cũ", request: "link khách hỏi" };
+const MODE_LABEL = { all: "cả hai", items: "món lẻ", lists: "trang danh sách", image: "thiếu ảnh", price: "giá cũ", request: "link khách hỏi", gone: "không còn thấy trên sàn" };
 
 async function startBatch(mode) {
   const s = await loadBatch();
-  if (["all", "items", "lists", "image", "price", "request"].includes(mode)) {
+  if (["all", "items", "lists", "image", "price", "request", "gone"].includes(mode)) {
     // Đổi chế độ: bỏ hàng đợi cũ (có thể toàn trang danh sách) để lấy lại theo chế độ mới
     if (s.mode !== mode) s.queue = [];
     s.mode = mode;
@@ -171,7 +171,7 @@ async function nextItem() {
   }
   const item = s.queue.shift();
   s.current = { ...item, startedAt: now };
-  const why = item.reason === "listing" ? "trang danh sách" : item.reason === "price" ? `giá cũ ${item.staleDays ?? "?"} ngày` : item.reason === "request" ? "link khách hỏi" : "thiếu ảnh";
+  const why = item.reason === "listing" ? "trang danh sách" : item.reason === "gone" ? `không còn thấy ${item.staleDays ?? "?"} ngày` : item.reason === "price" ? `giá cũ ${item.staleDays ?? "?"} ngày` : item.reason === "request" ? "link khách hỏi" : "thiếu ảnh";
   s.status = `Đang mở (${why}${item.viaAffiliate ? ", chưa có link sản phẩm – mở link rút gọn" : ""}): ${item.name.slice(0, 60)}`;
   s.tabId = await ensureTab(s, item.url);
   await saveBatch(s);
@@ -236,7 +236,7 @@ async function finishItem(result) {
         ? `Vừa ghi giá món này trong 30 phút – bỏ qua: ${nm}`
         : st === "ignored"
           ? `Nguồn chính thức vừa cập nhật – giữ nguyên: ${nm}`
-          : `Đã cập nhật${item.viaAffiliate ? " (đã lưu link sản phẩm)" : ""}: ${nm}`;
+          : `${item.reason === "gone" ? "Vẫn còn bán – đã cập nhật, hiện lại trên web" : "Đã cập nhật"}${item.viaAffiliate ? " (đã lưu link sản phẩm)" : ""}: ${nm}`;
   await saveBatch(s);
   queueTried(item.id);
   schedule(randomDelay());

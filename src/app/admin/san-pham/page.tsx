@@ -80,7 +80,7 @@ export default async function ProductHealthPage({ searchParams }: { searchParams
       <h1 className="page-title">Tình trạng sản phẩm</h1>
       <p className="page-sub">
         Kiểm tra món nào còn bán, món nào đã vắng trên sàn, món có dữ liệu lỗi (giá, link, ảnh). Món vắng quá {STALE_DAYS()} ngày so với lần đồng bộ gần nhất của sàn
-        được tính là “không còn thấy”. Ẩn một món để gỡ khỏi mọi danh sách và trả 404 cho khách.
+        được tính là “không còn thấy” (tiện ích, chế độ “Kiểm tra món không còn thấy”, mở lại trên sàn để xác nhận). Ẩn một món để gỡ khỏi mọi danh sách và trả 404 cho khách.
       </p>
 
       <div className="kpis kpis-4">

@@ -5,7 +5,7 @@
  */
 import { and, asc, desc, eq, gte, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { clicks, productViews, products, watches, type Product } from "@/db/schema";
-import { availableSql } from "./availability";
+import { availableSql, STALE_DAYS } from "./availability";
 import { STALE_PRICE_DAYS } from "./extqueue";
 import { db, ensureMigrated } from "./db";
 import { refFromInput } from "./links";
@@ -19,7 +19,7 @@ export const SHOPEE_AFF_RE = /^https?:\/\/(s\.shopee\.vn|shope\.ee)\//i;
 export const isShopeeAffiliate = (url: string | null | undefined) => SHOPEE_AFF_RE.test(url ?? "");
 
 export const ISSUES: { key: Issue; label: string; hint: string; tone: "bad" | "warn" | "info" }[] = [
-  { key: "gone", label: "Không còn thấy trên sàn", hint: "Lần đồng bộ gần nhất của sàn không còn món này (hết hàng, ngừng bán hoặc hết khuyến mãi). Trang vẫn giữ nhưng không mời mua.", tone: "warn" },
+  { key: "gone", label: "Không còn thấy trên sàn", hint: `Quá ${STALE_DAYS()} ngày không thấy món trong dữ liệu nhập (CSV / API) hay tiện ích (có thể hết hàng, ngừng bán – hoặc chỉ là chưa có trong file CSV mới). Trang vẫn giữ nhưng không mời mua. Chạy tiện ích, chế độ "Kiểm tra món không còn thấy" để xác nhận trên sàn: còn bán thì cập nhật lại, link chết thì ẩn.`, tone: "warn" },
   { key: "stale", label: `Giá lâu chưa cập nhật (> ${STALE_PRICE_DAYS()} ngày)`, hint: `Món đang hiện trên web mà giá chưa được cập nhật quá ${STALE_PRICE_DAYS()} ngày (chưa nhập lại CSV, tiện ích chưa mở lại). Cập nhật bằng tiện ích (chế độ "Chỉ món thiếu ảnh, giá cũ") hoặc nhập file CSV mới. Sắp xếp "Lâu chưa cập nhật nhất" để làm món cũ nhất trước.`, tone: "warn" },
   { key: "hidden", label: "Đã ẩn", hint: "Quản trị viên đã ẩn: không hiện trong danh sách, khách mở trang thấy 404.", tone: "info" },
   { key: "bad_price", label: "Giá bất thường", hint: "Giá ≤ 0, giá gạch thấp hơn giá bán, hoặc ghi giảm trên 95%.", tone: "bad" },

@@ -39,13 +39,13 @@
   const show = (s) => {
     if (!s) return;
     st.textContent = s.status || "";
-    cnt.textContent = `Đã cập nhật ${s.ok || 0} · không đọc được ${s.fail || 0}${s.dead ? ` · link chết đã ẩn ${s.dead}` : ""} · hôm nay ${s.day?.n || 0} món${s.listCreated ? ` · món mới từ trang danh sách ${s.listCreated}` : ""}${s.counts ? ` · cần mở: ${s.counts.listing ? `${s.counts.listing} trang danh sách, ` : ""}${s.counts.request ? `${s.counts.request} link khách hỏi, ` : ""}${s.counts.image} món thiếu ảnh, ${s.counts.price} món giá cũ` : s.remaining != null ? ` · còn ~${s.remaining} món` : ""}`;
+    cnt.textContent = `Đã cập nhật ${s.ok || 0} · không đọc được ${s.fail || 0}${s.dead ? ` · link chết đã ẩn ${s.dead}` : ""} · hôm nay ${s.day?.n || 0} món${s.listCreated ? ` · món mới từ trang danh sách ${s.listCreated}` : ""}${s.counts ? ` · cần mở: ${s.counts.listing ? `${s.counts.listing} trang danh sách, ` : ""}${s.counts.request ? `${s.counts.request} link khách hỏi, ` : ""}${s.counts.image} món thiếu ảnh, ${s.counts.price} món giá cũ${s.mode === "gone" ? `, ${s.counts.gone ?? 0} món không còn thấy` : ""}` : s.remaining != null ? ` · còn ~${s.remaining} món` : ""}`;
     startBtn.hidden = !!s.running;
     stopBtn.hidden = !s.running;
     startBtn.textContent = s.ok || s.fail ? "Tiếp tục" : "Bắt đầu";
     if (s.running) document.getElementById("batch").open = true;
   };
-  // Chạy gì: cả hai / món lẻ / chỉ thiếu ảnh / chỉ giá cũ / chỉ link khách hỏi / chỉ trang danh sách – nhớ lựa chọn lần trước
+  // Chạy gì: cả hai / món lẻ / chỉ thiếu ảnh / chỉ giá cũ / chỉ link khách hỏi / kiểm tra món không còn thấy / chỉ trang danh sách – nhớ lựa chọn lần trước
   const modeSel = document.getElementById("b-mode");
   chrome.storage.local.get("batch").then(({ batch }) => { if (batch && batch.mode) modeSel.value = batch.mode; });
   // Chỉ hiện với trình duyệt đang đăng nhập tài khoản quản trị (hoặc khi đang chạy dở); người dùng thường không thấy mục này
