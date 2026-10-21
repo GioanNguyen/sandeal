@@ -39,7 +39,7 @@ export interface DemandReport {
   days: number;
   totals: { searches: number; unique: number; zeroSearches: number };
   rows: DemandRow[];
-  requests: { pending: number; top: { url: string; platform: string; count: number; at: Date; nameHint: string | null; watchers: number }[] };
+  requests: { pending: number; top: { id: number; url: string; platform: string; count: number; at: Date; nameHint: string | null; watchers: number }[] };
 }
 
 export function demandStatus(lastResults: number): DemandStatus {
@@ -121,6 +121,7 @@ export async function demandReport(days = 30, now = new Date()): Promise<DemandR
   const [pend] = await db.select({ n: sql<number>`count(*)::int` }).from(productRequests).where(isNull(productRequests.productId));
   const top = await db
     .select({
+      id: productRequests.id,
       url: productRequests.url,
       platform: productRequests.platform,
       count: productRequests.count,
