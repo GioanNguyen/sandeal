@@ -52,6 +52,13 @@ function checkBasicAuth(req: NextRequest): NextResponse | null {
 }
 
 export function middleware(req: NextRequest) {
+  // www.sandealgiare.com -> sandealgiare.com (301): web server phục vụ cả hai tên, không chuyển thì Google thấy 2 bản trùng nhau
+  const host = (req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "").split(",")[0].trim().split(":")[0].toLowerCase();
+  if (host.startsWith("www.")) {
+    const proto = req.headers.get("x-forwarded-proto")?.split(",")[0].trim() || "https";
+    return NextResponse.redirect(`${proto}://${host.slice(4)}${req.nextUrl.pathname}${req.nextUrl.search}`, 301);
+  }
+
   const denied = checkBasicAuth(req);
   if (denied) return denied;
 

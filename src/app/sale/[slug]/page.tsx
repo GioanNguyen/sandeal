@@ -128,7 +128,7 @@ export default async function SalePage({ params }: Props) {
           <section className="section" aria-labelledby="dl-head">
             <div className="section-head">
               <h2 id="dl-head"><Icon name="trendingDown" size={20} /> Đang giảm thật – không cần chờ sale</h2>
-              <Link href="/?min=15#deals">Xem thêm <Icon name="arrowRight" size={16} /></Link>
+              <Link href="/?min=15#deals" rel="nofollow">Xem thêm <Icon name="arrowRight" size={16} /></Link>
             </div>
             <DealGrid items={deals.items} />
           </section>

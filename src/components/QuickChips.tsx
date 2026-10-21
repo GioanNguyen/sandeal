@@ -18,6 +18,7 @@ export function QuickChips({ chips }: { chips: QuickChip[] }) {
         <Link
           key={c.key}
           href={c.href}
+          rel="nofollow"
           scroll={false}
           className={`qchip${c.on ? " on" : ""}${!c.on && c.count === 0 ? " empty" : ""}`}
           aria-pressed={c.on}

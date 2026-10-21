@@ -292,7 +292,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
               </div>
             )}
             {afterCodes < p.price && (
-              <a className="best-price" href={`/tinh-gia?p=${p.id}`}>
+              <a className="best-price" href={`/tinh-gia?p=${p.id}`} rel="nofollow">
                 <Icon name="ticket" size={18} />
                 <span>Giá sau mã tốt nhất <b>{vnd(afterCodes)}</b>{plan.shipSaved > 0 ? " + freeship" : ""}</span>
                 <span className="muted">Xem cách áp mã →</span>

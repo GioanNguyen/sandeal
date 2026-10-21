@@ -53,7 +53,7 @@ export function SaleAlertButton({ productId, saleName, days, initialOn, loggedIn
           {on ? "Huỷ nhắc" : <><Icon name="bell" size={14} /> Nhắc tôi</>}
         </button>
       ) : (
-        <Link className="btn btn-primary btn-sm" href={loginHref}><Icon name="bell" size={14} /> Nhắc tôi</Link>
+        <Link className="btn btn-primary btn-sm" href={loginHref} rel="nofollow"><Icon name="bell" size={14} /> Nhắc tôi</Link>
       )}
     </div>
   );

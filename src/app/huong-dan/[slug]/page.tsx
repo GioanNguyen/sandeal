@@ -88,7 +88,7 @@ export default async function GuidePage({ params, searchParams }: Props) {
 
       {deals && deals.items.length > 0 && (
         <section className="section" aria-labelledby="rel-head">
-          <div className="section-head"><h2 id="rel-head"><Icon name="trendingDown" size={20} /> Đang giảm thật từ 20% trở lên</h2><Link href="/?min=20#deals">Xem thêm <Icon name="arrowRight" size={16} /></Link></div>
+          <div className="section-head"><h2 id="rel-head"><Icon name="trendingDown" size={20} /> Đang giảm thật từ 20% trở lên</h2><Link href="/?min=20#deals" rel="nofollow">Xem thêm <Icon name="arrowRight" size={16} /></Link></div>
           <DealGrid items={deals.items} />
         </section>
       )}

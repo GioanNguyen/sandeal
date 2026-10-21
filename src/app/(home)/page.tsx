@@ -217,7 +217,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
           <div className="section-head"><h2 id="band-head"><Icon name="tag" size={22} /> Săn theo tầm giá</h2></div>
           <nav className="bands" aria-label="Deal theo tầm giá">
             {PRICE_BANDS.map((b) => (
-              <Link key={b.max} href={`/?max=${b.max}&sort=drop#deals`} className="band">
+              <Link key={b.max} href={`/?max=${b.max}&sort=drop#deals`} className="band" rel="nofollow">
                 <small>Deal</small>
                 <b>{b.label}</b>
                 <span>giảm thật, xếp theo mức giảm</span>
@@ -289,9 +289,9 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
         <Form className="toolbar" action="/">
           {sp.q && <input type="hidden" name="q" value={sp.q} />}
           <nav className="chips" aria-label="Lọc theo sàn">
-            <Link className="chip" href={href({ platform: undefined })} aria-current={!sp.platform}>Tất cả sàn</Link>
+            <Link className="chip" href={href({ platform: undefined })} rel="nofollow" aria-current={!sp.platform}>Tất cả sàn</Link>
             {Object.entries(PLATFORMS).map(([k, v]) => (
-              <Link key={k} className="chip" href={href({ platform: k })} aria-current={sp.platform === k}>
+              <Link key={k} className="chip" href={href({ platform: k })} rel="nofollow" aria-current={sp.platform === k}>
                 <span className="dot" style={{ background: v.color }} aria-hidden="true" />{v.label}
               </Link>
             ))}
@@ -346,16 +346,16 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
           <p className="result-count">
             {dealsOnly ? `${total.toLocaleString("vi-VN")} món đang giảm giá` : `${total.toLocaleString("vi-VN")} sản phẩm`}
             {dealsOnly && allCount > total && (
-              <> · <Link href={`${href({ all: "1" })}#deals`}>Xem tất cả {allCount.toLocaleString("vi-VN")} sản phẩm</Link></>
+              <> · <Link href={`${href({ all: "1" })}#deals`} rel="nofollow">Xem tất cả {allCount.toLocaleString("vi-VN")} sản phẩm</Link></>
             )}
-            {!sp.q && sp.all === "1" && <> · <Link href={`${href({ all: undefined })}#deals`}>Chỉ xem món đang giảm</Link></>}
+            {!sp.q && sp.all === "1" && <> · <Link href={`${href({ all: undefined })}#deals`} rel="nofollow">Chỉ xem món đang giảm</Link></>}
           </p>
           <ViewToggle />
         </div>
         {dealsOnly && total === 0 && (
           <p className="muted" role="status" style={{ margin: "8px 0 16px" }}>
             {allCount > 0
-              ? <>Chưa có món nào đang giảm giá với bộ lọc này. Săn Deal cần vài ngày theo dõi giá để biết món nào giảm thật. <Link href={`${href({ all: "1" })}#deals`}>Xem {allCount.toLocaleString("vi-VN")} sản phẩm đang theo dõi</Link></>
+              ? <>Chưa có món nào đang giảm giá với bộ lọc này. Săn Deal cần vài ngày theo dõi giá để biết món nào giảm thật. <Link href={`${href({ all: "1" })}#deals`} rel="nofollow">Xem {allCount.toLocaleString("vi-VN")} sản phẩm đang theo dõi</Link></>
               : <>Chưa có sản phẩm nào khớp bộ lọc này.</>}
           </p>
         )}

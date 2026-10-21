@@ -42,7 +42,7 @@ export function VariantPrices({ variants, productPrice, platformLabel }: { varia
                   {v.price === cheapest && variants.length > 1 ? <span className="vp-tag">Rẻ nhất</span> : null}
                 </span>
               </div>
-              <a className="btn btn-ghost btn-sm vp-watch" href={`?phanloai=${v.id}#theo-doi`} aria-label={`Báo khi ${v.name} giảm giá`}>
+              <a className="btn btn-ghost btn-sm vp-watch" href={`?phanloai=${v.id}#theo-doi`} rel="nofollow" aria-label={`Báo khi ${v.name} giảm giá`}>
                 <Icon name="bell" size={14} /> Báo giá
               </a>
             </li>
