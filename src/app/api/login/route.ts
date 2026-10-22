@@ -20,6 +20,13 @@ export async function POST(req: Request) {
   if (!(await allow(`login:ip:${clientIp(req)}`, 10, 3600)) || !(await allow(`mail:${email}`, 5, 3600))) {
     return reply(429, "Bạn gửi quá nhiều yêu cầu, thử lại sau ít phút.");
   }
-  await sendLoginLink(email, undefined, safeNext(body?.next));
+  try {
+    await sendLoginLink(email, undefined, safeNext(body?.next));
+  } catch (e) {
+    // Thường do SMTP: sai App Password, Gmail chặn đăng nhập, nhà cung cấp VPS chặn cổng 465/587. Ghi rõ vào log máy chủ.
+    const err = e as Error & { code?: string; responseCode?: number; command?: string };
+    console.error(`[login] gửi link đăng nhập tới ${email} thất bại: ${err.code ?? ""} ${err.responseCode ?? ""} ${err.command ?? ""} ${err.message}`);
+    return reply(502, "Chưa gửi được email đăng nhập (máy chủ email đang lỗi). Thử lại sau ít phút.");
+  }
   return reply(200);
 }
