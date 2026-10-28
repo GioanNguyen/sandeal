@@ -3,9 +3,9 @@ import { markStaff, staffRequest } from "@/lib/staff";
 import { NextResponse } from "next/server";
 import { recordView } from "@/lib/discovery";
 import { allow } from "@/lib/ratelimit";
+import { isBotUa } from "@/lib/bots";
 
 const COOKIE = "sd_vid";
-const BOT = /bot|crawl|spider|slurp|preview|facebookexternalhit|zalo/i;
 
 /**
  * Ghi 1 lượt xem sản phẩm cho khách ẩn danh (mã ngẫu nhiên trong cookie, không gắn với tài khoản/IP).
@@ -13,7 +13,8 @@ const BOT = /bot|crawl|spider|slurp|preview|facebookexternalhit|zalo/i;
  */
 export async function POST(req: Request) {
   const res = new NextResponse(null, { status: 204 });
-  if (BOT.test(req.headers.get("user-agent") ?? "")) return res;
+  // Bot (xem trước link, tìm kiếm…). Trước đây chặn cả chữ "zalo" -> bỏ sót người thật mở trong app Zalo
+  if (isBotUa(req.headers.get("user-agent"))) return res;
   const { id } = (await req.json().catch(() => ({}))) as { id?: number };
   if (!Number.isInteger(id) || (id as number) <= 0) return new NextResponse(null, { status: 400 });
 

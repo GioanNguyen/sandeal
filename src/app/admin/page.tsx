@@ -45,7 +45,16 @@ export default async function AdminPage() {
   const convDay = sql<string>`to_char(${conversionItems.purchasedAt} at time zone ${tz}, 'YYYY-MM-DD')`;
 
   const [[clk], [conv], [usr], clicksByDay, commByDay, byPlatformClicks, byPlatformConv, topProducts, recent] = await Promise.all([
-    db.select({ n: count() }).from(clicks).where(gte(clicks.createdAt, since)),
+    db
+      .select({
+        n: count(),
+        // Số người bấm (mã khách ẩn danh); lượt ghi trước khi có cột visitor không đếm được
+        people: sql<number>`count(distinct ${clicks.visitor})::int`,
+        tracked: sql<number>`count(${clicks.visitor})::int`,
+        since: sql<string | null>`min(${clicks.createdAt}) filter (where ${clicks.visitor} is not null)`,
+      })
+      .from(clicks)
+      .where(gte(clicks.createdAt, since)),
     db
       .select({ n: sql<number>`count(distinct ${conversionItems.orderId})`, amount: sql<number>`coalesce(sum(${conversionItems.price} * ${conversionItems.qty}),0)`, comm: sql<number>`coalesce(sum(${conversionItems.commission}),0)` })
       .from(conversionItems)
@@ -125,7 +134,16 @@ export default async function AdminPage() {
       <OnlineNow initial={onlineNow()} />
 
       <div className="kpis kpis-4">
-        <div className="kpi"><span>Lượt bấm mua</span><b>{clk.n.toLocaleString("vi-VN")}</b></div>
+        <div className="kpi">
+          <span>Lượt bấm mua</span>
+          <b>{clk.n.toLocaleString("vi-VN")}</b>
+          <small className="muted">
+            {Number(clk.tracked) > 0
+              ? <>{Number(clk.people).toLocaleString("vi-VN")} người bấm{Number(clk.tracked) < clk.n && clk.since ? ` (đếm từ ${shortDate(clk.since)})` : ""}</>
+              : "số người bấm: đếm từ bản cập nhật này"}
+            {" · không tính bot, quản trị viên"}
+          </small>
+        </div>
         <div className="kpi"><span>Đơn hàng</span><b>{Number(conv.n).toLocaleString("vi-VN")}</b><small className="muted">Tỉ lệ chuyển đổi {clk.n >= Number(conv.n) && clk.n > 0 ? `${cr.toFixed(1)}%` : "chưa đủ dữ liệu"}</small></div>
         <div className="kpi"><span>Doanh số</span><b>{vnd(Number(conv.amount))}</b></div>
         <div className="kpi"><span>Hoa hồng</span><b className="save">{vnd(Number(conv.comm))}</b><small className="muted">gồm cả đơn chờ duyệt</small></div>

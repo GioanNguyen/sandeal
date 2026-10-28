@@ -169,6 +169,13 @@
       "when": 1791347449492,
       "tag": "0023_request_watch",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793174906154,
+      "tag": "0024_click_visitor",
+      "breakpoints": true
     }
   ]
 }

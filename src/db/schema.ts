@@ -156,6 +156,8 @@ export const clicks = pgTable(
     referer: text("referer"),
     /** Kênh khách tới site (facebook, google, zalo…, "direct") – từ cookie gắn lúc vào trang, để biết đơn đến từ đâu */
     channel: text("channel"),
+    /** Mã khách ẩn danh (cookie sd_vid) – để đếm số người bấm, không chỉ số lượt (null: lượt ghi trước khi có cột này) */
+    visitor: text("visitor"),
     createdAt: ts("created_at").notNull().defaultNow(),
   },
   (t) => [index("clicks_created_idx").on(t.createdAt), index("clicks_product_idx").on(t.productId, t.createdAt)],

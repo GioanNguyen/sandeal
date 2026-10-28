@@ -32,5 +32,19 @@ test("thiết bị có cookie sd_staff: bấm mua vẫn chuyển sang sàn nhưn
   const guest = await call("sd_ch=facebook");
   assert.equal(guest.status, 302);
   assert.equal(await count(), 1, "khách thật: tính");
-  assert.equal(guest.headers.get("set-cookie"), null, "khách không bị gắn cookie quản trị");
+  assert.doesNotMatch(guest.headers.get("set-cookie") ?? "", /sd_staff/, "khách không bị gắn cookie quản trị");
+  // Khách được gắn mã ẩn danh sd_vid để đếm số người bấm; bấm lại cùng máy: thêm lượt, không thêm người
+  const vid = guest.headers.get("set-cookie")?.match(/sd_vid=([\w-]+)/)?.[1];
+  assert.ok(vid, "gắn mã khách ẩn danh");
+  await call(`sd_ch=facebook; sd_vid=${vid}`);
+  const rows = (await dbm.db.select().from(schema.clicks)).filter((c) => c.productId === id);
+  assert.equal(rows.length, 2);
+  assert.deepEqual([...new Set(rows.map((r) => r.visitor))], [vid]);
+
+  // Không tính: bot xem trước link, tải trước trang, yêu cầu HEAD – nhưng vẫn chuyển sang sàn
+  const bot = await go.GET(new Request(`https://sandealgiare.com/go/${id}`, { headers: { "user-agent": "facebookexternalhit/1.1" } }), { params: Promise.resolve({ id: String(id) }) });
+  const pre = await go.GET(new Request(`https://sandealgiare.com/go/${id}`, { headers: { "user-agent": "Mozilla/5.0 (iPhone) Safari/604.1", "sec-purpose": "prefetch" } }), { params: Promise.resolve({ id: String(id) }) });
+  const head = await go.GET(new Request(`https://sandealgiare.com/go/${id}`, { method: "HEAD", headers: { "user-agent": "Mozilla/5.0 (iPhone) Safari/604.1" } }), { params: Promise.resolve({ id: String(id) }) });
+  for (const r of [bot, pre, head]) assert.equal(r.headers.get("location"), "https://s.shopee.vn/abc");
+  assert.equal(await count(), 2, "bot / tải trước / HEAD không tính");
 });

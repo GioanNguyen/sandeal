@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { cleanPath, leavePresence, sourceOf, touchPresence } from "@/lib/presence";
 import { staffRequest } from "@/lib/staff";
-import { isBotUa } from "@/lib/vitals";
+import { isBotUa } from "@/lib/bots";
 
 const COOKIE = "sd_vid";
 const NO_STORE = { "Cache-Control": "no-store" };

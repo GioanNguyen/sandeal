@@ -83,8 +83,8 @@ export function cleanVital(v: VitalInput) {
   return { metric, value: metric === "CLS" ? Math.round(value * 1000) / 1000 : Math.round(value), rating: rate(metric, value), page, path, device, net };
 }
 
-const BOT_UA = /bot|crawl|spider|slurp|lighthouse|pagespeed|headless|preview|facebookexternalhit|zalo.*bot/i;
-export const isBotUa = (ua: string | null) => !ua || BOT_UA.test(ua);
+// Bộ lọc bot dùng chung (lib/bots.ts)
+export { isBotUa } from "./bots";
 
 export async function recordVitals(list: VitalInput[], now = new Date()): Promise<number> {
   await ensureMigrated();
