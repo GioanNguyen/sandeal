@@ -67,7 +67,7 @@ export function OnlineNow({ initial }: { initial: OnlineSummary }) {
           {d.pages.length > 30 && <p className="muted" style={{ fontSize: 13 }}>… và {d.pages.length - 30} trang khác</p>}
         </>
       ) : (
-        <p className="muted" style={{ marginBottom: 0 }}>Chưa có khách nào đang xem (không tính quản trị viên và bot). Khung tự làm mới mỗi 15 giây.</p>
+        <p className="muted" style={{ marginBottom: 0 }}>Chưa có khách nào đang xem.</p>
       )}
     </section>
   );
