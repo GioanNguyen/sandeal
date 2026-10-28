@@ -31,6 +31,7 @@ export default async function TodayAdmin() {
   if (!isAdmin(user.email)) redirect("/admin");
   const now = new Date();
   const [todo, jobs, alerts, today, yesterday, chats, scan, scanDue] = await Promise.all([todoList(now), jobStates(now), openAlerts(), dayStats(now, 0), dayStats(now, -1), adminTelegramChats(), listingSummary(now), listingTargets(now, 0)]);
+  const mailFailing = (jobs.find((j) => j.name === "mail")?.state?.fails ?? 0) > 0;
   const t = now.getTime();
   const failing = jobs.filter((j) => j.stale || (j.state?.fails ?? 0) > 0);
   const hour = briefHour();
@@ -130,10 +131,15 @@ export default async function TodayAdmin() {
             ) : (
               <>
                 <b>email ADMIN_EMAILS</b> – muốn nhận trên Telegram (nhanh hơn): liên kết Telegram ở <Link href="/account/so-thich">Tài khoản › Sở thích &amp; thông báo</Link> bằng tài khoản quản trị này, hoặc đặt <code>ADMIN_TELEGRAM_CHAT_ID</code>.
+                {mailFailing && (
+                  <div className="form-msg" role="alert" style={{ marginTop: 6 }}>
+                    Gửi email đang lỗi nên tin báo sự cố cũng không tới được bạn – hãy liên kết Telegram để vẫn nhận được báo khi email hỏng.
+                  </div>
+                )}
               </>
             )}
           </li>
-          <li>Báo ngay khi: đồng bộ giá lỗi 2 lần liền hoặc đứng quá 6 giờ, đăng bài mạng xã hội lỗi (vd token Facebook hết hạn), tỉ lệ huỷ đơn tăng vọt, các việc tự chạy khác lỗi nhiều lần. Mỗi sự cố báo tối đa 1 lần / 12 giờ, hết sự cố thì báo “đã ổn lại”.</li>
+          <li>Báo ngay khi: gửi email lỗi 2 lần liền (khách không nhận được link đăng nhập, báo giá), đồng bộ giá lỗi 2 lần liền hoặc đứng quá 6 giờ, đăng bài mạng xã hội lỗi (vd token Facebook hết hạn), tỉ lệ huỷ đơn tăng vọt, các việc tự chạy khác lỗi nhiều lần. Mỗi sự cố báo tối đa 1 lần / 12 giờ, hết sự cố thì báo “đã ổn lại”.</li>
           <li>Tin tóm tắt mỗi sáng: {hour == null ? <b>đang tắt</b> : <b>{hour} giờ</b>} – số liệu hôm qua và việc cần làm (đổi bằng <code>ADMIN_BRIEF_HOUR</code>, “off” để tắt).</li>
           <li>Web dừng hẳn thì không tự báo được: dùng thêm dịch vụ theo dõi miễn phí (UptimeRobot, BetterStack…) gọi <code>/api/health</code> 5 phút/lần.</li>
         </ul>

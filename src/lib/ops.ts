@@ -39,6 +39,8 @@ export const JOBS: Record<string, { label: string; staleHours: number | null; al
   autocat: { label: "Tự xếp danh mục", staleHours: null, alertAfter: 3, href: "/admin/san-pham" },
   images: { label: "Lấy ảnh sản phẩm", staleHours: null, alertAfter: 3, href: "/admin/san-pham" },
   digest: { label: "Bản tin, nhắc sale cho người dùng", staleHours: null, alertAfter: 3 },
+  // Ghi từ mail.ts mỗi lần gửi lỗi (và lần gửi được đầu tiên sau đó): link đăng nhập, báo giá, bản tin đều cần mail
+  mail: { label: "Gửi email (link đăng nhập, báo giá, bản tin)", staleHours: null, alertAfter: 2, href: "/admin/hom-nay" },
 };
 
 const jobKey = (name: string) => `job:${name}`;
