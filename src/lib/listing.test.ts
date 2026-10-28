@@ -107,30 +107,31 @@ test("trang cần quét: Flash Sale, từ khoá khách tìm không ra, loại h�
   await dbm.db.insert(schema.clicks).values({ productId: p.id, platform: "shopee" });
 
   const all = await ls.candidateTargets(now);
-  assert.deepEqual(all.map((t) => t.key), ["flash:shopee", "search:máy hút bụi cầm tay", "search:nồi cơm điện", "topic:quạt tích điện"]);
+  // Loại hàng: món đang trong "Deal hot hôm nay" trước (Quạt để bàn: đang bán, giảm 22% so với giá gạch), rồi loại hàng được quan tâm
+  assert.deepEqual(all.map((t) => t.key), ["flash:shopee", "search:máy hút bụi cầm tay", "search:nồi cơm điện", "topic:quạt để bàn", "topic:quạt tích điện"]);
   assert.equal(all[1].url, "https://shopee.vn/search?keyword=m%C3%A1y%20h%C3%BAt%20b%E1%BB%A5i%20c%E1%BA%A7m%20tay");
 
   const t1 = await ls.listingTargets(now, 3);
-  assert.equal(t1.due, 4);
+  assert.equal(t1.due, 5);
   assert.deepEqual(t1.items.map((t) => t.kind), ["flash", "search", "search"]);
 
   // Hàng đợi tiện ích: trang danh sách đi đầu
   const qq = await q.extQueue({ now });
   assert.equal(qq.items[0].reason, "listing");
   assert.equal(qq.items[0].listKey, "flash:shopee");
-  assert.equal(qq.counts.listing, 4);
+  assert.equal(qq.counts.listing, 5);
 
   // Chế độ chạy: chỉ món lẻ / chỉ trang danh sách
   assert.ok((await q.extQueue({ now, mode: "items" })).items.every((x) => x.reason !== "listing"));
   const onlyLists = await q.extQueue({ now, mode: "lists" });
-  assert.equal(onlyLists.items.length, 4, "chế độ chỉ trang danh sách: lấy hết trang đến lượt");
+  assert.equal(onlyLists.items.length, 5, "chế độ chỉ trang danh sách: lấy hết trang đến lượt");
   assert.ok(onlyLists.items.every((x) => x.reason === "listing"));
 
   await ls.markListingDone("flash:shopee", { created: 3, updated: 10, total: 40 }, now);
   await ls.markListingDone("search:máy hút bụi cầm tay", { created: 20, updated: 0, total: 40 }, now);
   await ls.markListingDone("không hợp lệ", {}, now);
   const t2 = await ls.listingTargets(new Date(now.getTime() + HOUR), 10);
-  assert.deepEqual(t2.items.map((t) => t.key), ["search:nồi cơm điện", "topic:quạt tích điện"]);
+  assert.deepEqual(t2.items.map((t) => t.key), ["search:nồi cơm điện", "topic:quạt để bàn", "topic:quạt tích điện"]);
   // Flash Sale quét lại sau 12 giờ, từ khoá sau 3 ngày
   assert.ok((await ls.listingTargets(new Date(now.getTime() + 13 * HOUR), 10)).items.some((t) => t.key === "flash:shopee"));
   assert.ok(!(await ls.listingTargets(new Date(now.getTime() + 13 * HOUR), 10)).items.some((t) => t.key === "search:máy hút bụi cầm tay"));

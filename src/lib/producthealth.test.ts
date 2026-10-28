@@ -49,7 +49,8 @@ test("đếm và lọc theo tình trạng; vấn đề tính bằng SQL khớp v
   await add("badprice", { name: "Món giá gạch thấp hơn giá bán", price: 300_000, originalPrice: 200_000 });
   await add("jump", { name: "Món đổi giá mạnh", price: 400_000 }, ago(3));
   await add("jump", { name: "Món đổi giá mạnh", price: 90_000 }, NOW);
-  await add("gone", { name: "Món đã vắng trên sàn", price: 150_000 }, ago(10));
+  // Vắng quá PRODUCT_GONE_DAYS (14 ngày) so với lần đồng bộ mới nhất
+  await add("gone", { name: "Món đã vắng trên sàn", price: 150_000 }, ago(20));
   await add("hide", { name: "Món sẽ bị ẩn", price: 120_000 });
 
   assert.equal(await ph.setHidden(ids.hide, true, "  Giá   sai  "), true);

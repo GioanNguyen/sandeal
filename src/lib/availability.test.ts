@@ -6,7 +6,7 @@ process.env.DATABASE_URL = "memory://";
 process.env.SITE_URL = "http://test.local";
 process.env.SMTP_URL = "";
 
-test("món vắng quá 3 ngày so với lần đồng bộ mới nhất của sàn: ẩn khỏi danh sách, thấy lại thì báo", async () => {
+test("món vắng quá 14 ngày (PRODUCT_GONE_DAYS) so với lần đồng bộ mới nhất của sàn: ẩn khỏi danh sách, thấy lại thì báo", async () => {
   const dbm = await import("./db");
   await dbm.ensureMigrated();
   const schema = await import("@/db/schema");
@@ -20,23 +20,27 @@ test("món vắng quá 3 ngày so với lần đồng bộ mới nhất của s�
   const mk = (id: string, name: string, platform: "shopee" | "lazada" = "shopee") => ({
     platform, externalId: id, name, category: "Điện tử", discountPct: 20, affiliateUrl: `https://aff/${id}`,
   });
-  // Món A: lần cuối thấy 5 ngày trước; món B, C: thấy hôm nay (lần đồng bộ mới nhất của Shopee)
-  for (let i = 0; i < 6; i++) await upsertProduct({ ...mk("a", "Tai nghe A"), price: 500_000 - i * 10_000 }, new Date(now - (10 - i) * day));
+  // Món A: lần cuối thấy 20 ngày trước; món E: 5 ngày trước (chỉ là không có trong lần nhập mới nhất – vẫn tính còn bán);
+  // món B, C: thấy hôm nay (lần đồng bộ mới nhất của Shopee)
+  for (let i = 0; i < 6; i++) await upsertProduct({ ...mk("a", "Tai nghe A"), price: 500_000 - i * 10_000 }, new Date(now - (25 - i) * day));
+  const e = await upsertProduct({ ...mk("e", "Tai nghe E"), price: 320_000 }, new Date(now - 5 * day));
   const b = await upsertProduct({ ...mk("b", "Tai nghe B"), price: 300_000 }, new Date(now));
   await upsertProduct({ ...mk("c", "Tai nghe C"), price: 350_000 }, new Date(now));
-  // Lazada đồng bộ lần cuối 6 ngày trước (nguồn gián đoạn cả sàn) -> KHÔNG bị coi là "không còn thấy"
-  const d = await upsertProduct({ ...mk("d", "Tai nghe D", "lazada"), price: 400_000 }, new Date(now - 6 * day));
+  // Lazada đồng bộ lần cuối 20 ngày trước (nguồn gián đoạn cả sàn) -> KHÔNG bị coi là "không còn thấy"
+  const d = await upsertProduct({ ...mk("d", "Tai nghe D", "lazada"), price: 400_000 }, new Date(now - 20 * day));
 
   const [a] = await dbm.db.select().from(schema.products).where(eq(schema.products.externalId, "a"));
   const latest = await av.platformLatest();
-  assert.equal(av.isUnavailable(a, latest), true, "A vắng 5 ngày trong khi Shopee vừa đồng bộ");
+  assert.equal(av.isUnavailable(a, latest), true, "A vắng 20 ngày trong khi Shopee vừa đồng bộ");
+  const [eRow] = await dbm.db.select().from(schema.products).where(eq(schema.products.id, e));
+  assert.equal(av.isUnavailable(eRow, latest), false, "E mới vắng 5 ngày (chưa quá 14 ngày): vẫn tính còn bán");
   const [dRow] = await dbm.db.select().from(schema.products).where(eq(schema.products.id, d));
   assert.equal(av.isUnavailable(dRow, latest), false, "cả sàn Lazada chưa đồng bộ lại thì không đánh dấu");
 
   const { items } = await q.listDeals({ pageSize: 50 });
   const ids = items.map((x) => x.id);
   assert.ok(!ids.includes(a.id), "danh sách deal không có món đã vắng");
-  assert.ok(ids.includes(b) && ids.includes(d));
+  assert.ok(ids.includes(b) && ids.includes(d) && ids.includes(e));
   assert.ok((await q.getProduct(a.id)), "trang sản phẩm vẫn còn (không 404)");
   const [bRow] = await dbm.db.select().from(schema.products).where(eq(schema.products.id, b));
   assert.ok(!(await q.similarDeals(bRow, 10)).some((x) => x.id === a.id), "không gợi ý món đã vắng");
