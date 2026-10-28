@@ -29,7 +29,7 @@ export default function PrivacyPage() {
         <h2>1. Dữ liệu chúng tôi thu thập</h2>
         <h3>Khi bạn chỉ xem trang (không đăng nhập)</h3>
         <ul>
-          <li><b>Mã khách ẩn danh</b> (cookie <code>sd_vid</code>): một chuỗi ngẫu nhiên để đếm lượt xem sản phẩm và gợi ý “Người xem món này cũng xem”. Không gắn với tên, email hay địa chỉ IP.</li>
+          <li><b>Mã khách ẩn danh</b> (cookie <code>sd_vid</code>): một chuỗi ngẫu nhiên để đếm lượt xem sản phẩm, gợi ý “Người xem món này cũng xem” và đếm số người đang xem trang (chỉ giữ trong bộ nhớ máy chủ khoảng 1 phút). Không gắn với tên, email hay địa chỉ IP.</li>
           <li><b>Món đã lưu (♡)</b>: lưu ngay trên trình duyệt của bạn (localStorage), không gửi về máy chủ nếu bạn chưa đăng nhập.</li>
           <li><b>Lượt bấm sang sàn</b>: khi bạn bấm “Mua”/“Dùng ngay”, chúng tôi ghi lại món hoặc mã được bấm, sàn và trang trước đó – không kèm thông tin cá nhân.</li>
           <li><b>Tốc độ tải trang</b>: số đo thời gian tải (LCP, INP, CLS…), đường dẫn trang, loại thiết bị (điện thoại/máy tính) và loại mạng nếu trình duyệt cho biết. Không lưu IP, tự xoá sau 60 ngày.</li>

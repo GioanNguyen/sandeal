@@ -12,6 +12,8 @@ import { PlatformBadge } from "@/components/PlatformBadge";
 import { SyncButton } from "@/components/SyncButton";
 import { CsvImport } from "@/components/CsvImport";
 import { ClearMockButton } from "@/components/ClearMockButton";
+import { OnlineNow } from "@/components/OnlineNow";
+import { onlineNow } from "@/lib/presence";
 
 export const metadata = { title: "Thống kê", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -119,6 +121,8 @@ export default async function AdminPage() {
           <SyncButton />
         </div>
       </div>
+
+      <OnlineNow initial={onlineNow()} />
 
       <div className="kpis kpis-4">
         <div className="kpi"><span>Lượt bấm mua</span><b>{clk.n.toLocaleString("vi-VN")}</b></div>
