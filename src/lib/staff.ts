@@ -2,6 +2,9 @@
  * Thiết bị của quản trị viên: lượt bấm mua / lượt xem từ đây không được tính vào số liệu (quản trị viên hay bấm thử link,
  * mở thử sản phẩm – nếu tính thì "món được bấm nhiều nhất", tỉ lệ ra đơn… bị sai).
  *
+ * Đang áp dụng cho: lượt bấm "Mua" (/go), lượt xem sản phẩm (/api/view), người đang online (/api/presence),
+ * từ khoá tìm kiếm (trang chủ ?q=), số lần dán link ở "Kiểm tra giá" (lookup.ts).
+ *
  * Nhận ra bằng 2 cách:
  *  - đang đăng nhập tài khoản quản trị
  *  - cookie sd_staff: gắn khi quản trị viên đăng nhập / bấm link, giữ 1 năm – nên kể cả lúc đã đăng xuất (hoặc phiên hết hạn)
@@ -42,4 +45,17 @@ export async function staffRequest(req: Request): Promise<{ staff: boolean; mark
 export function markStaff<T extends NextResponse>(res: T, mark: boolean): T {
   if (mark) res.cookies.set(staffCookie());
   return res;
+}
+
+/**
+ * Như staffRequest nhưng cho trang (server component), đọc cookie qua next/headers: trình duyệt đang xem là của
+ * quản trị viên (cookie sd_staff hoặc đang đăng nhập tài khoản quản trị) -> không ghi số liệu khách (từ khoá tìm…).
+ */
+export async function staffVisitor(): Promise<boolean> {
+  const { cookies } = await import("next/headers");
+  const c = await cookies();
+  if (c.get(STAFF_COOKIE)) return true;
+  if (!c.get(SESSION_COOKIE)) return false;
+  const user = await getCurrentUser().catch(() => null);
+  return !!user && isAdmin(user.email);
 }

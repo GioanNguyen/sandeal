@@ -1,4 +1,5 @@
 import { JsonLd } from "@/components/JsonLd";
+import { staffVisitor } from "@/lib/staff";
 import { memo } from "@/lib/memo";
 import { siteUrl } from "@/lib/mail";
 import type { Metadata } from "next";
@@ -79,7 +80,8 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
     return { items, total, categories, stats, vouchers, dropped, spotlight, chipCounts, allCount, mystery, tops, trending, allVouchers };
   };
   const { items, total, categories, stats, vouchers, dropped, spotlight, chipCounts, allCount, mystery, tops, trending, allVouchers } = isLanding ? await memo("home:landing", 60_000, load) : await load();
-  if (sp.q && page === 1) logSearch(sp.q, total).catch(() => {});
+  // Quản trị viên tìm thử: không ghi (từ khoá khách tìm dùng cho Nhu cầu khách, từ khoá hot, trang cần quét của tiện ích)
+  if (sp.q && page === 1 && !(await staffVisitor())) logSearch(sp.q, total).catch(() => {});
   const pages = Math.ceil(total / PAGE_SIZE);
   // Query cho "tải thêm" (giữ bộ lọc hiện tại, bỏ page)
   const moreQuery = new URLSearchParams(Object.entries({ q: sp.q, platform: sp.platform, category: sp.category, min: sp.min, max: sp.max, shop: sp.shop, fresh: sp.fresh, vc: sp.vc, sort: sp.sort, deal: dealsOnly ? "1" : undefined }).filter(([, v]) => v) as [string, string][]).toString();

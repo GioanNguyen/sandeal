@@ -25,7 +25,8 @@ async function tryAdapters(ref: ProductRef, opts: { restockCutoff?: Date | null;
 }
 
 /** Người dùng dán link: tìm trong DB, không có thì tra cứu qua API, vẫn không có thì xếp hàng chờ. */
-export async function checkLink(input: string, opts: { nameHint?: string } = {}): Promise<CheckResult> {
+/** opts.staff: quản trị viên dán (vẫn xếp hàng chờ để tiện ích mở, nhưng không cộng vào "số lần khách dán") */
+export async function checkLink(input: string, opts: { nameHint?: string; staff?: boolean } = {}): Promise<CheckResult> {
   await ensureMigrated();
   const ref = await refFromInput(input);
   if (!ref) return { status: "invalid" };
@@ -43,10 +44,12 @@ export async function checkLink(input: string, opts: { nameHint?: string } = {})
   const nameHint = ref.nameHint ?? opts.nameHint ?? null;
   const [row] = await db
     .insert(productRequests)
-    .values({ platform: ref.platform, externalId: ref.externalId, shopId: ref.shopId ?? null, url: ref.url, nameHint })
+    .values({ platform: ref.platform, externalId: ref.externalId, shopId: ref.shopId ?? null, url: ref.url, nameHint, count: opts.staff ? 0 : 1 })
     .onConflictDoUpdate({
       target: [productRequests.platform, productRequests.externalId],
-      set: { count: sql`${productRequests.count} + 1`, updatedAt: new Date(), ...(nameHint ? { nameHint } : {}) },
+      set: opts.staff
+        ? { ...(nameHint ? { nameHint } : {}) }
+        : { count: sql`${productRequests.count} + 1`, updatedAt: new Date(), ...(nameHint ? { nameHint } : {}) },
     })
     .returning({ id: productRequests.id, nameHint: productRequests.nameHint });
   return { status: "queued", ref: { ...ref, nameHint: row.nameHint ?? undefined }, requestId: row.id };

@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { checkLink } from "@/lib/lookup";
+import { staffVisitor } from "@/lib/staff";
 import { PLATFORMS } from "@/lib/format";
 import { allow } from "@/lib/ratelimit";
 import { Icon } from "@/components/Icon";
@@ -46,7 +47,7 @@ export default async function CheckPage({ searchParams }: { searchParams: Promis
     if (!(await allow(`check:${ip}`, 30, 600))) {
       error = "Bạn kiểm tra quá nhiều link, thử lại sau ít phút.";
     } else {
-      const r = await checkLink(url, { nameHint });
+      const r = await checkLink(url, { nameHint, staff: await staffVisitor() });
       if (r.status === "found") redirect(`/product/${r.productId}${r.isNew ? "?moi=1" : ""}`);
       if (r.status === "invalid") error = "Không nhận ra link này. Hãy dán link trang sản phẩm Shopee, Lazada hoặc TikTok Shop.";
       if (r.status === "queued") {

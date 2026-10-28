@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { allow, clientIp } from "@/lib/ratelimit";
 import { checkLink } from "@/lib/lookup";
+import { staffRequest } from "@/lib/staff";
 import { siteUrl } from "@/lib/mail";
 import { productSummary } from "@/lib/summary";
 
@@ -20,7 +21,8 @@ export async function GET(req: Request) {
   if (!(await allow(`ext:${clientIp(req)}`, 120, 600))) {
     return NextResponse.json({ status: "error", error: "Quá nhiều yêu cầu" }, { status: 429, headers: CORS });
   }
-  const r = await checkLink(url);
+  // Quản trị viên (tiện ích dùng chung cookie web): không cộng vào số lần khách dán
+  const r = await checkLink(url, { staff: (await staffRequest(req)).staff });
   if (r.status !== "found") {
     return NextResponse.json({ status: r.status, checkUrl: `${siteUrl()}/kiem-tra-gia?url=${encodeURIComponent(url)}` }, { headers: CORS });
   }
