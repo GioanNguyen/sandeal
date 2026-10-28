@@ -55,6 +55,7 @@ import { FollowBox } from "@/components/FollowBox";
 import { brandOf, brandPath } from "@/lib/brands";
 import { productJsonLd } from "@/lib/productld";
 import { PRODUCT_NOINDEX_LABEL, productNoindexReason } from "@/lib/seoquality";
+import { productTitle } from "@/lib/seotitle";
 
 export const dynamic = "force-dynamic";
 
@@ -66,11 +67,12 @@ type Props = { params: Promise<{ id: string }>; searchParams?: Promise<{ watch?:
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = await loadProduct(productIdFromParam((await params).id));
   if (!p || p.hidden) return { robots: { index: false, follow: false } };
-  const title = `Lịch sử giá ${p.name} – có đang rẻ thật? (${vnd(p.price)}, ${PLATFORMS[p.platform]?.label ?? p.platform})`;
   const gone = isUnavailable(p, await platformLatest());
   // Mô tả riêng cho từng món, viết từ lịch sử giá của chính món đó (không dùng một câu chung cho mọi trang)
   const now = new Date();
   const advice = buyAdvice(p.prices, p.price, now, { category: p.category ? { name: p.category, drop: await categorySaleDrop(p.category) } : undefined });
+  // Tên gọn + giá + lý do bấm trong ~60 ký tự Google hiện được (xem seotitle.ts)
+  const title = productTitle({ name: p.name, price: p.price, platformLabel: PLATFORMS[p.platform]?.label ?? p.platform, realDropPct: p.realDropPct, gone, advice });
   const description = productStory({
     id: p.id, name: p.name, platformLabel: PLATFORMS[p.platform]?.label ?? p.platform, price: p.price, gone, history: p.prices, advice,
     offers: [], category: null, shop: { name: null, mall: false, rating: null }, variants: null, reviews: null, unitText: null, afterCodes: p.price, sold: null, now,
