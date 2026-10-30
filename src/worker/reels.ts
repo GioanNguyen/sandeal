@@ -286,8 +286,11 @@ export function renderReel(productId: number, outFile?: string): Promise<string>
 
 // ---------- Đăng lên Trang Facebook (Reels Publishing API) ----------
 
-/** Ảnh bìa Reel: giữa cảnh 3 (thẻ giá màu cam – nổi bật nhất trong danh sách Reels) */
-export const COVER_AT = SCENES.d1 + SCENES.d2 + 1.5;
+/**
+ * Ảnh bìa Reel: giữa cảnh 1 (ảnh + tên sản phẩm + câu mở đầu) – nhìn bìa là biết món gì. Giây 1,5: đã hiện rõ (Reel cũ có
+ * hiện dần 0,3 giây đầu), chưa tới lúc chuyển cảnh (cảnh 1 dài SCENES.d1 giây).
+ */
+export const COVER_AT = 1.5;
 
 /** Cắt 1 khung hình JPEG từ video làm ảnh bìa (không có ffmpeg / file hỏng -> null) */
 async function extractCover(file: string): Promise<string | null> {
@@ -303,7 +306,7 @@ async function extractCover(file: string): Promise<string | null> {
 }
 
 /**
- * Đặt ảnh bìa cho Reel đã đăng (POST /{video-id}/thumbnails, is_preferred). Facebook cần vài giây xử lý video nên thử lại
+ * Đặt ảnh bìa cho Reel đã đăng (POST /{video-id}/thumbnails, is_preferred) – khung cảnh 1 (COVER_AT). Facebook cần vài giây xử lý video nên thử lại
  * vài lần; lỗi thì bỏ qua (Reel vẫn đăng, bìa là khung hình đầu – nay đã không còn đen).
  */
 export async function setReelCover(videoId: string, file: string): Promise<boolean> {
@@ -364,7 +367,7 @@ export async function publishReel(file: string, caption: string, comment?: strin
       }
     }
   }
-  // Ảnh bìa: thẻ giá thay cho khung hình đầu (bìa trong danh sách Reels của Trang)
+  // Ảnh bìa: khung cảnh 1 có ảnh + tên sản phẩm (bìa trong danh sách Reels của Trang)
   await setReelCover(videoId, file).catch(() => false);
   return videoId;
 }
@@ -412,8 +415,8 @@ async function downloadPosted(videoId: string, dir: string): Promise<string | nu
 }
 
 /**
- * Chạy 1 lần cho các Reel đăng trước khi sửa lỗi bìa đen: tải lại từng video từ Facebook, cắt khung thẻ giá (giây
- * COVER_AT – đúng giá lúc đăng, không vẽ lại theo giá hôm nay) và đặt làm ảnh bìa. Lần lượt từng Reel, nghỉ giữa các lần.
+ * Chạy 1 lần cho các Reel đăng trước khi sửa lỗi bìa đen: tải lại từng video từ Facebook, cắt khung cảnh 1 (giây
+ * COVER_AT – ảnh + tên sản phẩm đúng như lúc đăng) và đặt làm ảnh bìa. Lần lượt từng Reel, nghỉ giữa các lần.
  * Chạy nền: gọi xong trả về ngay, tiến độ xem qua coverFixState().
  */
 export function startCoverFix(opts: { pauseMs?: number } = {}): CoverFixState {

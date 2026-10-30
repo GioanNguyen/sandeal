@@ -76,8 +76,8 @@ test("bài bóc giá ảo: cần ≥2 món, không có link mua, ảnh và link 
 
 test("đăng tự động: chọn 3 món giảm ảo, ghi lịch sử, lần sau không lặp món đã đăng trong 30 ngày", async () => {
   const add = async (id: string, name: string, price: number, orig: number, sold: number, imageUrl: string | null = "https://down-vn.img.susercontent.com/file/g") => {
-    await ingest.upsertProduct({ platform: "shopee", externalId: id, name, price, originalPrice: orig, discountPct: Math.round((1 - price / orig) * 100), sold, affiliateUrl: "https://e.com", imageUrl }, at(40));
-    await ingest.upsertProduct({ platform: "shopee", externalId: id, name, price, originalPrice: orig, discountPct: Math.round((1 - price / orig) * 100), sold, affiliateUrl: "https://e.com", imageUrl }, NOW);
+    await ingest.upsertProduct({ platform: "shopee", externalId: id, name, price, originalPrice: orig, discountPct: Math.round((1 - price / orig) * 100), sold, affiliateUrl: "https://e.com", imageUrl: imageUrl ?? undefined }, at(40));
+    await ingest.upsertProduct({ platform: "shopee", externalId: id, name, price, originalPrice: orig, discountPct: Math.round((1 - price / orig) * 100), sold, affiliateUrl: "https://e.com", imageUrl: imageUrl ?? undefined }, NOW);
   };
   for (let i = 1; i <= 5; i++) await add(`88000${i}`, `Món giảm ảo số ${i}`, 100_000 * i, 250_000 * i, 100 * i);
   // Giảm ảo rõ nhất nhưng chưa có ảnh: vẫn hiện ở trang /giam-gia-ao, nhưng không lên bài đăng

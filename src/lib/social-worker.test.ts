@@ -15,8 +15,8 @@ test("đăng giờ vàng: chọn deal khác danh mục, gộp 1 bài Facebook, k
   const day = 86_400_000, now = Date.now();
   const img = "https://down-vn.img.susercontent.com/file/x";
   const mk = async (id: string, name: string, category: string, imageUrl: string | null = img) => {
-    for (let i = 0; i < 10; i++) await upsertProduct({ platform: "shopee", externalId: id, name, category, price: 1_000_000, discountPct: 40, affiliateUrl: "#", rating: 4.9, sold: 9000, imageUrl }, new Date(now - (20 - i) * day));
-    return upsertProduct({ platform: "shopee", externalId: id, name, category, price: 600_000, discountPct: 40, affiliateUrl: "#", rating: 4.9, sold: 9000, imageUrl });
+    for (let i = 0; i < 10; i++) await upsertProduct({ platform: "shopee", externalId: id, name, category, price: 1_000_000, discountPct: 40, affiliateUrl: "#", rating: 4.9, sold: 9000, imageUrl: imageUrl ?? undefined }, new Date(now - (20 - i) * day));
+    return upsertProduct({ platform: "shopee", externalId: id, name, category, price: 600_000, discountPct: 40, affiliateUrl: "#", rating: 4.9, sold: 9000, imageUrl: imageUrl ?? undefined });
   };
   await mk("a", "Tai nghe A", "Điện tử");
   await mk("b", "Chuột B", "Điện tử");
@@ -94,8 +94,8 @@ test("FB_LINK_IN_COMMENT=0: đăng kiểu cũ (link trong bài)", async () => {
   process.env.FB_LINK_IN_COMMENT = "0";
   const day = 86_400_000, now = Date.now();
   const imageUrl = "https://down-vn.img.susercontent.com/file/d";
-  for (let i = 0; i < 10; i++) await upsertProduct({ platform: "lazada", externalId: "d", name: "Nồi D", category: "Gia dụng", price: 1_000_000, discountPct: 40, affiliateUrl: "#", rating: 4.9, sold: 9000, imageUrl }, new Date(now - (20 - i) * day));
-  await upsertProduct({ platform: "lazada", externalId: "d", name: "Nồi D", category: "Gia dụng", price: 600_000, discountPct: 40, affiliateUrl: "#", rating: 4.9, sold: 9000, imageUrl });
+  for (let i = 0; i < 10; i++) await upsertProduct({ platform: "lazada", externalId: "d", name: "Nồi D", category: "Gia dụng", price: 1_000_000, discountPct: 40, affiliateUrl: "#", rating: 4.9, sold: 9000, imageUrl: imageUrl ?? undefined }, new Date(now - (20 - i) * day));
+  await upsertProduct({ platform: "lazada", externalId: "d", name: "Nồi D", category: "Gia dụng", price: 600_000, discountPct: 40, affiliateUrl: "#", rating: 4.9, sold: 9000, imageUrl: imageUrl ?? undefined });
   const calls: { url: string; body: Record<string, string> }[] = [];
   const orig = globalThis.fetch;
   globalThis.fetch = (async (url: string, init: { body: string }) => {

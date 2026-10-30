@@ -4,7 +4,7 @@ import type { CoverFixState } from "@/worker/reels";
 
 type S = CoverFixState & { posted?: number };
 
-/** Quản trị › Đăng bài: đổi ảnh bìa (thẻ giá) cho các Reel đã đăng bị bìa đen – chạy 1 lần, chạy nền */
+/** Quản trị › Đăng bài: đổi ảnh bìa (khung đầu: ảnh + tên sản phẩm) cho các Reel đã đăng bị bìa đen – chạy 1 lần, chạy nền */
 export function ReelCoverFix({ posted }: { posted: number }) {
   const [s, setS] = useState<S | null>(null);
   const [err, setErr] = useState("");
@@ -21,7 +21,7 @@ export function ReelCoverFix({ posted }: { posted: number }) {
     return () => clearInterval(t);
   }, [s?.running]);
   async function start() {
-    if (!confirm(`Đổi ảnh bìa cho ${posted} Reel đã đăng? Mỗi Reel được tải lại từ Facebook, cắt khung thẻ giá làm ảnh bìa (vài giây mỗi Reel, chạy nền).`)) return;
+    if (!confirm(`Đổi ảnh bìa cho ${posted} Reel đã đăng? Mỗi Reel được tải lại từ Facebook, cắt khung đầu (ảnh + tên sản phẩm) làm ảnh bìa (vài giây mỗi Reel, chạy nền).`)) return;
     setErr("");
     const res = await fetch("/api/admin/reel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "fix-covers" }) }).catch(() => null);
     if (!res?.ok) return setErr(`Lỗi ${res?.status ?? "mạng"}`);

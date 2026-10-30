@@ -66,7 +66,7 @@ test("lệnh ffmpeg: 3 cảnh, nối tuần tự, ưu tiên ít RAM, đủ âm t
   const s1 = f.split(";").find((x) => x.endsWith("[s1]"))!;
   assert.doesNotMatch(s1, /fade=t=in/, "cảnh đầu không hiện dần từ màu đen");
   assert.match(s1, /fade=t=out/);
-  assert.ok(reels.COVER_AT > 9 && reels.COVER_AT < 13.5, "ảnh bìa lấy ở cảnh 3 (thẻ giá)");
+  assert.ok(reels.COVER_AT >= 0.5 && reels.COVER_AT < reels.SCENES.d1 - reels.SCENES.x, "ảnh bìa lấy ở cảnh 1 (ảnh + tên sản phẩm), sau hiện dần, trước chuyển cảnh");
 });
 
 test("cân âm lượng: hai bài to nhỏ khác nhau ra cùng độ to", { skip: !hasFfmpeg && "máy không có ffmpeg" }, async () => {
@@ -151,12 +151,12 @@ test("đăng Reel: mở phiên → tải file → đăng, rồi bình luận đ�
   }
 });
 
-test("đổi ảnh bìa Reel cũ: tải lại video từ Facebook, cắt khung thẻ giá, đặt làm bìa; Reel đã xoá thì bỏ qua", { skip: !hasFfmpeg && "máy không có ffmpeg" }, async () => {
+test("đổi ảnh bìa Reel cũ: tải lại video từ Facebook, cắt khung đầu (ảnh + tên sản phẩm), đặt làm bìa; Reel đã xoá thì bỏ qua", { skip: !hasFfmpeg && "máy không có ffmpeg" }, async () => {
   const schema = await import("@/db/schema");
   process.env.FB_PAGE_ID = "PAGE1";
   process.env.FB_PAGE_TOKEN = "TOKEN1";
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reelcover-"));
-  // Video thật 13,5 giây: cảnh 3 màu cam (thẻ giá)
+  // Video thật 13,5 giây (ảnh bìa cắt ở cảnh 1)
   const frames = [1, 2, 3].map((i) => {
     const f = path.join(dir, `f${i}.png`);
     execFileSync("ffmpeg", ["-loglevel", "error", "-f", "lavfi", "-i", `color=c=0x${["e8491d", "fff7f2", "ffa41b"][i - 1]}:s=1080x1920`, "-frames:v", "1", f]);
