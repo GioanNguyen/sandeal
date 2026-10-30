@@ -42,6 +42,14 @@ export async function lastPosted(ids: number[], channel = "facebook", now = new 
  * Chọn deal để đăng: điểm cao, giảm thật ≥10%, giá mới cập nhật trong 24h,
  * chưa đăng thành công lên kênh này trong SOCIAL_REPOST_DAYS ngày (mặc định 7), mỗi danh mục tối đa 1 món mỗi lượt.
  */
+/**
+ * Món chưa có ảnh thì không đăng bài / Reel (bài trông trống, ít người bấm; Reel không có ảnh sản phẩm). Dùng chung cho
+ * mọi nơi tạo bài: chọn deal tự động, bài tổng hợp, bóc giá ảo, ví dụ "Ai nâng giá", nút đăng tay trong trang quản trị.
+ */
+export const hasImage = (p: { imageUrl?: string | null }) => !!p.imageUrl?.trim();
+export const hasImageSql = sql`coalesce(trim(${products.imageUrl}), '') <> ''`;
+export const NO_IMAGE_ERROR = "Món chưa có ảnh – không đăng bài / Reel. Chạy tiện ích (chế độ “Chỉ cập nhật ảnh”) để lấy ảnh trước.";
+
 export async function pickDeals(channel: string, limit: number, now = new Date(), onePerCategory = true): Promise<Product[]> {
   const rows = await db
     .select()
@@ -51,6 +59,7 @@ export async function pickDeals(channel: string, limit: number, now = new Date()
         gte(products.dealScore, Number(process.env.SOCIAL_MIN_SCORE ?? 50)),
         gte(products.realDropPct, 10),
         gte(products.lastSeenAt, new Date(now.getTime() - 86_400_000)),
+        hasImageSql,
         notExists(
           db
             .select({ x: sql`1` })
@@ -180,8 +189,8 @@ export async function draftsForProduct(p: Product, now = new Date()) {
 
 /** Mẫu "Tổng hợp theo ngân sách": món đang giảm thật dưới mức giá */
 export async function roundupDraft(budget: number, now = new Date()) {
-  const { items } = await listDeals({ discounted: true, maxPrice: budget, sort: "drop", pageSize: 5 });
-  return tongHop(items, { site: siteUrl(), now, budget });
+  const { items } = await listDeals({ discounted: true, maxPrice: budget, sort: "drop", pageSize: 15 });
+  return tongHop(items.filter(hasImage).slice(0, 5), { site: siteUrl(), now, budget });
 }
 
 /** Mẫu "Ai nâng giá trước sale" cho đợt sale đang/sắp diễn ra */
@@ -189,7 +198,8 @@ export async function raiseDraft(now = new Date()) {
   const pg = currentRaisePage(now);
   if (!pg) return null;
   const r = await raiseReport(pg.event, now);
-  return nangGia(r, { site: siteUrl(), now, sale: saleTitle(pg.event), slug: pg.slug, upcoming: pg.state === "upcoming" });
+  // Số liệu tính trên mọi món; chỉ lấy ví dụ nêu tên trong bài từ món có ảnh
+  return nangGia(r, { site: siteUrl(), now, sale: saleTitle(pg.event), slug: pg.slug, upcoming: pg.state === "upcoming", examples: r.raised.filter((x) => hasImage(x.product)) });
 }
 
 export async function postFacebook(message: string, link: string): Promise<string> {
@@ -206,6 +216,7 @@ export async function postFacebook(message: string, link: string): Promise<strin
 
 /** Đăng 1 deal lên 1 kênh, ghi lịch sử. Trả về true nếu thành công. */
 export async function postDeal(channel: Channel, p: Product, variant = 0): Promise<boolean> {
+  if (!hasImage(p)) return false;
   const link = shareUrl(siteUrl(), p, channel);
   let externalId: string | null = null;
   let error: string | null = null;

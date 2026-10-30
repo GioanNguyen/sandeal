@@ -1,7 +1,11 @@
 import fs from "node:fs/promises";
 import { NextResponse } from "next/server";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
-import { postReel, renderReel } from "@/worker/reels";
+import { eq } from "drizzle-orm";
+import { products } from "@/db/schema";
+import { db } from "@/lib/db";
+import { coverFixState, postReel, postedReelIds, renderReel, startCoverFix } from "@/worker/reels";
+import { hasImage, NO_IMAGE_ERROR } from "@/worker/social";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,8 +20,13 @@ async function admin() {
 export async function GET(req: Request) {
   if (!(await admin())) return NextResponse.json({ error: "Không có quyền" }, { status: 403 });
   const u = new URL(req.url);
+  // Tiến độ đổi ảnh bìa Reel cũ: ?covers=1
+  if (u.searchParams.get("covers")) return NextResponse.json({ ...coverFixState(), posted: (await postedReelIds()).length }, { headers: { "Cache-Control": "no-store" } });
   const id = Number(u.searchParams.get("id"));
   if (!Number.isInteger(id) || id <= 0) return NextResponse.json({ error: "Thiếu mã sản phẩm" }, { status: 400 });
+  const [p] = await db.select({ imageUrl: products.imageUrl }).from(products).where(eq(products.id, id)).limit(1);
+  if (!p) return NextResponse.json({ error: "Không tìm thấy sản phẩm" }, { status: 404 });
+  if (!hasImage(p)) return NextResponse.json({ error: NO_IMAGE_ERROR }, { status: 400 });
   try {
     const file = await renderReel(id);
     const data = await fs.readFile(file);
@@ -35,10 +44,11 @@ export async function GET(req: Request) {
   }
 }
 
-/** Đăng Reel ngay cho 1 món: { productId } */
+/** Đăng Reel ngay cho 1 món: { productId } · Đổi ảnh bìa mọi Reel đã đăng (chạy nền): { action: "fix-covers" } */
 export async function POST(req: Request) {
   if (!(await admin())) return NextResponse.json({ error: "Không có quyền" }, { status: 403 });
   const body = await req.json().catch(() => null);
+  if (body?.action === "fix-covers") return NextResponse.json(startCoverFix());
   const id = Number(body?.productId);
   if (!Number.isInteger(id) || id <= 0) return NextResponse.json({ error: "Thiếu mã sản phẩm" }, { status: 400 });
   const r = await postReel(new Date(), id);

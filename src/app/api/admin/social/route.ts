@@ -5,7 +5,7 @@ import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { siteUrl } from "@/lib/mail";
 import { GIA_AO_CHANNEL, NANG_GIA_CHANNEL } from "@/worker/giaao";
-import { channels, lastPosted, postDeal, postFacebookDigest, postFacebookDraft, postFacebookStory, repostDays } from "@/worker/social";
+import { channels, hasImage, lastPosted, NO_IMAGE_ERROR, postDeal, postFacebookDigest, postFacebookDraft, postFacebookStory, repostDays } from "@/worker/social";
 
 const MANUAL = ["zalo", "tiktok", "facebook-group"];
 
@@ -24,6 +24,11 @@ export async function POST(req: Request) {
     const image = String(d.image ?? "");
     if (!text || !comment || !image.startsWith(siteUrl())) return NextResponse.json({ error: "Thiếu nội dung hoặc ảnh không hợp lệ" }, { status: 400 });
     const ids = (Array.isArray(d.productIds) ? d.productIds : []).map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 10);
+    // Món chưa có ảnh: không đăng
+    if (ids.length) {
+      const noImg = (await db.select({ id: products.id, name: products.name, imageUrl: products.imageUrl }).from(products).where(inArray(products.id, ids))).filter((x) => !hasImage(x));
+      if (noImg.length) return NextResponse.json({ error: `${NO_IMAGE_ERROR} (${noImg.map((x) => x.name).join("; ")})` }, { status: 400 });
+    }
     // Bài "Bóc giá ảo" / "Ai nâng giá" ghi lịch sử riêng (để lượt đăng tự động không lặp lại các món này)
     const postChannel = d.kind === "boc-gia-ao" ? GIA_AO_CHANNEL : d.kind === "nang-gia" ? NANG_GIA_CHANNEL : "facebook";
     // Chống đăng trùng: món đã đăng thành công lên Trang trong N ngày -> hỏi lại (gửi force: true để vẫn đăng)
@@ -62,7 +67,8 @@ export async function POST(req: Request) {
     if (channel !== "facebook" || !(channels() as string[]).includes("facebook")) return NextResponse.json({ error: "Trang Facebook chưa được cấu hình" }, { status: 400 });
     const ids = body.productIds.map(Number).filter(Number.isFinite).slice(0, 10);
     const found = await db.select().from(products).where(inArray(products.id, ids));
-    const deals = ids.map((id: number) => found.find((p) => p.id === id)).filter((p: unknown): p is (typeof found)[number] => !!p);
+    const deals = ids.map((id: number) => found.find((p) => p.id === id)).filter((p: unknown): p is (typeof found)[number] => !!p).filter(hasImage);
+    if (!deals.length) return NextResponse.json({ error: NO_IMAGE_ERROR }, { status: 400 });
     const n = await postFacebookDigest(deals);
     return n ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "Đăng thất bại, xem lịch sử bên dưới" }, { status: 502 });
   }
@@ -73,6 +79,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
   if (!(channels() as string[]).includes(channel)) return NextResponse.json({ error: "Kênh chưa được cấu hình" }, { status: 400 });
+  if (!hasImage(p)) return NextResponse.json({ error: NO_IMAGE_ERROR }, { status: 400 });
   const ok = await postDeal(channel as "telegram" | "facebook", p);
   return ok ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "Đăng thất bại, xem lịch sử bên dưới" }, { status: 502 });
 }

@@ -281,10 +281,14 @@ export function tongHop(items: Product[], opts: { site: string; now: Date; budge
 }
 
 /** 10. Ai nâng giá trước sale (số liệu trang /nang-gia) */
-export function nangGia(r: { total: number; rate: number; raised: { product: Product; base: number; peak: number }[] }, opts: { site: string; now: Date; sale: string; slug: string; upcoming: boolean }): PostDraft | null {
+export function nangGia(
+  r: { total: number; rate: number; raised: { product: Product; base: number; peak: number }[] },
+  opts: { site: string; now: Date; sale: string; slug: string; upcoming: boolean; /** Món được nêu làm ví dụ (mặc định: các món tăng giá nhiều nhất) */ examples?: { product: Product; base: number; peak: number }[] },
+): PostDraft | null {
   if (r.total < 10 || !r.raised.length) return null;
   const pct = Math.round(r.rate * 100);
-  const top = r.raised.slice(0, 3);
+  const top = (opts.examples ?? r.raised).slice(0, 3);
+  if (!top.length) return null;
   const link = `${opts.site}/nang-gia/${opts.slug}?utm_source=facebook&utm_medium=social`;
   return {
     kind: "nang-gia",

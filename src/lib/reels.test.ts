@@ -62,6 +62,11 @@ test("lệnh ffmpeg: 3 cảnh, nối tuần tự, ưu tiên ít RAM, đủ âm t
   assert.equal(reels.gainFor(-10.3, -16), -5.7);
   assert.equal(reels.gainFor(-60, -16), 15, "bài gần như im lặng: không đẩy quá 15 dB");
   assert.equal(reels.reelDuration(), 13.5);
+  // Khung hình đầu không đen (Facebook lấy làm ảnh bìa): cảnh 1 không hiện dần từ màu đen
+  const s1 = f.split(";").find((x) => x.endsWith("[s1]"))!;
+  assert.doesNotMatch(s1, /fade=t=in/, "cảnh đầu không hiện dần từ màu đen");
+  assert.match(s1, /fade=t=out/);
+  assert.ok(reels.COVER_AT > 9 && reels.COVER_AT < 13.5, "ảnh bìa lấy ở cảnh 3 (thẻ giá)");
 });
 
 test("cân âm lượng: hai bài to nhỏ khác nhau ra cùng độ to", { skip: !hasFfmpeg && "máy không có ffmpeg" }, async () => {
@@ -141,6 +146,75 @@ test("đăng Reel: mở phiên → tải file → đăng, rồi bình luận đ�
   } finally {
     globalThis.fetch = orig;
     fs.rmSync(dir, { recursive: true, force: true });
+    delete process.env.FB_PAGE_ID;
+    delete process.env.FB_PAGE_TOKEN;
+  }
+});
+
+test("đổi ảnh bìa Reel cũ: tải lại video từ Facebook, cắt khung thẻ giá, đặt làm bìa; Reel đã xoá thì bỏ qua", { skip: !hasFfmpeg && "máy không có ffmpeg" }, async () => {
+  const schema = await import("@/db/schema");
+  process.env.FB_PAGE_ID = "PAGE1";
+  process.env.FB_PAGE_TOKEN = "TOKEN1";
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reelcover-"));
+  // Video thật 13,5 giây: cảnh 3 màu cam (thẻ giá)
+  const frames = [1, 2, 3].map((i) => {
+    const f = path.join(dir, `f${i}.png`);
+    execFileSync("ffmpeg", ["-loglevel", "error", "-f", "lavfi", "-i", `color=c=0x${["e8491d", "fff7f2", "ffa41b"][i - 1]}:s=1080x1920`, "-frames:v", "1", f]);
+    return f;
+  }) as [string, string, string];
+  const mp4 = path.join(dir, "v.mp4");
+  execFileSync("ffmpeg", reels.ffmpegArgs({ frames, music: null, out: mp4 }));
+  const video = fs.readFileSync(mp4);
+
+  const id = await ingest.upsertProduct({ platform: "shopee", externalId: "cov1", name: "Món bìa", price: 10_000, discountPct: 0, affiliateUrl: "https://s.shopee.vn/c" }, new Date());
+  await dbm.db.insert(schema.socialPosts).values([
+    { channel: reels.REEL_CHANNEL, productId: id, externalId: "VOK" },
+    { channel: reels.REEL_CHANNEL, productId: id, externalId: "VGONE" }, // đã xoá trên Facebook
+    { channel: reels.REEL_CHANNEL, productId: id, externalId: null, error: "đăng lỗi" }, // không tính
+  ]);
+  const covers: { url: string; preferred: unknown; size: number }[] = [];
+  const orig = globalThis.fetch;
+  globalThis.fetch = (async (url: string, init?: { body?: unknown }) => {
+    const u = String(url);
+    if (u.includes("/VOK?fields=source")) return new Response(JSON.stringify({ source: "https://video.test/vok.mp4" }));
+    if (u.includes("/VGONE?fields=source")) return new Response(JSON.stringify({ error: { message: "Object does not exist" } }), { status: 400 });
+    if (u === "https://video.test/vok.mp4") return new Response(video);
+    if (u.endsWith("/thumbnails")) {
+      const fd = init?.body as FormData;
+      covers.push({ url: u, preferred: fd.get("is_preferred"), size: (fd.get("source") as Blob).size });
+      return new Response(JSON.stringify({ success: true }));
+    }
+    return new Response("{}", { status: 404 });
+  }) as typeof fetch;
+  try {
+    assert.equal((await reels.postedReelIds()).length >= 2, true);
+    reels.startCoverFix({ pauseMs: 0 });
+    for (let i = 0; i < 600 && reels.coverFixState().running; i++) await new Promise((r) => setTimeout(r, 50));
+    const st = reels.coverFixState();
+    assert.equal(st.running, false);
+    assert.equal(st.ok, 1, "Reel còn trên Facebook: đã đổi bìa");
+    assert.ok(st.skipped >= 1, "Reel đã xoá: bỏ qua");
+    assert.equal(covers.length, 1);
+    assert.match(covers[0].url, /\/VOK\/thumbnails$/);
+    assert.equal(covers[0].preferred, "true");
+    assert.ok(covers[0].size > 1000, "gửi ảnh JPEG thật");
+  } finally {
+    globalThis.fetch = orig;
+    fs.rmSync(dir, { recursive: true, force: true });
+    delete process.env.FB_PAGE_ID;
+    delete process.env.FB_PAGE_TOKEN;
+  }
+});
+
+test("món chưa có ảnh: không dựng / đăng Reel (kể cả bấm tay trong trang quản trị)", async () => {
+  process.env.FB_PAGE_ID = "PAGE1";
+  process.env.FB_PAGE_TOKEN = "TOKEN1";
+  try {
+    const id = await ingest.upsertProduct({ platform: "shopee", externalId: "noimg1", name: "Món chưa ảnh", price: 50_000, discountPct: 30, affiliateUrl: "https://s.shopee.vn/n" }, new Date());
+    const r = await reels.postReel(new Date(), id);
+    assert.equal(r.ok, false);
+    assert.match(r.error ?? "", /chưa có ảnh/);
+  } finally {
     delete process.env.FB_PAGE_ID;
     delete process.env.FB_PAGE_TOKEN;
   }

@@ -12,7 +12,8 @@ import { siteUrl } from "@/lib/mail";
 import { Icon } from "@/components/Icon";
 import { PostComposer } from "@/components/PostComposer";
 import { ReelButtons } from "@/components/ReelButtons";
-import { hasFfmpeg, REEL_CHANNEL, reelHours, reelsEnabled } from "@/worker/reels";
+import { ReelCoverFix } from "@/components/ReelCoverFix";
+import { hasFfmpeg, postedReelIds, REEL_CHANNEL, reelHours, reelsEnabled } from "@/worker/reels";
 import { GIA_AO_CHANNEL, NANG_GIA_CHANNEL, giaAoEnabled, giaAoSchedule, nextGiaAoDraft } from "@/worker/giaao";
 import { channels, draftsForProduct, lastPosted, pickDeals, raiseDraft, repostDays, roundupDraft } from "@/worker/social";
 
@@ -183,6 +184,8 @@ export default async function SocialAdmin({ searchParams }: { searchParams: Prom
             ))}
           </ul>
         )}
+        {/* Reel đăng trước khi sửa lỗi bìa đen (video mở đầu từ màn hình đen): đổi bìa sang thẻ giá – chạy 1 lần */}
+        {ffmpeg && process.env.FB_PAGE_TOKEN && <ReelCoverFix posted={(await postedReelIds()).length} />}
       </section>
 
       <section className="panel" style={{ marginTop: 24 }}>

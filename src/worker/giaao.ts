@@ -12,7 +12,7 @@ import { fakeDeals } from "@/lib/fakedeals";
 import { bocGiaAo, type PostDraft } from "@/lib/fbposts";
 import { siteUrl } from "@/lib/mail";
 import { currentRaisePage } from "@/lib/salepages";
-import { channels, postFacebookDraft, raiseDraft } from "./social";
+import { channels, hasImage, postFacebookDraft, raiseDraft } from "./social";
 
 export const GIA_AO_CHANNEL = "facebook_giaao";
 export const NANG_GIA_CHANNEL = "facebook_nanggia";
@@ -50,7 +50,8 @@ export async function nextGiaAoDraft(now = new Date()): Promise<{ draft: PostDra
     const d = await raiseDraft(now);
     if (d) return { draft: d, channel: NANG_GIA_CHANNEL };
   }
-  const list = await fakeDeals({ now, limit: 3, exclude: await recentlyUsed(now) });
+  // Món chưa có ảnh không lên bài
+  const list = (await fakeDeals({ now, limit: 12, exclude: await recentlyUsed(now) })).filter((x) => hasImage(x.p)).slice(0, 3);
   const d = bocGiaAo(list, { site: siteUrl(), now });
   return d ? { draft: d, channel: GIA_AO_CHANNEL } : null;
 }

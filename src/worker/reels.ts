@@ -13,8 +13,9 @@
  */
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
-import { eq } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { products, socialPosts, type Product } from "@/db/schema";
 import { db } from "@/lib/db";
 import { siteUrl } from "@/lib/mail";
@@ -22,7 +23,7 @@ import { REEL_PLOT, type ReelFrameData } from "@/lib/og";
 import { priceK } from "@/lib/social";
 import { getProduct } from "@/lib/queries";
 import { gioiThieu, singleDrafts, type PostDraft } from "@/lib/fbposts";
-import { draftContext, pickDeals } from "./social";
+import { draftContext, hasImage, NO_IMAGE_ERROR, pickDeals } from "./social";
 
 export const REEL_CHANNEL = "facebook_reel";
 const GRAPH = () => `https://graph.facebook.com/${process.env.FB_GRAPH_VERSION || "v21.0"}`;
@@ -191,8 +192,10 @@ export function ffmpegArgs(o: { frames: [string, string, string]; music: string 
   if (o.music) args.push("-stream_loop", "-1", "-i", o.music);
   else args.push("-f", "lavfi", "-t", String(T), "-i", "anullsrc=r=48000:cl=stereo");
   // Nối 3 cảnh tuần tự (concat) thay vì chồng hình (xfade): ffmpeg không phải giữ hàng trăm khung hình chờ trong RAM
+  // Cảnh đầu KHÔNG hiện dần từ màu đen: Facebook lấy khung hình đầu làm ảnh bìa Reel -> bìa đen trong danh sách
+  // (người lướt cũng quyết định xem hay bỏ qua ngay từ khung đầu). Các cảnh sau chuyển qua nền trắng như cũ.
   const fades = (d: number, first: boolean, last: boolean) =>
-    [first ? "fade=t=in:st=0:d=0.3" : `fade=t=in:st=0:d=${x}:color=white`, `fade=t=out:st=${(d - (last ? 0.3 : x)).toFixed(2)}:d=${last ? 0.3 : x}${last ? "" : ":color=white"}`].join(",");
+    [...(first ? [] : [`fade=t=in:st=0:d=${x}:color=white`]), `fade=t=out:st=${(d - (last ? 0.3 : x)).toFixed(2)}:d=${last ? 0.3 : x}${last ? "" : ":color=white"}`].join(",");
   const filter = [
     `[0:v]scale=${W}:${H},setsar=1,format=yuv420p,${fades(d1, true, false)}[s1]`,
     // Biểu đồ "vẽ dần": cắt riêng vùng biểu đồ, phủ tấm trắng rồi kéo tấm trắng sang phải trong 2,6 giây,
@@ -283,6 +286,49 @@ export function renderReel(productId: number, outFile?: string): Promise<string>
 
 // ---------- Đăng lên Trang Facebook (Reels Publishing API) ----------
 
+/** Ảnh bìa Reel: giữa cảnh 3 (thẻ giá màu cam – nổi bật nhất trong danh sách Reels) */
+export const COVER_AT = SCENES.d1 + SCENES.d2 + 1.5;
+
+/** Cắt 1 khung hình JPEG từ video làm ảnh bìa (không có ffmpeg / file hỏng -> null) */
+async function extractCover(file: string): Promise<string | null> {
+  if (!(await hasFfmpeg())) return null;
+  const out = file.replace(/\.mp4$/i, "") + `-cover-${Date.now()}.jpg`;
+  try {
+    await runFfmpeg(["-y", "-hide_banner", "-loglevel", "error", "-ss", String(COVER_AT), "-i", file, "-frames:v", "1", "-q:v", "3", out]);
+    return out;
+  } catch {
+    await fs.rm(out, { force: true }).catch(() => {});
+    return null;
+  }
+}
+
+/**
+ * Đặt ảnh bìa cho Reel đã đăng (POST /{video-id}/thumbnails, is_preferred). Facebook cần vài giây xử lý video nên thử lại
+ * vài lần; lỗi thì bỏ qua (Reel vẫn đăng, bìa là khung hình đầu – nay đã không còn đen).
+ */
+export async function setReelCover(videoId: string, file: string): Promise<boolean> {
+  const cover = await extractCover(file);
+  if (!cover) return false;
+  try {
+    const img = await fs.readFile(cover);
+    const base = Number(process.env.REELS_COMMENT_WAIT_MS ?? 5000);
+    for (let i = 0; i < 3; i++) {
+      if (i) await new Promise((r) => setTimeout(r, base * 3));
+      const fd = new FormData();
+      fd.set("access_token", process.env.FB_PAGE_TOKEN ?? "");
+      fd.set("is_preferred", "true");
+      fd.set("source", new Blob([img], { type: "image/jpeg" }), "cover.jpg");
+      const res = await fetch(`${GRAPH()}/${videoId}/thumbnails`, { method: "POST", body: fd }).catch(() => null);
+      const json = (await res?.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } } | undefined;
+      if (res?.ok && !json?.error) return true;
+      if (i === 2) console.warn("[reels] đặt ảnh bìa lỗi:", json?.error?.message ?? `HTTP ${res?.status ?? "?"}`);
+    }
+    return false;
+  } finally {
+    await fs.rm(cover, { force: true }).catch(() => {});
+  }
+}
+
 async function graphPost(url: string, body: Record<string, unknown>) {
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, access_token: process.env.FB_PAGE_TOKEN }) });
   const json = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: { message: string } };
@@ -318,7 +364,95 @@ export async function publishReel(file: string, caption: string, comment?: strin
       }
     }
   }
+  // Ảnh bìa: thẻ giá thay cho khung hình đầu (bìa trong danh sách Reels của Trang)
+  await setReelCover(videoId, file).catch(() => false);
   return videoId;
+}
+
+// ---------- Đổi ảnh bìa cho Reel đã đăng trước đây (bìa đen) ----------
+
+export interface CoverFixState {
+  running: boolean;
+  total: number;
+  done: number;
+  ok: number;
+  /** Reel đã bị xoá trên Facebook / không tải được video */
+  skipped: number;
+  failed: number;
+  startedAt: string | null;
+  finishedAt: string | null;
+  lastError: string | null;
+}
+const cfx = globalThis as unknown as { __reelCoverFix?: CoverFixState };
+export const coverFixState = (): CoverFixState =>
+  (cfx.__reelCoverFix ??= { running: false, total: 0, done: 0, ok: 0, skipped: 0, failed: 0, startedAt: null, finishedAt: null, lastError: null });
+
+/** Số Reel đã đăng thành công (có mã video) */
+export async function postedReelIds(): Promise<string[]> {
+  const rows = await db
+    .select({ id: socialPosts.externalId })
+    .from(socialPosts)
+    .where(and(eq(socialPosts.channel, REEL_CHANNEL), isNotNull(socialPosts.externalId), isNull(socialPosts.error)))
+    .orderBy(desc(socialPosts.postedAt));
+  return [...new Set(rows.map((r) => r.id!).filter(Boolean))];
+}
+
+/** Tải video đã đăng từ Facebook về file tạm (trường "source" của video); không có (đã xoá) -> null */
+async function downloadPosted(videoId: string, dir: string): Promise<string | null> {
+  const meta = await fetch(`${GRAPH()}/${videoId}?fields=source&access_token=${encodeURIComponent(process.env.FB_PAGE_TOKEN ?? "")}`, { signal: AbortSignal.timeout(30_000) }).catch(() => null);
+  const json = (await meta?.json().catch(() => ({}))) as { source?: string; error?: { message?: string } } | undefined;
+  if (!meta?.ok || !json?.source) return null;
+  const res = await fetch(json.source, { signal: AbortSignal.timeout(120_000) }).catch(() => null);
+  if (!res?.ok) return null;
+  const data = new Uint8Array(await res.arrayBuffer());
+  if (!data.length || data.length > 200 * 1024 * 1024) return null;
+  const file = path.join(dir, `old-${videoId}.mp4`);
+  await fs.writeFile(file, data);
+  return file;
+}
+
+/**
+ * Chạy 1 lần cho các Reel đăng trước khi sửa lỗi bìa đen: tải lại từng video từ Facebook, cắt khung thẻ giá (giây
+ * COVER_AT – đúng giá lúc đăng, không vẽ lại theo giá hôm nay) và đặt làm ảnh bìa. Lần lượt từng Reel, nghỉ giữa các lần.
+ * Chạy nền: gọi xong trả về ngay, tiến độ xem qua coverFixState().
+ */
+export function startCoverFix(opts: { pauseMs?: number } = {}): CoverFixState {
+  const st = coverFixState();
+  if (st.running) return st;
+  Object.assign(st, { running: true, total: 0, done: 0, ok: 0, skipped: 0, failed: 0, startedAt: new Date().toISOString(), finishedAt: null, lastError: null });
+  void (async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "reel-covers-"));
+    try {
+      if (!process.env.FB_PAGE_ID || !process.env.FB_PAGE_TOKEN) throw new Error("Chưa kết nối Trang Facebook (FB_PAGE_ID, FB_PAGE_TOKEN)");
+      if (!(await hasFfmpeg())) throw new Error("Máy chủ chưa có ffmpeg để cắt ảnh bìa");
+      const ids = await postedReelIds();
+      st.total = ids.length;
+      for (const id of ids) {
+        try {
+          const file = await downloadPosted(id, dir);
+          if (!file) st.skipped++;
+          else {
+            if (await setReelCover(id, file)) st.ok++;
+            else st.failed++;
+            await fs.rm(file, { force: true });
+          }
+        } catch (err) {
+          st.failed++;
+          st.lastError = (err as Error).message.slice(0, 200);
+        }
+        st.done++;
+        await new Promise((r) => setTimeout(r, opts.pauseMs ?? 2000));
+      }
+    } catch (err) {
+      st.lastError = (err as Error).message.slice(0, 200);
+    } finally {
+      st.running = false;
+      st.finishedAt = new Date().toISOString();
+      await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+      console.log(`[reels] đổi ảnh bìa Reel cũ: ${st.ok} xong, ${st.skipped} bỏ qua, ${st.failed} lỗi / ${st.total}`);
+    }
+  })();
+  return st;
 }
 
 // ---------- Lịch: dựng sẵn giờ vắng, đăng giờ vàng ----------
@@ -371,11 +505,12 @@ export async function postReel(now = new Date(), productId?: number): Promise<{ 
   if (productId) {
     [p] = await db.select().from(products).where(eq(products.id, productId)).limit(1);
     if (!p) return { ok: false, error: "Không tìm thấy sản phẩm" };
+    if (!hasImage(p)) return { ok: false, productId: p.id, error: NO_IMAGE_ERROR };
   } else {
     // Video dựng sẵn còn đúng giá hiện tại
     for (const x of q) {
       const [cur] = await db.select().from(products).where(eq(products.id, x.productId)).limit(1);
-      if (cur && cur.price === x.price) {
+      if (cur && cur.price === x.price && hasImage(cur)) {
         item = x;
         p = cur;
         break;

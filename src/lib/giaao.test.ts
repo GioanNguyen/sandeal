@@ -75,17 +75,20 @@ test("bài bóc giá ảo: cần ≥2 món, không có link mua, ảnh và link 
 });
 
 test("đăng tự động: chọn 3 món giảm ảo, ghi lịch sử, lần sau không lặp món đã đăng trong 30 ngày", async () => {
-  const add = async (id: string, name: string, price: number, orig: number, sold: number) => {
-    await ingest.upsertProduct({ platform: "shopee", externalId: id, name, price, originalPrice: orig, discountPct: Math.round((1 - price / orig) * 100), sold, affiliateUrl: "https://e.com" }, at(40));
-    await ingest.upsertProduct({ platform: "shopee", externalId: id, name, price, originalPrice: orig, discountPct: Math.round((1 - price / orig) * 100), sold, affiliateUrl: "https://e.com" }, NOW);
+  const add = async (id: string, name: string, price: number, orig: number, sold: number, imageUrl: string | null = "https://down-vn.img.susercontent.com/file/g") => {
+    await ingest.upsertProduct({ platform: "shopee", externalId: id, name, price, originalPrice: orig, discountPct: Math.round((1 - price / orig) * 100), sold, affiliateUrl: "https://e.com", imageUrl }, at(40));
+    await ingest.upsertProduct({ platform: "shopee", externalId: id, name, price, originalPrice: orig, discountPct: Math.round((1 - price / orig) * 100), sold, affiliateUrl: "https://e.com", imageUrl }, NOW);
   };
   for (let i = 1; i <= 5; i++) await add(`88000${i}`, `Món giảm ảo số ${i}`, 100_000 * i, 250_000 * i, 100 * i);
+  // Giảm ảo rõ nhất nhưng chưa có ảnh: vẫn hiện ở trang /giam-gia-ao, nhưng không lên bài đăng
+  await add("880077", "Món giảm ảo chưa ảnh", 900_000, 2_700_000, 9000, null);
   // Món giảm thật: không được chọn
   await ingest.upsertProduct({ platform: "shopee", externalId: "880099", name: "Món giảm thật", price: 300_000, originalPrice: 600_000, discountPct: 50, affiliateUrl: "https://e.com" }, at(40));
   await ingest.upsertProduct({ platform: "shopee", externalId: "880099", name: "Món giảm thật", price: 200_000, originalPrice: 600_000, discountPct: 67, affiliateUrl: "https://e.com" }, NOW);
 
   const list = await fd.fakeDeals({ now: NOW });
-  assert.equal(list.length, 5);
+  assert.equal(list.length, 6);
+  const noImg = list.find((x) => x.p.name === "Món giảm ảo chưa ảnh")!.p.id;
   assert.ok(!list.some((x) => x.p.name === "Món giảm thật"));
 
   const posts: { body: string; image: string }[] = [];
@@ -108,6 +111,7 @@ test("đăng tự động: chọn 3 món giảm ảo, ghi lịch sử, lần sau
   const r3 = await worker.postGiaAo(new Date(NOW.getTime() + 6 * DAY), post as never);
   assert.equal(r3.ok, false, "hết món mới: không đăng");
   assert.equal(posts.length, 2);
+  assert.ok(![...first, ...second].includes(noImg), "món chưa có ảnh không lên bài");
 
   // Lỗi bình luận đầu (bài đã lên): vẫn tính là đã đăng
   const hist = await worker.lastGiaAoPosts();
