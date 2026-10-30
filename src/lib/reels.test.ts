@@ -151,7 +151,7 @@ test("đăng Reel: mở phiên → tải file → đăng, rồi bình luận đ�
   }
 });
 
-test("đổi ảnh bìa Reel cũ: tải lại video từ Facebook, cắt khung đầu (ảnh + tên sản phẩm), đặt làm bìa; Reel đã xoá thì bỏ qua", { skip: !hasFfmpeg && "máy không có ffmpeg" }, async () => {
+test("đổi ảnh bìa Reel cũ: tải lại video, cắt khung đầu, đặt làm bìa; bỏ qua Reel đã xoá; chọn từng Reel; dừng; tự dừng khi lỗi liên tiếp", { skip: !hasFfmpeg && "máy không có ffmpeg" }, async () => {
   const schema = await import("@/db/schema");
   process.env.FB_PAGE_ID = "PAGE1";
   process.env.FB_PAGE_TOKEN = "TOKEN1";
@@ -167,37 +167,77 @@ test("đổi ảnh bìa Reel cũ: tải lại video từ Facebook, cắt khung �
   const video = fs.readFileSync(mp4);
 
   const id = await ingest.upsertProduct({ platform: "shopee", externalId: "cov1", name: "Món bìa", price: 10_000, discountPct: 0, affiliateUrl: "https://s.shopee.vn/c" }, new Date());
+  const t0 = Date.now();
   await dbm.db.insert(schema.socialPosts).values([
-    { channel: reels.REEL_CHANNEL, productId: id, externalId: "VOK" },
-    { channel: reels.REEL_CHANNEL, productId: id, externalId: "VGONE" }, // đã xoá trên Facebook
+    { channel: reels.REEL_CHANNEL, productId: id, externalId: "VOK", postedAt: new Date(t0 - 1000) },
+    { channel: reels.REEL_CHANNEL, productId: id, externalId: "VGONE", postedAt: new Date(t0 - 2000) }, // đã xoá trên Facebook
     { channel: reels.REEL_CHANNEL, productId: id, externalId: null, error: "đăng lỗi" }, // không tính
   ]);
-  const covers: { url: string; preferred: unknown; size: number }[] = [];
+  const covers: string[] = [];
+  let reject = new Set<string>();
   const orig = globalThis.fetch;
   globalThis.fetch = (async (url: string, init?: { body?: unknown }) => {
     const u = String(url);
-    if (u.includes("/VOK?fields=source")) return new Response(JSON.stringify({ source: "https://video.test/vok.mp4" }));
-    if (u.includes("/VGONE?fields=source")) return new Response(JSON.stringify({ error: { message: "Object does not exist" } }), { status: 400 });
-    if (u === "https://video.test/vok.mp4") return new Response(video);
-    if (u.endsWith("/thumbnails")) {
+    const m = u.match(/\/(V\w+)\?fields=source/);
+    if (m) return m[1] === "VGONE" ? new Response(JSON.stringify({ error: { message: "Object does not exist" } }), { status: 400 }) : new Response(JSON.stringify({ source: `https://video.test/${m[1]}.mp4` }));
+    if (u.startsWith("https://video.test/")) return new Response(video);
+    const t = u.match(/\/(V\w+)\/thumbnails$/);
+    if (t) {
       const fd = init?.body as FormData;
-      covers.push({ url: u, preferred: fd.get("is_preferred"), size: (fd.get("source") as Blob).size });
+      assert.equal(fd.get("is_preferred"), "true");
+      assert.ok((fd.get("source") as Blob).size > 1000, "gửi ảnh JPEG thật");
+      if (reject.has(t[1])) return new Response(JSON.stringify({ error: { message: "(#200) Permissions error" } }), { status: 403 });
+      covers.push(t[1]);
       return new Response(JSON.stringify({ success: true }));
     }
     return new Response("{}", { status: 404 });
   }) as typeof fetch;
-  try {
-    assert.equal((await reels.postedReelIds()).length >= 2, true);
-    reels.startCoverFix({ pauseMs: 0 });
+  const wait = async () => {
     for (let i = 0; i < 600 && reels.coverFixState().running; i++) await new Promise((r) => setTimeout(r, 50));
-    const st = reels.coverFixState();
-    assert.equal(st.running, false);
+  };
+  try {
+    // Tất cả Reel chưa đổi
+    reels.startCoverFix({ pauseMs: 0 });
+    await wait();
+    let st = reels.coverFixState();
     assert.equal(st.ok, 1, "Reel còn trên Facebook: đã đổi bìa");
-    assert.ok(st.skipped >= 1, "Reel đã xoá: bỏ qua");
-    assert.equal(covers.length, 1);
-    assert.match(covers[0].url, /\/VOK\/thumbnails$/);
-    assert.equal(covers[0].preferred, "true");
-    assert.ok(covers[0].size > 1000, "gửi ảnh JPEG thật");
+    assert.equal(st.skipped, 1, "Reel đã xoá: bỏ qua");
+    assert.deepEqual(covers, ["VOK"]);
+    const list = await reels.postedReels();
+    assert.equal(list.length, 2, "Reel đăng lỗi không có trong danh sách");
+    assert.equal(list.find((r) => r.videoId === "VOK")?.cover?.status, "ok");
+    assert.match(list.find((r) => r.videoId === "VGONE")?.cover?.error ?? "", /xoá/);
+    // Lần sau: Reel đã đổi xong thì bỏ qua
+    reels.startCoverFix({ pauseMs: 0 });
+    await wait();
+    assert.deepEqual(covers, ["VOK"], "không đổi lại Reel đã xong");
+    // Chọn đúng 1 Reel: đổi lại dù đã xong
+    reels.startCoverFix({ ids: ["VOK"], pauseMs: 0 });
+    await wait();
+    assert.equal(reels.coverFixState().total, 1);
+    assert.deepEqual(covers, ["VOK", "VOK"]);
+
+    // Lỗi chung (thiếu quyền) liên tiếp: tự dừng sau 3 Reel, ghi lỗi từng Reel
+    const more = ["V1", "V2", "V3", "V4", "V5"];
+    await dbm.db.insert(schema.socialPosts).values(more.map((v, i) => ({ channel: reels.REEL_CHANNEL, productId: id, externalId: v, postedAt: new Date(t0 + i * 1000) })));
+    reject = new Set(more);
+    reels.startCoverFix({ ids: more, pauseMs: 0 });
+    await wait();
+    st = reels.coverFixState();
+    assert.equal(st.failed, 3);
+    assert.equal(st.done, 3, "dừng, không chạy tiếp 2 Reel còn lại");
+    assert.match(st.stoppedReason ?? "", /3 Reel liên tiếp lỗi.*Permissions/);
+    assert.match((await reels.postedReels()).find((r) => r.cover?.status === "failed")?.cover?.error ?? "", /Permissions/);
+
+    // Bấm Dừng: dừng sau Reel đang làm
+    reject = new Set();
+    reels.startCoverFix({ ids: more, pauseMs: 200 });
+    reels.stopCoverFix();
+    await wait();
+    st = reels.coverFixState();
+    assert.equal(st.running, false);
+    assert.ok(st.done < more.length, "đã dừng giữa chừng");
+    assert.match(st.stoppedReason ?? "", /dừng theo yêu cầu/);
   } finally {
     globalThis.fetch = orig;
     fs.rmSync(dir, { recursive: true, force: true });

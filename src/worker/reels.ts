@@ -15,8 +15,8 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
-import { products, socialPosts, type Product } from "@/db/schema";
+import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { kvStore, products, socialPosts, type Product } from "@/db/schema";
 import { db } from "@/lib/db";
 import { siteUrl } from "@/lib/mail";
 import { REEL_PLOT, type ReelFrameData } from "@/lib/og";
@@ -306,27 +306,30 @@ async function extractCover(file: string): Promise<string | null> {
 }
 
 /**
- * Đặt ảnh bìa cho Reel đã đăng (POST /{video-id}/thumbnails, is_preferred) – khung cảnh 1 (COVER_AT). Facebook cần vài giây xử lý video nên thử lại
- * vài lần; lỗi thì bỏ qua (Reel vẫn đăng, bìa là khung hình đầu – nay đã không còn đen).
+ * Đặt ảnh bìa cho Reel đã đăng (POST /{video-id}/thumbnails, is_preferred) – khung cảnh 1 (COVER_AT).
+ * Reel vừa đăng: Facebook cần vài giây xử lý video nên thử lại (tries = 3). Reel cũ: thử 1 lần (đổi bìa hàng loạt).
+ * Lỗi thì trả lý do (Reel vẫn còn, bìa là khung hình đầu).
  */
-export async function setReelCover(videoId: string, file: string): Promise<boolean> {
+export async function setReelCover(videoId: string, file: string, tries = 3): Promise<{ ok: boolean; error?: string }> {
   const cover = await extractCover(file);
-  if (!cover) return false;
+  if (!cover) return { ok: false, error: "Không cắt được khung hình từ video" };
   try {
     const img = await fs.readFile(cover);
     const base = Number(process.env.REELS_COMMENT_WAIT_MS ?? 5000);
-    for (let i = 0; i < 3; i++) {
+    let error = "";
+    for (let i = 0; i < tries; i++) {
       if (i) await new Promise((r) => setTimeout(r, base * 3));
       const fd = new FormData();
       fd.set("access_token", process.env.FB_PAGE_TOKEN ?? "");
       fd.set("is_preferred", "true");
       fd.set("source", new Blob([img], { type: "image/jpeg" }), "cover.jpg");
-      const res = await fetch(`${GRAPH()}/${videoId}/thumbnails`, { method: "POST", body: fd }).catch(() => null);
+      const res = await fetch(`${GRAPH()}/${videoId}/thumbnails`, { method: "POST", body: fd, signal: AbortSignal.timeout(60_000) }).catch((e) => (error = `Không gửi được: ${(e as Error).message}`, null));
       const json = (await res?.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } } | undefined;
-      if (res?.ok && !json?.error) return true;
-      if (i === 2) console.warn("[reels] đặt ảnh bìa lỗi:", json?.error?.message ?? `HTTP ${res?.status ?? "?"}`);
+      if (res?.ok && !json?.error) return { ok: true };
+      if (res) error = json?.error?.message ?? `HTTP ${res.status}`;
     }
-    return false;
+    console.warn(`[reels] đặt ảnh bìa ${videoId} lỗi:`, error);
+    return { ok: false, error: error.slice(0, 300) };
   } finally {
     await fs.rm(cover, { force: true }).catch(() => {});
   }
@@ -368,36 +371,76 @@ export async function publishReel(file: string, caption: string, comment?: strin
     }
   }
   // Ảnh bìa: khung cảnh 1 có ảnh + tên sản phẩm (bìa trong danh sách Reels của Trang)
-  await setReelCover(videoId, file).catch(() => false);
+  await setReelCover(videoId, file).catch(() => null);
   return videoId;
 }
 
 // ---------- Đổi ảnh bìa cho Reel đã đăng trước đây (bìa đen) ----------
 
+export type CoverStatus = "ok" | "skipped" | "failed";
 export interface CoverFixState {
   running: boolean;
+  /** Đã bấm Dừng: dừng sau Reel đang làm */
+  stopping: boolean;
   total: number;
   done: number;
   ok: number;
   /** Reel đã bị xoá trên Facebook / không tải được video */
   skipped: number;
   failed: number;
+  /** Reel đang làm */
+  current: string | null;
   startedAt: string | null;
   finishedAt: string | null;
   lastError: string | null;
+  /** Lý do dừng (bấm Dừng, lỗi liên tiếp…) */
+  stoppedReason: string | null;
 }
 const cfx = globalThis as unknown as { __reelCoverFix?: CoverFixState };
 export const coverFixState = (): CoverFixState =>
-  (cfx.__reelCoverFix ??= { running: false, total: 0, done: 0, ok: 0, skipped: 0, failed: 0, startedAt: null, finishedAt: null, lastError: null });
+  (cfx.__reelCoverFix ??= { running: false, stopping: false, total: 0, done: 0, ok: 0, skipped: 0, failed: 0, current: null, startedAt: null, finishedAt: null, lastError: null, stoppedReason: null });
 
-/** Số Reel đã đăng thành công (có mã video) */
-export async function postedReelIds(): Promise<string[]> {
+/** Kết quả đổi bìa từng Reel, lưu bền (kv_store) – để hiện trạng thái và lần sau bỏ qua Reel đã đổi xong */
+const coverKey = (videoId: string) => `reel-cover:${videoId}`;
+async function saveCoverResult(videoId: string, status: CoverStatus, error?: string) {
+  const value = JSON.stringify({ status, error: error ?? null, at: new Date().toISOString() });
+  await db.insert(kvStore).values({ key: coverKey(videoId), value, updatedAt: new Date() }).onConflictDoUpdate({ target: kvStore.key, set: { value, updatedAt: new Date() } });
+}
+
+export interface PostedReel {
+  videoId: string;
+  productId: number;
+  name: string;
+  postedAt: Date;
+  cover: { status: CoverStatus; error: string | null; at: string } | null;
+}
+
+/** Các Reel đã đăng thành công (mới nhất trước), kèm trạng thái đổi bìa */
+export async function postedReels(): Promise<PostedReel[]> {
   const rows = await db
-    .select({ id: socialPosts.externalId })
+    .select({ videoId: socialPosts.externalId, productId: socialPosts.productId, name: products.name, postedAt: socialPosts.postedAt })
     .from(socialPosts)
+    .innerJoin(products, eq(products.id, socialPosts.productId))
     .where(and(eq(socialPosts.channel, REEL_CHANNEL), isNotNull(socialPosts.externalId), isNull(socialPosts.error)))
     .orderBy(desc(socialPosts.postedAt));
-  return [...new Set(rows.map((r) => r.id!).filter(Boolean))];
+  const seen = new Set<string>();
+  const list = rows.filter((r) => r.videoId && !seen.has(r.videoId) && seen.add(r.videoId)) as (Omit<PostedReel, "cover"> & { videoId: string })[];
+  const kv = list.length ? await db.select().from(kvStore).where(inArray(kvStore.key, list.map((r) => coverKey(r.videoId)))) : [];
+  const by = new Map(kv.map((r) => [r.key, r.value]));
+  return list.map((r) => {
+    let cover: PostedReel["cover"] = null;
+    try {
+      cover = by.has(coverKey(r.videoId)) ? JSON.parse(by.get(coverKey(r.videoId))!) : null;
+    } catch {
+      cover = null;
+    }
+    return { ...r, cover };
+  });
+}
+
+/** Giữ tên cũ: mã video các Reel đã đăng */
+export async function postedReelIds(): Promise<string[]> {
+  return (await postedReels()).map((r) => r.videoId);
 }
 
 /** Tải video đã đăng từ Facebook về file tạm (trường "source" của video); không có (đã xoá) -> null */
@@ -414,47 +457,81 @@ async function downloadPosted(videoId: string, dir: string): Promise<string | nu
   return file;
 }
 
+/** Lỗi liên tiếp ngần này Reel thì tự dừng (thường là lỗi chung: token thiếu quyền, Facebook không cho đổi bìa…) */
+const MAX_FAILS_IN_ROW = 3;
+
 /**
- * Chạy 1 lần cho các Reel đăng trước khi sửa lỗi bìa đen: tải lại từng video từ Facebook, cắt khung cảnh 1 (giây
- * COVER_AT – ảnh + tên sản phẩm đúng như lúc đăng) và đặt làm ảnh bìa. Lần lượt từng Reel, nghỉ giữa các lần.
- * Chạy nền: gọi xong trả về ngay, tiến độ xem qua coverFixState().
+ * Đổi ảnh bìa cho Reel đã đăng: tải lại video từ Facebook, cắt khung cảnh 1 (giây COVER_AT – ảnh + tên sản phẩm đúng như
+ * lúc đăng) và đặt làm bìa. ids: chỉ các Reel này (bỏ trống = mọi Reel chưa đổi bìa xong). Chạy nền, lần lượt từng Reel;
+ * dừng được (stopCoverFix), tự dừng khi lỗi liên tiếp. Tiến độ: coverFixState(); kết quả từng Reel: postedReels().
  */
-export function startCoverFix(opts: { pauseMs?: number } = {}): CoverFixState {
+export function startCoverFix(opts: { ids?: string[]; pauseMs?: number } = {}): CoverFixState {
   const st = coverFixState();
   if (st.running) return st;
-  Object.assign(st, { running: true, total: 0, done: 0, ok: 0, skipped: 0, failed: 0, startedAt: new Date().toISOString(), finishedAt: null, lastError: null });
+  Object.assign(st, { running: true, stopping: false, total: 0, done: 0, ok: 0, skipped: 0, failed: 0, current: null, startedAt: new Date().toISOString(), finishedAt: null, lastError: null, stoppedReason: null });
   void (async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "reel-covers-"));
     try {
       if (!process.env.FB_PAGE_ID || !process.env.FB_PAGE_TOKEN) throw new Error("Chưa kết nối Trang Facebook (FB_PAGE_ID, FB_PAGE_TOKEN)");
       if (!(await hasFfmpeg())) throw new Error("Máy chủ chưa có ffmpeg để cắt ảnh bìa");
-      const ids = await postedReelIds();
+      const all = await postedReels();
+      const want = opts.ids?.length ? new Set(opts.ids) : null;
+      const ids = all.filter((r) => (want ? want.has(r.videoId) : r.cover?.status !== "ok")).map((r) => r.videoId);
       st.total = ids.length;
+      let failsInRow = 0;
       for (const id of ids) {
+        if (st.stopping) {
+          st.stoppedReason = "Đã dừng theo yêu cầu";
+          break;
+        }
+        st.current = id;
+        let status: CoverStatus;
+        let error: string | undefined;
         try {
           const file = await downloadPosted(id, dir);
-          if (!file) st.skipped++;
-          else {
-            if (await setReelCover(id, file)) st.ok++;
-            else st.failed++;
+          if (!file) {
+            status = "skipped";
+            error = "Reel đã bị xoá hoặc không tải được video từ Facebook";
+          } else {
+            const r = await setReelCover(id, file, 1);
+            status = r.ok ? "ok" : "failed";
+            error = r.error;
             await fs.rm(file, { force: true });
           }
         } catch (err) {
-          st.failed++;
-          st.lastError = (err as Error).message.slice(0, 200);
+          status = "failed";
+          error = (err as Error).message.slice(0, 300);
         }
+        st[status]++;
         st.done++;
-        await new Promise((r) => setTimeout(r, opts.pauseMs ?? 2000));
+        if (error && status === "failed") st.lastError = error;
+        await saveCoverResult(id, status, error).catch(() => {});
+        failsInRow = status === "failed" ? failsInRow + 1 : 0;
+        if (failsInRow >= MAX_FAILS_IN_ROW) {
+          st.stoppedReason = `Tự dừng: ${MAX_FAILS_IN_ROW} Reel liên tiếp lỗi (thường là lỗi chung, vd token thiếu quyền). Lỗi: ${st.lastError}`;
+          break;
+        }
+        if (!st.stopping) await new Promise((r) => setTimeout(r, opts.pauseMs ?? 2000));
       }
     } catch (err) {
-      st.lastError = (err as Error).message.slice(0, 200);
+      st.lastError = (err as Error).message.slice(0, 300);
+      st.stoppedReason = st.lastError;
     } finally {
       st.running = false;
+      st.stopping = false;
+      st.current = null;
       st.finishedAt = new Date().toISOString();
       await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
-      console.log(`[reels] đổi ảnh bìa Reel cũ: ${st.ok} xong, ${st.skipped} bỏ qua, ${st.failed} lỗi / ${st.total}`);
+      console.log(`[reels] đổi ảnh bìa Reel cũ: ${st.ok} xong, ${st.skipped} bỏ qua, ${st.failed} lỗi / ${st.total}${st.stoppedReason ? ` – ${st.stoppedReason}` : ""}`);
     }
   })();
+  return st;
+}
+
+/** Dừng đổi bìa: dừng sau Reel đang làm (không cắt ngang lúc đang gửi) */
+export function stopCoverFix(): CoverFixState {
+  const st = coverFixState();
+  if (st.running) st.stopping = true;
   return st;
 }
 
